@@ -1,37 +1,45 @@
 // ====================== Lambdas/amazoncard-topup/index.js ======================
 // Amazon Gift Card Topup Handler (AGCOD v2) - Standalone Lambda
-// Full logic moved from API/routes/amazoncard/topup.js
+// Uses centralized incentive config from layer
 
 const AWS = require('aws-sdk');
 const https = require('https');
 const { sql, logger, getDbConnection } = require('/opt/nodejs/helpers');
+const { getIncentiveConfig } = require('/opt/nodejs/conf/incentive-config');
 
 exports.handler = async (event) => {
     let pool = null;
 
     try {
-        const partnerId = process.env.AMAZON_PARTNER_ID;
-        const accessKey = process.env.AMAZON_ACCESS_KEY_ID;
-        const secretKey = process.env.AMAZON_SECRET_ACCESS_KEY;
-        const budget = parseFloat(process.env.BUDGET);
-        const currency = (process.env.AMAZON_CURRENCY || 'GBP').toUpperCase();
-        const isSandbox = process.env.AMAZON_SANDBOX === 'true';
+        // Load config from SSM via layer (with caching)
+        const config = await getIncentiveConfig();
 
-        if (!partnerId) throw new Error('AMAZON_PARTNER_ID is required');
+        const partnerId = config.AMAZON_PARTNER_ID;
+        const accessKey = config.AMAZON_ACCESS_KEY_ID;
+        const secretKey = config.AMAZON_SECRET_ACCESS_KEY;
+        const brand     = config.AMAZON_BRAND || 'Club Madeira';
+        const currency  = (config.AMAZON_CURRENCY || 'GBP').toUpperCase();
+        const isSandbox = (config.AMAZON_SANDBOX || 'true') === 'true';
+
+        // Budget remains as a direct environment variable
+        const budget = parseFloat(process.env.BUDGET);
+
+        if (!partnerId) throw new Error('AMAZON_PARTNER_ID is required (from incentive config)');
         if (!accessKey || !secretKey) {
-            throw new Error('AMAZON_ACCESS_KEY_ID and AMAZON_SECRET_ACCESS_KEY are required');
+            throw new Error('AMAZON_ACCESS_KEY_ID and AMAZON_SECRET_ACCESS_KEY are required (from incentive config)');
         }
         if (isNaN(budget) || budget <= 0) {
-            throw new Error('BUDGET must be a positive number');
+            throw new Error('BUDGET must be a positive number (set as environment variable)');
         }
 
         logger.info('Starting Amazon Gift Card Topup', {
             budget: `£${budget}`,
             environment: isSandbox ? 'SANDBOX' : 'PRODUCTION',
-            currency
+            currency,
+            brand
         });
 
-        // Card generation logic
+        // Card generation logic (unchanged)
         let cards = [];
         let remaining = budget;
 
