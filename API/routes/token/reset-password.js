@@ -1,5 +1,5 @@
 // API/routes/token/reset-password.js
-// Consolidated Password Reset - actions: 'request' | 'verify'
+// Fully refactored to use SystemOTPs table (no placeholders)
 
 const { logger, sql } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
@@ -29,30 +29,50 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
         }
 
-        // Rate limit using passed pool
+        // Rate limit + cleanup expired password reset tokens
         const threshold = new Date(Date.now() + 10 * 60 * 1000);
+
+        await pool.request()
+            .input('email', sql.VarChar(255), email.toLowerCase())
+            .input('token_type', sql.VarChar(50), 'password_reset')
+            .query(`
+                DELETE FROM SystemOTPs 
+                WHERE token_type = @token_type 
+                  AND JSON_VALUE(payload, '$.email') = @email 
+                  AND expires_at < GETDATE()
+            `);
+
         const recent = await pool.request()
-            .input('user_id', sql.VarChar, user.user_id)
+            .input('user_id', sql.Char(8), user.user_id)
             .input('threshold', sql.DateTime, threshold)
-            .query(`SELECT TOP 1 1 FROM Otps WHERE user_id = @user_id AND expires_at > @threshold`);
+            .input('token_type', sql.VarChar(50), 'password_reset')
+            .query(`
+                SELECT TOP 1 1 FROM SystemOTPs 
+                WHERE user_id = @user_id 
+                  AND token_type = @token_type 
+                  AND expires_at > @threshold
+            `);
 
         if (recent.recordset.length > 0) {
             return { statusCode: 429, body: { status: 'error', error_message: 'Please wait before requesting a new OTP' } };
         }
 
         const otp = generatePin();
-        const otpToken = require('crypto').randomUUID();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
+        const payload = JSON.stringify({
+            email: email.toLowerCase()
+        });
+
         await pool.request()
-            .input('otp_id', sql.VarChar, otpToken)
-            .input('user_id', sql.VarChar, user.user_id)
-            .input('otp', sql.VarChar, otp)
-            .input('email', sql.VarChar, email.toLowerCase())
+            .input('user_id', sql.Char(8), user.user_id)
+            .input('otp', sql.VarChar(10), otp)
+            .input('token_type', sql.VarChar(50), 'password_reset')
             .input('expires_at', sql.DateTime, expiresAt)
+            .input('payload', sql.NVarChar(sql.MAX), payload)
             .query(`
-                INSERT INTO Otps (otp_id, user_id, otp, email, expires_at)
-                VALUES (@otp_id, @user_id, @otp, @email, @expires_at)
+                INSERT INTO SystemOTPs (user_id, otp, token_type, created_at, expires_at, payload)
+                VALUES (@user_id, @otp, @token_type, GETDATE(), @expires_at, @payload)
             `);
 
         if (!user.phone_number) {
@@ -70,13 +90,13 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
 
         return {
             statusCode: 200,
-            body: { status: 'success', message: 'OTP sent', otp_token: otpToken }
+            body: { status: 'success', message: 'OTP sent' }
         };
 
     } else if (action === 'verify') {
-        const { email, otp, new_password, confirm_new_password, otp_token } = body;
+        const { email, otp, new_password, confirm_new_password } = body;
 
-        if (!email || !otp || !new_password || !confirm_new_password || !otp_token) {
+        if (!email || !otp || !new_password || !confirm_new_password) {
             return { statusCode: 400, body: { status: 'error', error_message: 'Missing required fields' } };
         }
 
@@ -85,16 +105,27 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
         }
 
         const result = await pool.request()
-            .input('otp_id', sql.VarChar, otp_token)
-            .input('otp', sql.VarChar, otp)
+            .input('otp', sql.VarChar(10), otp)
+            .input('token_type', sql.VarChar(50), 'password_reset')
             .input('email', sql.VarChar, email.toLowerCase())
-            .query(`SELECT user_id, expires_at FROM Otps WHERE otp_id = @otp_id AND otp = @otp AND email = @email`);
+            .query(`
+                SELECT otp_id, user_id, expires_at, payload 
+                FROM SystemOTPs 
+                WHERE otp = @otp 
+                  AND token_type = @token_type
+            `);
 
         if (result.recordset.length === 0) {
             return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired OTP' } };
         }
 
         const record = result.recordset[0];
+        const recordPayload = JSON.parse(record.payload || '{}');
+
+        if (recordPayload.email !== email.toLowerCase()) {
+            return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired OTP' } };
+        }
+
         if (new Date() > new Date(record.expires_at)) {
             return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired OTP' } };
         }
@@ -109,8 +140,8 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
         await updateUserPassword(userId, hashedPassword);
 
         await pool.request()
-            .input('otp_id', sql.VarChar, otp_token)
-            .query(`DELETE FROM Otps WHERE otp_id = @otp_id`);
+            .input('otp_id', sql.Int, record.otp_id)
+            .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
 
         const token = await signJWT({
             user_id: user.user_id,

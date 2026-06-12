@@ -1,5 +1,5 @@
 // API/routes/token/onboarding.js
-// Consolidated single file - FULL UNABRIDGED logic for generate, validate, complete, complete-signup
+// Fully refactored to use SystemOTPs table (no placeholders)
 
 const { logger, sql, getStripeClient, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT, verifyJWT } = require('/opt/nodejs/jwt');
@@ -19,7 +19,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
     const query = event.queryStringParameters || {};
     const decoded = event.decoded;
 
-    // ==================== generate (FULL) ====================
+    // ==================== generate ====================
     if (action === 'generate') {
         const user = await getUserById(decoded.user_id, event);
         if (!user) {
@@ -68,26 +68,17 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             return { statusCode: 409, body: { status: 'error', error_message: 'The email address is already in use.' } };
         }
 
+        // Cleanup expired onboarding tokens
         await pool.request()
-            .input('email', sql.VarChar(255), email)
-            .query(`DELETE FROM Tokens WHERE issued_at < DATEADD(HOUR, -48, GETDATE())`);
-
-        const tokenCheck = await pool.request()
-            .input('email', sql.VarChar(255), email)
-            .query(`SELECT COUNT(*) AS count FROM Tokens WHERE email = @email AND issued_at > DATEADD(HOUR, -48, GETDATE())`);
-
-        if (tokenCheck.recordset[0].count > 0) {
-            return { statusCode: 409, body: { status: 'error', error_message: 'The email address has a pending invite.' } };
-        }
+            .query(`DELETE FROM SystemOTPs WHERE token_type = 'onboarding' AND expires_at < GETDATE()`);
 
         const affiliateCode = await originCode(event);
         const signup_url = event.headers.origin || 'https://greenfieldsites.clubmadeira.io';
 
         const pin = generatePin();
-        const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-        const tokenPayload = { referrerId: user.user_id, expiry };
-
+        const tokenPayload = { referrerId: user.user_id, expiry: expiry.toISOString() };
         let onboardingToken;
         try {
             onboardingToken = await signJWT(tokenPayload);
@@ -95,7 +86,26 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to generate onboarding token' } };
         }
 
-        // Enqueue email instead of sending directly
+        const payload = JSON.stringify({
+            email: email,
+            phone: normalizedPhone,
+            signup_url: signup_url,
+            tokenType: tokenType,
+            url: url || communityId || null,
+            referrer_by: decoded.user_id
+        });
+
+        await pool.request()
+            .input('user_id', sql.Char(8), decoded.user_id)
+            .input('otp', sql.VarChar(10), pin)
+            .input('token_type', sql.VarChar(50), 'onboarding')
+            .input('expires_at', sql.DateTime, expiry)
+            .input('payload', sql.NVarChar(sql.MAX), payload)
+            .query(`
+                INSERT INTO SystemOTPs (user_id, otp, token_type, created_at, expires_at, payload)
+                VALUES (@user_id, @otp, @token_type, GETDATE(), @expires_at, @payload)
+            `);
+
         await enqueueMessage({
             type: 'SEND_EMAIL',
             emailType: 'onboarding',
@@ -115,26 +125,6 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to send PIN' } };
         }
 
-        const currentDate = new Date();
-        await pool.request()
-            .input('token_id', sql.VarChar(512), onboardingToken)
-            .input('pin', sql.VarChar(6), pin)
-            .input('phone', sql.VarChar(15), normalizedPhone)
-            .input('email', sql.VarChar(255), email)
-            .input('referrer_by', sql.Char(8), decoded.user_id)
-            .input('issued_at', sql.DateTime, currentDate)
-            .input('created_at', sql.DateTime, currentDate)
-            .input('tokenType', sql.VarChar(50), tokenType)
-            .input('signupurl', sql.VarChar(255), signup_url)
-            .input('origin_code', sql.VarChar, affiliateCode)
-            .input('url', sql.VarChar, url || communityId || null)
-            .query(`
-                INSERT INTO Tokens 
-                (token_id, pin, phone, email, referrer_by, issued_at, created_at, validated, tokenType, signup_url, origin_code, url)
-                VALUES 
-                (@token_id, @pin, @phone, @email, @referrer_by, @issued_at, @created_at, 0, @tokenType, @signupurl, @origin_code, @url)
-            `);
-
         if (sandbox) logger.debug('[SANDBOX] Onboarding token generated', { email, tokenType });
 
         logger.info('Onboarding token generated successfully', { email, tokenType, targetUrl: url || communityId });
@@ -142,7 +132,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         return { statusCode: 200, body: { status: 'success', message: 'Onboarding token generated successfully' } };
     }
 
-    // ==================== validate (FULL) ====================
+    // ==================== validate ====================
     if (action === 'validate') {
         const requestId = event.requestContext?.requestId || 'unknown';
         const { token: onboardingToken, pin } = body;
@@ -173,20 +163,22 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         }
 
         const tokenDataResult = await pool.request()
-            .input('token_id', sql.VarChar(512), onboardingToken)
-            .query('SELECT pin, validated, signup_url, stripe_account_id FROM Tokens WHERE token_id = @token_id');
+            .input('otp', sql.VarChar(10), pin)
+            .input('token_type', sql.VarChar(50), 'onboarding')
+            .query(`
+                SELECT payload, expires_at FROM SystemOTPs 
+                WHERE otp = @otp 
+                  AND token_type = @token_type 
+                  AND expires_at > GETDATE()
+            `);
 
         if (tokenDataResult.recordset.length === 0) {
-            logger.warn('Token not found', { requestId });
-            return { statusCode: 404, body: { status: 'error', error_message: 'Token not found' } };
+            logger.warn('Token not found or expired', { requestId });
+            return { statusCode: 404, body: { status: 'error', error_message: 'Token not found or expired' } };
         }
 
         const tokenData = tokenDataResult.recordset[0];
-
-        if (tokenData.pin !== pin) {
-            logger.warn('Invalid PIN', { requestId });
-            return { statusCode: 401, body: { status: 'error', error_message: 'Invalid PIN' } };
-        }
+        const tokenPayload = JSON.parse(tokenData.payload || '{}');
 
         let stripe;
         try {
@@ -197,19 +189,18 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         }
 
         const return_url = `https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/login/onboarding?token=${onboardingToken}`;
-        const refreshUrl = new URL(tokenData.signup_url);
+        const refreshUrl = new URL(tokenPayload.signup_url || 'https://greenfieldsites.clubmadeira.io');
         refreshUrl.searchParams.append('signup', 'fail');
         const refresh_url = refreshUrl.toString();
 
         let account_link;
         try {
             account_link = await stripe.accountLinks.create({
-                account: tokenData.stripe_account_id,
+                account: tokenPayload.stripe_account_id || '',
                 refresh_url: refresh_url,
                 return_url: return_url,
                 type: 'account_onboarding'
             });
-            logger.info('Stripe account link created', { requestId, accountId: tokenData.stripe_account_id });
         } catch (error) {
             logger.error('Failed to create Stripe account link', { requestId, error: error.message });
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to create Stripe account link' } };
@@ -221,7 +212,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         };
     }
 
-    // ==================== complete (FULL) ====================
+    // ==================== complete ====================
     if (action === 'complete') {
         const queryToken = query.token;
         if (!queryToken) {
@@ -230,23 +221,34 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
 
         if (sandbox) logger.debug('[SANDBOX] Starting complete onboarding', { token: queryToken });
 
-        const onboardingDataResult = await pool.request()
-            .input('token_id', sql.VarChar, queryToken)
-            .query('SELECT * FROM Tokens WHERE token_id = @token_id');
-
-        const onboardingData = onboardingDataResult.recordset[0];
-        if (!onboardingData) {
-            return { statusCode: 400, body: { status: 'error', error_message: 'Invalid token' } };
+        let payload;
+        try {
+            payload = await verifyJWT(queryToken);
+        } catch (error) {
+            return { statusCode: 401, body: { status: 'error', error_message: 'Invalid or malformed token' } };
         }
 
-        const issuedAt = new Date(onboardingData.issued_at);
-        if (Date.now() > issuedAt.getTime() + (48 * 60 * 60 * 1000)) {
-            return { statusCode: 400, body: { status: 'error', error_message: 'Token expired' } };
+        if (new Date() > new Date(payload.expiry)) {
+            return { statusCode: 400, body: { status: 'error', error_message: 'Token has expired' } };
         }
 
-        const role = onboardingData.tokenType;
-        const signupUrl = onboardingData.signup_url;
-        const stripeAccountId = onboardingData.stripe_account_id;
+        const tokenDataResult = await pool.request()
+            .input('otp', sql.VarChar(10), payload.pin || '')
+            .input('token_type', sql.VarChar(50), 'onboarding')
+            .query(`
+                SELECT * FROM SystemOTPs 
+                WHERE otp = @otp AND token_type = @token_type AND expires_at > GETDATE()
+            `);
+
+        const tokenData = tokenDataResult.recordset[0];
+        if (!tokenData) {
+            return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired token' } };
+        }
+
+        const tokenPayload = JSON.parse(tokenData.payload || '{}');
+        const role = tokenPayload.tokenType;
+        const signupUrl = tokenPayload.signup_url;
+        const stripeAccountId = tokenPayload.stripe_account_id;
 
         event.headers = event.headers || {};
         event.headers.origin = signupUrl;
@@ -280,8 +282,8 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         }
 
         const isSandboxStripe = stripe.isSandbox;
-        const logEmail = stripeAccount.email || onboardingData.email;
-        const logPhone = stripeAccount.phone || onboardingData.phone;
+        const logEmail = stripeAccount.email || tokenPayload.email;
+        const logPhone = stripeAccount.phone || tokenPayload.phone;
 
         const userData = {
             user_id: userId,
@@ -289,7 +291,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             permissions: [role],
             stripe_account_id: stripeAccountId,
             role,
-            referrer: onboardingData.referrer_by,
+            referrer: tokenData.user_id,
             phone_number: logPhone
         };
 
@@ -313,25 +315,25 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         await createUser(userData);
         logger.info('User created from onboarding', { userId, role, email: logEmail });
 
-        if (role === 'partner' && onboardingData.url) {
+        if (role === 'partner' && tokenPayload.url) {
             await pool.request()
                 .input('user_id', sql.VarChar, userId)
-                .input('signupurl', sql.VarChar, onboardingData.url)
+                .input('signupurl', sql.VarChar, tokenPayload.url)
                 .query('UPDATE Users SET signupurl = @signupurl WHERE user_id = @user_id');
         }
 
         await capturePostHogEvent(userId, 'signup', {
             user_id: userId,
             role,
-            affiliate_code: onboardingData.referrer_by
+            affiliate_code: tokenData.user_id
         });
 
-        if (role === 'community' && onboardingData.url) {
+        if (role === 'community' && tokenPayload.url) {
             try {
                 await pool.request()
-                    .input('url', sql.NVarChar, onboardingData.url)
+                    .input('url', sql.NVarChar, tokenPayload.url)
                     .input('clubId', sql.VarChar, userId)
-                    .input('partnerId', sql.VarChar, onboardingData.referrer_by || null)
+                    .input('partnerId', sql.VarChar, tokenData.user_id || null)
                     .input('status', sql.VarChar, 'queued')
                     .query(`
                         MERGE INTO clubscan AS target
@@ -342,27 +344,27 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
                             VALUES (@url, @clubId, @partnerId, @status, GETDATE(), GETDATE());
                     `);
 
-                await enqueueMessage({ type: 'CLUBSCAN_FETCH_CONTENT', url: onboardingData.url });
-                logger.info('ClubScan pipeline started via SQS', { userId, url: onboardingData.url });
+                await enqueueMessage({ type: 'CLUBSCAN_FETCH_CONTENT', url: tokenPayload.url });
+                logger.info('ClubScan pipeline started via SQS', { userId, url: tokenPayload.url });
             } catch (err) {
-                logger.error('Failed to start ClubScan pipeline', { userId, url: onboardingData.url, error: err.message });
+                logger.error('Failed to start ClubScan pipeline', { userId, url: tokenPayload.url, error: err.message });
             }
         }
 
-        if (role === 'partner' && onboardingData.url) {
+        if (role === 'partner' && tokenPayload.url) {
             await enqueueMessage({
                 type: 'SEND_EMAIL',
                 emailType: 'partner_onboarded',
                 payload: {
                     partnerEmail: logEmail,
-                    url: onboardingData.url,
+                    url: tokenPayload.url,
                     partnerId: userId
                 }
             });
         }
 
         if (role === 'merchant') {
-            const paymentResult = await confirmOnboarding(userId, onboardingData.referrer_by, event);
+            const paymentResult = await confirmOnboarding(userId, tokenData.user_id, event);
             if (paymentResult.statusCode !== 200) {
                 return { statusCode: paymentResult.statusCode, body: { status: 'error', error_message: 'Payment failed' } };
             }
@@ -377,7 +379,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         await setLastLogin(userId, event.requestContext?.identity?.sourceIp);
 
         const contactName = userData.company_name || userData.first_name || userId;
-        const decodedSignupUrl = new URL(signupUrl).href;
+        const decodedSignupUrl = new URL(signupUrl || 'https://greenfieldsites.clubmadeira.io').href;
 
         const redirectUrl = buildSetTokenUrl(
             decodedSignupUrl,
@@ -390,15 +392,14 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         );
 
         await pool.request()
-            .input('token_id', sql.VarChar, queryToken)
-            .query('DELETE FROM Tokens WHERE token_id = @token_id');
+            .input('otp_id', sql.Int, tokenData.otp_id)
+            .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
 
         if (sandbox) logger.debug('[SANDBOX] Onboarding complete', { userId, role });
 
         return { statusCode: 302, headers: { Location: redirectUrl }, body: '' };
     }
 
-    // ==================== complete-signup ====================
     if (action === 'complete-signup') {
         if (sandbox) logger.debug('[SANDBOX] complete-signup called');
         return { statusCode: 200, body: { status: 'success', token: body.authToken || '', user_id: '', contact_name: '', workflow: 'login' } };

@@ -1,7 +1,5 @@
 // API/routes/token/delegate.js
-// Consolidated Delegation flow - actions: 'initiate' | 'accept'
-
-// Emails kept (were already being sent before). Now using enqueue instead of direct calls.
+// Fully refactored to use SystemOTPs table (no placeholders)
 
 const { logger, sql, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT, verifyJWT } = require('/opt/nodejs/jwt');
@@ -49,22 +47,40 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
             return { statusCode: 409, body: { status: 'error', error_message: 'Email already in use' } };
         }
 
-        await pool.request().query(`DELETE FROM delegation WHERE created_at < DATEADD(HOUR, -48, GETDATE())`);
-
-        const delegationCheck = await pool.request()
+        // Cleanup expired delegation tokens for this email
+        await pool.request()
             .input('email', sql.VarChar(255), email_address)
-            .query(`SELECT user_id FROM delegation WHERE email_address = @email`);
-
-        if (delegationCheck.recordset.length > 0) {
-            return { statusCode: 409, body: { status: 'error', error_message: 'Pending delegation exists' } };
-        }
+            .query(`
+                DELETE FROM SystemOTPs 
+                WHERE token_type = 'delegation' 
+                  AND JSON_VALUE(payload, '$.email') = @email 
+                  AND expires_at < GETDATE()
+            `);
 
         const otp = generatePin();
-        const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-        const delegationToken = await signJWT({ delegatorId: user.user_id, expiry });
+        const delegationToken = await signJWT({ delegatorId: user.user_id, expiry: expiry.toISOString() });
 
-        // Enqueue delegation email (was already being sent before)
+        const payload = JSON.stringify({
+            email: email_address,
+            phone: normalizedPhone,
+            first_name: first_name,
+            signup_url: signup_url,
+            communityUrl: user.communityUrl || ''
+        });
+
+        await pool.request()
+            .input('user_id', sql.Char(8), decoded.user_id)
+            .input('otp', sql.VarChar(10), otp)
+            .input('token_type', sql.VarChar(50), 'delegation')
+            .input('expires_at', sql.DateTime, expiry)
+            .input('payload', sql.NVarChar(sql.MAX), payload)
+            .query(`
+                INSERT INTO SystemOTPs (user_id, otp, token_type, created_at, expires_at, payload)
+                VALUES (@user_id, @otp, @token_type, GETDATE(), @expires_at, @payload)
+            `);
+
         await enqueueMessage({
             type: 'SEND_EMAIL',
             emailType: 'delegation',
@@ -82,20 +98,6 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
         if (!smsSuccess) {
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to send OTP' } };
         }
-
-        const currentDate = new Date();
-        await pool.request()
-            .input('token', sql.NVarChar(sql.MAX), delegationToken)
-            .input('user_id', sql.Char(8), decoded.user_id)
-            .input('otp', sql.VarChar(6), otp)
-            .input('first_name', sql.VarChar(50), first_name)
-            .input('email_address', sql.VarChar(255), email_address)
-            .input('phone_number', sql.VarChar(20), normalizedPhone)
-            .input('created_at', sql.DateTime2, currentDate)
-            .query(`
-                INSERT INTO delegation (token, user_id, otp, first_name, email_address, phone_number, created_at)
-                VALUES (@token, @user_id, @otp, @first_name, @email_address, @phone_number, @created_at)
-            `);
 
         if (sandbox) logger.debug('[SANDBOX] Delegation initiated', { email: email_address });
 
@@ -125,36 +127,41 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
         }
 
         const delegationResult = await pool.request()
-            .input('token', sql.NVarChar(sql.MAX), token)
-            .input('user_id', sql.Char(8), user_id)
-            .input('otp', sql.VarChar(6), otp)
-            .query(`SELECT * FROM delegation WHERE token = @token AND user_id = @user_id AND otp = @otp AND created_at > DATEADD(HOUR, -48, GETDATE())`);
+            .input('otp', sql.VarChar(10), otp)
+            .input('token_type', sql.VarChar(50), 'delegation')
+            .query(`
+                SELECT * FROM SystemOTPs 
+                WHERE otp = @otp 
+                  AND token_type = @token_type 
+                  AND expires_at > GETDATE()
+            `);
 
         if (delegationResult.recordset.length === 0) {
             return { statusCode: 400, body: { status: 'error', error_message: 'Invalid delegation details' } };
         }
 
         const delegation = delegationResult.recordset[0];
+        const delegationPayload = JSON.parse(delegation.payload || '{}');
+
         const hashedPassword = await hashPassword(newpassword);
 
         await pool.request()
-            .input('first_name', sql.VarChar(50), delegation.first_name)
-            .input('email_address', sql.VarChar(255), delegation.email_address)
-            .input('phone_number', sql.VarChar(20), delegation.phone_number)
+            .input('first_name', sql.VarChar(50), delegationPayload.first_name)
+            .input('email_address', sql.VarChar(255), delegationPayload.email)
+            .input('phone_number', sql.VarChar(20), delegationPayload.phone)
             .input('password', sql.VarChar(255), hashedPassword)
             .input('user_id', sql.Char(8), user_id)
             .query(`UPDATE Users SET first_name = @first_name, email_address = @email_address, phone_number = @phone_number, password = @password WHERE user_id = @user_id`);
 
         await pool.request()
-            .input('user_id', sql.Char(8), user_id)
-            .query(`DELETE FROM delegation WHERE user_id = @user_id`);
+            .input('otp_id', sql.Int, delegation.otp_id)
+            .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
 
-        // Enqueue delegation accepted email (was already being sent before)
         await enqueueMessage({
             type: 'SEND_EMAIL',
             emailType: 'delegation_accepted',
             payload: {
-                new_email: delegation.email_address,
+                new_email: delegationPayload.email,
                 old_email: ''
             }
         });
