@@ -3,7 +3,6 @@
 
 const { logger, sql, getStripeClient, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT, verifyJWT } = require('/opt/nodejs/jwt');
-const { sendEmail, sendCPOnboardedEmail } = require('./email');
 const { sendSmsTextmagic } = require('/opt/nodejs/sms');
 
 const {
@@ -18,11 +17,10 @@ const { generateUserId } = require('/opt/nodejs/auth-utils');
 module.exports = async (event, { action, pool, sandbox = false }) => {
     const body = event.body ? JSON.parse(event.body) : {};
     const query = event.queryStringParameters || {};
+    const decoded = event.decoded;
 
     // ==================== generate (FULL) ====================
     if (action === 'generate') {
-        const decoded = event.decoded;
-
         const user = await getUserById(decoded.user_id, event);
         if (!user) {
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
@@ -62,7 +60,6 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             }
         }
 
-        // Use passed pool
         const userCheck = await pool.request()
             .input('email', sql.VarChar(255), email)
             .query(`SELECT COUNT(*) AS count FROM Users WHERE email_address = @email`);
@@ -98,10 +95,19 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to generate onboarding token' } };
         }
 
-        const emailResult = await sendEmail(email, onboardingToken, normalizedPhone, signup_url, tokenType, url);
-        if (!emailResult.success) {
-            return { statusCode: 500, body: { status: 'error', error_message: 'Failed to send email' } };
-        }
+        // Enqueue email instead of sending directly
+        await enqueueMessage({
+            type: 'SEND_EMAIL',
+            emailType: 'onboarding',
+            payload: {
+                email,
+                token: onboardingToken,
+                phone: normalizedPhone,
+                signup_url,
+                tokenType,
+                url
+            }
+        });
 
         const smsMessage = `Your onboarding PIN is ${pin}. It expires in 48 hours.`;
         const smsSuccess = await sendSmsTextmagic(normalizedPhone, smsMessage);
@@ -344,7 +350,15 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         }
 
         if (role === 'partner' && onboardingData.url) {
-            await sendCPOnboardedEmail(logEmail, onboardingData.url, userId);
+            await enqueueMessage({
+                type: 'SEND_EMAIL',
+                emailType: 'partner_onboarded',
+                payload: {
+                    partnerEmail: logEmail,
+                    url: onboardingData.url,
+                    partnerId: userId
+                }
+            });
         }
 
         if (role === 'merchant') {
