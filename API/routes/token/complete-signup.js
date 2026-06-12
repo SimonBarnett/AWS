@@ -1,8 +1,7 @@
 // ====================== routes/token/complete-signup.js ======================
-const { logger, getDbConnection } = require('/opt/nodejs/helpers');
+const { logger } = require('/opt/nodejs/helpers');
 const { verifyJWT } = require('/opt/nodejs/jwt');
 
-// Local helpers
 const { 
     getUserById, 
     isValidPassword, 
@@ -12,7 +11,7 @@ const {
     getLastLogin 
 } = require('./helpers');
 
-module.exports = async (event) => {
+module.exports = async (event, { pool, sandbox = false } = {}) => {
     const body = event.body ? JSON.parse(event.body) : {};
 
     if (!body.signup_url) {
@@ -23,45 +22,29 @@ module.exports = async (event) => {
     try {
         const token = body.authToken;
         if (!token) throw new Error('No auth token');
-
         decoded = await verifyJWT(token);
     } catch (err) {
-        return {
-            statusCode: 200,
-            body: { status: 'error', error_message: 'Invalid token' }
-        };
+        return { statusCode: 200, body: { status: 'error', error_message: 'Invalid token' } };
     }
 
     const userId = decoded.user_id;
     const user = await getUserById(userId, event);
     if (!user) {
-        return {
-            statusCode: 200,
-            body: { status: 'error', error_message: 'User not found' }
-        };
+        return { statusCode: 200, body: { status: 'error', error_message: 'User not found' } };
     }
 
     const { password, confirm_password, email, phone } = body;
 
     if (!password || !confirm_password) {
-        return {
-            statusCode: 200,
-            body: { status: 'error', error_message: 'Password and confirm_password are required' }
-        };
+        return { statusCode: 200, body: { status: 'error', error_message: 'Password and confirm_password are required' } };
     }
 
     if (password !== confirm_password) {
-        return {
-            statusCode: 200,
-            body: { status: 'error', error_message: 'Passwords do not match' }
-        };
+        return { statusCode: 200, body: { status: 'error', error_message: 'Passwords do not match' } };
     }
 
     if (!isValidPassword(password)) {
-        return {
-            statusCode: 200,
-            body: { status: 'error', error_message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' }
-        };
+        return { statusCode: 200, body: { status: 'error', error_message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' } };
     }
 
     let updateEmail = null;
@@ -105,8 +88,7 @@ module.exports = async (event) => {
 
     if (lastLoginMessage) responseBody.lastlogin = lastLoginMessage;
 
-    return {
-        statusCode: 200,
-        body: responseBody
-    };
+    if (sandbox) logger.debug('[SANDBOX] complete-signup executed', { userId });
+
+    return { statusCode: 200, body: responseBody };
 };

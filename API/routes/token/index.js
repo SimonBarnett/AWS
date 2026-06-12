@@ -1,9 +1,10 @@
 // API/routes/token/index.js
-// Token / Auth Routes Sub-Router - Updated with pool + action pattern
+// Token / Auth Routes Sub-Router
+// All handlers now receive { pool, sandbox } from here. No closes inside routes.
 
 const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
-// Consolidated route handlers
+// All token route handlers
 const claimsRoute = require('./claims');
 const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
@@ -20,16 +21,15 @@ module.exports = async (event) => {
 
     logger.debug('Token router received request', { path, method });
 
-    // Create pool once per request
     const pool = await getDbConnection();
     const sandbox = process.env.SANDBOX === 'true';
 
     try {
         if (path === '/login/claims' && method === 'GET') {
-            return await claimsRoute(event);
+            return await claimsRoute(event, { pool, sandbox });
 
         } else if (path === '/login' && method === 'POST') {
-            return await loginRoute(event);
+            return await loginRoute(event, { pool, sandbox });
 
         } else if (path === '/login/reset-password' && method === 'POST') {
             return await resetPasswordRoute(event, { action: 'request', pool, sandbox });
@@ -44,10 +44,10 @@ module.exports = async (event) => {
             return await onboardingRoute(event, { action: 'complete-signup', pool, sandbox });
 
         } else if (path === '/login/tos' && method === 'GET') {
-            return await tosRoute(event);
+            return await tosRoute(event, { pool, sandbox });
 
         } else if (path === '/login/add-role' && method === 'POST') {
-            return await addRoleRoute(event);
+            return await addRoleRoute(event, { pool, sandbox });
 
         } else if (path === '/login/generate-onboarding-token' && method === 'POST') {
             return await onboardingRoute(event, { action: 'generate', pool, sandbox });
