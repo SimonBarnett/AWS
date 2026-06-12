@@ -1,19 +1,16 @@
 # API Layer
 
 ## Overview
-Main HTTP-facing layer. Handles all requests coming through API Gateway.
+Main HTTP API layer.
 
 ## Structure
-
-- `routes/token/` — Auth, onboarding, delegation, password reset, deletion
-- `routes/ui/` — Dashboard data, metrics, charts, API keys
-- `helpers.js` — API-specific helpers
+- `routes/token/` — Auth & user lifecycle
+- `routes/ui/` — Dashboard data
 
 ## Key Patterns
-- All routes receive `{ pool, sandbox }` from the main router
-- No direct DB connections inside routes (use passed pool)
-- Email sending goes through SQS (`enqueueMessage`)
-- OTPs stored in `SystemOTPs` table
+- Shared DB pool passed from router
+- Email via SQS
+- OTPs in `SystemOTPs` table
 
 See subfolder READMEs for details.
 
