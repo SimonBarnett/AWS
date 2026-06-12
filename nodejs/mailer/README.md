@@ -1,18 +1,14 @@
 # mailer
 
 ## Overview
-Email sending abstraction used across the platform.
+Email sending abstraction.
 
 ## Purpose
-- Provide consistent interface for sending emails
-- Support HTML, text, attachments, and inline images
-- Abstract underlying email service (SES or similar)
+- Consistent interface for transactional emails
+- Support for HTML, attachments, and inline images
 
 ## Usage
-Mainly called from `SQS/madeira-sqs-catalogue/emails.js`.
-
-## Notes
-Email sending is intentionally moved out of the API layer for better performance and reliability.
+Mainly called from SQS email handler.
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
