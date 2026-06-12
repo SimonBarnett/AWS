@@ -1,21 +1,24 @@
 # SQS Handlers (`sqs/`)
 
 ## Overview
-Handlers for specific SQS message types.
+This folder contains the individual handlers for different SQS message types.
 
-## Handlers
+## Handler Summary
 
-| File | Message Type | Purpose |
-|------|--------------|---------|
-| `onboarding.js` | `ONBOARDING` | Background onboarding work |
-| `generate-review.js` | `CLUBSCAN_GENERATE_REVIEW` | Review generation |
-| `generate-categories.js` | `CLUBSCAN_GENERATE_CATEGORIES` | Category generation |
+| File | Message Type | Main Responsibility |
+|------|--------------|---------------------|
+| `onboarding.js` | `ONBOARDING` | Post-onboarding background work |
+| `generate-review.js` | `CLUBSCAN_GENERATE_REVIEW` | Generate review content |
+| `generate-categories.js` | `CLUBSCAN_GENERATE_CATEGORIES` | Generate categories |
 | `build-catalog.js` | `CLUBSCAN_BUILD_CATALOG` | Final catalog assembly |
-| `notify.js` | `CLUBSCAN_NOTIFY` | Notifications |
-| `process-update.js` | `CATEGORY_UPDATE` | Content updates |
+| `notify.js` | `CLUBSCAN_NOTIFY` | Send notifications |
+| `process-update.js` | `CATEGORY_UPDATE` | Handle updates |
 
-## Pattern
-Receive payload → Use shared pool → Do work → Enqueue next step if needed.
+## Common Implementation Pattern
+1. Receive message with `pool` and `sandbox`
+2. Perform database work using `executeWithRetry`
+3. Enqueue follow-up messages when needed
+4. Handle errors and report partial failures
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
