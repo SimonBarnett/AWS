@@ -1,9 +1,8 @@
 // ====================== routes/ui/index.js ======================
 // UI Routes Sub-Router
-// Called by the main orchestrator
-// Last updated: 02 June 2026
+// Creates one pool per request and passes { pool, sandbox } to all handlers
 
-const { logger } = require('/opt/nodejs/helpers');
+const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
 const cmsProvidersHandler = require('./cmsProviders');
 const apiKeysHandler = require('./apiKeys');
@@ -20,37 +19,35 @@ module.exports = async (event) => {
 
     logger.debug('UI Router received request', { path, method });
 
+    const pool = await getDbConnection();
+    const sandbox = process.env.SANDBOX === 'true';
+
     try {
         if (path.startsWith('/cms-providers')) {
-            return await cmsProvidersHandler(event);
-        } 
-        else if (path.startsWith('/api-keys')) {
-            return await apiKeysHandler(event);
-        } 
-        else if (path === '/metrics' && method === 'GET') {
-            return await metricsHandler(event);
-        } 
-        else if (path === '/chart-data' && method === 'GET') {
-            return await chartDataHandler(event);
-        } 
-        else if (path === '/merchant-parts' && method === 'GET') {
-            return await merchantPartsHandler(event);
-        } 
-        else if (path === '/category' && method === 'GET') {
+            return await cmsProvidersHandler(event, { pool, sandbox });
+
+        } else if (path.startsWith('/api-keys')) {
+            return await apiKeysHandler(event, { pool, sandbox });
+
+        } else if (path === '/metrics' && method === 'GET') {
+            return await metricsHandler(event, { pool, sandbox });
+
+        } else if (path === '/chart-data' && method === 'GET') {
+            return await chartDataHandler(event, { pool, sandbox });
+
+        } else if (path === '/merchant-parts' && method === 'GET') {
+            return await merchantPartsHandler(event, { pool, sandbox });
+
+        } else if (path === '/category' && (method === 'GET' || method === 'POST')) {
             const body = event.body ? JSON.parse(event.body) : {};
-            const result = await categoryHandler(decoded.user_id, body, method);
+            const result = await categoryHandler(decoded.user_id, body, method, { pool, sandbox });
             return { statusCode: 200, body: result };
-        } 
-        else if (path === '/category' && method === 'POST') {
-            const body = event.body ? JSON.parse(event.body) : {};
-            const result = await categoryHandler(decoded.user_id, body, method);
+
+        } else if (path === '/category/reset' && method === 'POST') {
+            const result = await resetHandler(decoded.user_id, { pool, sandbox });
             return { statusCode: 200, body: result };
-        } 
-        else if (path === '/category/reset' && method === 'POST') {
-            const result = await resetHandler(decoded.user_id);
-            return { statusCode: 200, body: result };
-        } 
-        else {
+
+        } else {
             logger.warn('UI route not found', { path, method });
             return {
                 statusCode: 404,
@@ -63,5 +60,7 @@ module.exports = async (event) => {
             statusCode: 500,
             body: { message: error.message || 'Internal Server Error' }
         };
+    } finally {
+        if (pool) await pool.close();
     }
 };

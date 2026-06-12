@@ -1,5 +1,7 @@
 // ====================== routes/ui/metrics.js ======================
-const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
+// Full original logic restored + adapted to pool + executeWithRetry
+
+const { logger, executeWithRetry, sql } = require('/opt/nodejs/helpers');
 
 // Helper to run a query
 async function executeQuery(pool, query, params = {}) {
@@ -7,7 +9,7 @@ async function executeQuery(pool, query, params = {}) {
     Object.entries(params).forEach(([key, value]) => {
         request.input(key, value);
     });
-    const result = await request.query(query);
+    const result = await executeWithRetry(() => request.query(query));
     return result.recordset;
 }
 
@@ -23,8 +25,7 @@ function generateMetricsHtml(metrics) {
     return `<div class="metrics-container">${cardsHtml}</div>`;
 }
 
-module.exports = async (event) => {
-    let pool;
+module.exports = async (event, { pool, sandbox = false } = {}) => {
     try {
         const decoded = event.decoded;
         const userId = decoded.user_id;
@@ -36,8 +37,6 @@ module.exports = async (event) => {
             return { statusCode: 403, body: { message: 'No valid roles' } };
         }
 
-        pool = await getDbConnection();
-
         const metrics = [];
 
         if (roles.includes('community')) metrics.push(...await fetchCommunityMetrics(pool, userId));
@@ -47,16 +46,13 @@ module.exports = async (event) => {
 
         const html = generateMetricsHtml(metrics);
 
-        return {
-            statusCode: 200,
-            body: { html }
-        };
+        if (sandbox) logger.debug('[SANDBOX] metrics generated', { userId, roles });
+
+        return { statusCode: 200, body: { html } };
 
     } catch (error) {
-        logger.error('Metrics error', { error: error.message, stack: error.stack });
+        logger.error('Metrics error', { error: error.message });
         return { statusCode: 500, body: { message: error.message } };
-    } finally {
-        if (pool) await pool.close();
     }
 };
 

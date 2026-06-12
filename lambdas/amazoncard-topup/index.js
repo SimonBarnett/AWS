@@ -1,18 +1,15 @@
-// ====================== routes/amazoncard/topup.js ======================
-// Amazon Gift Card Topup Handler (AGCOD v2)
-// Creates gift cards based on budget and inserts them into the database
-// Supports both Sandbox and Production environments
-// Last updated: 02 June 2026
+// ====================== lambdas/amazoncard-topup/index.js ======================
+// Amazon Gift Card Topup Handler (AGCOD v2) - Standalone Lambda
+// Full logic moved from API/routes/amazoncard/topup.js
 
 const AWS = require('aws-sdk');
 const https = require('https');
 const { sql, logger, getDbConnection } = require('/opt/nodejs/helpers');
 
-module.exports = async (event) => {
+exports.handler = async (event) => {
     let pool = null;
 
     try {
-        // ====================== ENVIRONMENT VALIDATION ======================
         const partnerId = process.env.AMAZON_PARTNER_ID;
         const accessKey = process.env.AMAZON_ACCESS_KEY_ID;
         const secretKey = process.env.AMAZON_SECRET_ACCESS_KEY;
@@ -34,27 +31,23 @@ module.exports = async (event) => {
             currency
         });
 
-        // ====================== CARD GENERATION LOGIC ======================
+        // Card generation logic
         let cards = [];
         let remaining = budget;
 
-        // 25% chance to add a £10 card
         if (Math.random() < 0.25) {
             cards.push(10);
             remaining -= 10;
         }
 
-        // Always add at least one £5 card
         cards.push(5);
         remaining -= 5;
 
-        // 50% chance to add another £5 card
         if (Math.random() < 0.5) {
             cards.push(5);
             remaining -= 5;
         }
 
-        // Distribute remaining budget into £1 and £2 cards
         if (remaining >= 1) {
             const numTwoPound = Math.floor(remaining / 4);
             const numOnePound = remaining % 4 + (2 * numTwoPound);
@@ -65,7 +58,6 @@ module.exports = async (event) => {
 
         logger.info(`Generated card denominations: [${cards.join(', ')}] (Total: £${cards.reduce((a, b) => a + b, 0)})`);
 
-        // ====================== DATABASE + AMAZON AGCOD ======================
         pool = await getDbConnection();
         let insertedCount = 0;
 
@@ -102,12 +94,10 @@ module.exports = async (event) => {
                 }
             };
 
-            // Sign the request
             const requestDate = new Date();
             signer.addAuthorization(credentials, requestDate);
             Object.assign(options.headers, signer.headers);
 
-            // Call Amazon AGCOD API
             const result = await new Promise((resolve, reject) => {
                 const req = https.request(options, (res) => {
                     let data = '';
@@ -131,7 +121,6 @@ module.exports = async (event) => {
 
             logger.info(`Created £${value} gift card`, { claimCode, gcId });
 
-            // Insert into database
             await pool.request()
                 .input('code', sql.NVarChar(100), claimCode)
                 .input('value', sql.Decimal(10, 2), value)
@@ -146,7 +135,7 @@ module.exports = async (event) => {
             insertedCount++;
         }
 
-        // ====================== DAY-OF-WEEK CYCLING ======================
+        // Day-of-week cycling
         await pool.request().query(`
             WITH Numbered AS (
                 SELECT 

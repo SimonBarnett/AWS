@@ -1,15 +1,11 @@
 // ====================== routes/ui/merchantParts.js ======================
-const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
+const { logger, executeWithRetry, sql } = require('/opt/nodejs/helpers');
 
-module.exports = async (event) => {
-    let pool;
-    let userId;
+module.exports = async (event, { pool, sandbox = false } = {}) => {
+    const decoded = event.decoded;
+    const userId = decoded?.user_id;
 
     try {
-        const decoded = event.decoded;
-        userId = decoded.user_id;
-
-        // Parse pagination parameters
         const queryParams = event.queryStringParameters || {};
         let page = parseInt(queryParams.page, 10) || 1;
         let pageLen = parseInt(queryParams.pagelen, 10) || 50;
@@ -20,73 +16,71 @@ module.exports = async (event) => {
 
         const offset = (page - 1) * pageLen;
 
-        pool = await getDbConnection();
-
-        // Get total record count
-        const countResult = await pool.request()
-            .input('UserId', sql.VarChar, userId)
-            .query(`
-                SELECT COUNT(*) AS total
-                FROM (
-                    SELECT DISTINCT mp.ASIN
-                    FROM dbo.MerchantProducts mp
-                    WHERE mp.UserId = @UserId
-                ) AS UniqueProducts
-            `);
+        // Get total count
+        const countResult = await executeWithRetry(() =>
+            pool.request()
+                .input('UserId', sql.VarChar, userId)
+                .query(`
+                    SELECT COUNT(*) AS total
+                    FROM (
+                        SELECT DISTINCT mp.ASIN
+                        FROM dbo.MerchantProducts mp
+                        WHERE mp.UserId = @UserId
+                    ) AS UniqueProducts
+                `)
+        );
 
         const totalRecords = countResult.recordset[0].total || 0;
 
         // Fetch paginated data
-        const result = await pool.request()
-            .input('UserId', sql.VarChar, userId)
-            .input('Offset', sql.Int, offset)
-            .input('PageLen', sql.Int, pageLen)
-            .query(`
-                WITH RankedProducts AS (
+        const result = await executeWithRetry(() =>
+            pool.request()
+                .input('UserId', sql.VarChar, userId)
+                .input('Offset', sql.Int, offset)
+                .input('PageLen', sql.Int, pageLen)
+                .query(`
+                    WITH RankedProducts AS (
+                        SELECT 
+                            mp.*, 
+                            mc.SubCategory AS MerchantCatalog_SubCategory,
+                            c.SubCategoryOrder AS Catalog_SubCategoryOrder,
+                            ISNULL((
+                                SELECT COUNT(*) 
+                                FROM MerchantCatalog mc2 
+                                WHERE mc2.ASIN = mp.ASIN 
+                                AND mc2.MerchantID = @UserId
+                            ), 0) AS count_categories,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY mp.ASIN 
+                                ORDER BY 
+                                    CASE WHEN mc.SubCategory IS NOT NULL THEN 1 ELSE 2 END,
+                                    mp.LastUpdate DESC
+                            ) AS rn
+                        FROM dbo.MerchantProducts mp
+                        LEFT JOIN dbo.MerchantCatalog mc 
+                            ON mc.MerchantID = mp.UserId 
+                            AND mc.ASIN = mp.ASIN
+                        LEFT JOIN dbo.Catalog c 
+                            ON c.UserId = @UserId 
+                            AND c.MainCategory = mc.MainCategory 
+                            AND c.SubCategory = mc.SubCategory
+                        WHERE mp.UserId = @UserId
+                    )
                     SELECT 
-                        mp.*, 
-                        mc.SubCategory AS MerchantCatalog_SubCategory,
-                        c.SubCategoryOrder AS Catalog_SubCategoryOrder,
-                        ISNULL((
-                            SELECT COUNT(*) 
-                            FROM MerchantCatalog mc2 
-                            WHERE mc2.ASIN = mp.ASIN 
-                            AND mc2.MerchantID = @UserId
-                        ), 0) AS count_categories,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY mp.ASIN 
-                            ORDER BY 
-                                CASE WHEN mc.SubCategory IS NOT NULL THEN 1 ELSE 2 END,
-                                mp.LastUpdate DESC
-                        ) AS rn
-                    FROM dbo.MerchantProducts mp
-                    LEFT JOIN dbo.MerchantCatalog mc 
-                        ON mc.MerchantID = mp.UserId 
-                        AND mc.ASIN = mp.ASIN
-                    LEFT JOIN dbo.Catalog c 
-                        ON c.UserId = @UserId 
-                        AND c.MainCategory = mc.MainCategory 
-                        AND c.SubCategory = mc.SubCategory
-                    WHERE mp.UserId = @UserId
-                )
-                SELECT 
-                    ID, UserId, Category, Subcategory, ASIN, Source, Title, Price, Discount,
-                    WasPrice, AffiliateUrl, ThumbnailUrl, CategoryId, CategoryName, Mpn, Brand,
-                    Features, Specifications, Created, LastUpdate, ProcessedBatchId, count_categories
-                FROM RankedProducts
-                WHERE rn = 1
-                ORDER BY LastUpdate DESC, Title ASC
-                OFFSET @Offset ROWS
-                FETCH NEXT @PageLen ROWS ONLY;
-            `);
+                        ID, UserId, Category, Subcategory, ASIN, Source, Title, Price, Discount,
+                        WasPrice, AffiliateUrl, ThumbnailUrl, CategoryId, CategoryName, Mpn, Brand,
+                        Features, Specifications, Created, LastUpdate, ProcessedBatchId, count_categories
+                    FROM RankedProducts
+                    WHERE rn = 1
+                    ORDER BY LastUpdate DESC, Title ASC
+                    OFFSET @Offset ROWS
+                    FETCH NEXT @PageLen ROWS ONLY;
+                `)
+        );
 
-        logger.info('Successfully fetched merchant parts', { 
-            userId, 
-            page,
-            pageLen,
-            totalRecords,
-            returnedRecords: result.recordset.length 
-        });
+        if (sandbox) logger.debug('[SANDBOX] merchantParts fetched', { userId, page, pageLen });
+
+        logger.info('Successfully fetched merchant parts', { userId, page, pageLen, totalRecords });
 
         return {
             statusCode: 200,
@@ -97,15 +91,7 @@ module.exports = async (event) => {
         };
 
     } catch (error) {
-        logger.error('Error fetching merchant parts', { 
-            error: error.message, 
-            userId: userId || 'unknown'
-        });
-        return {
-            statusCode: 500,
-            body: { message: 'Internal server error' }
-        };
-    } finally {
-        if (pool) await pool.close();
+        logger.error('Error fetching merchant parts', { error: error.message, userId });
+        return { statusCode: 500, body: { message: 'Internal server error' } };
     }
 };
