@@ -1,9 +1,5 @@
 // ====================== madeira-sqs-catalogue/index.js ======================
 // Thin SQS Orchestrator
-// Gets DB pool once using getDbPool() from conf/db-config
-// Passes the open pool to every handler
-// Handlers and helpers must NOT close the pool
-// Last updated: 12 June 2026
 
 const { logger } = require('/opt/nodejs/helpers');
 const { getDbPool } = require('/opt/nodejs/conf/db-config');
@@ -17,7 +13,6 @@ exports.handler = async (event) => {
     let pool = null;
 
     try {
-        // Get the pool once for the whole invocation
         pool = await getDbPool();
 
         for (const record of event.Records || []) {
@@ -27,32 +22,27 @@ exports.handler = async (event) => {
                 payload = JSON.parse(record.body);
                 const messageType = (payload.type || 'UNKNOWN').toUpperCase();
 
-                // Enrich payload with sandbox flag + shared pool
                 const enrichedPayload = {
                     ...payload,
                     sandbox: payload.sandbox === true,
-                    pool                    // ← Pass the open pool
+                    pool
                 };
 
                 logger.debug('Routing SQS message', {
                     messageId: record.messageId,
-                    type: messageType,
-                    sandbox: enrichedPayload.sandbox
+                    type: messageType
                 });
 
                 switch (messageType) {
 
-                    // === ONBOARDING FLOW (Communities) ===
                     case 'ONBOARDING':
                         await require('./sqs/onboarding').handle(enrichedPayload);
                         break;
 
-                    // === CATEGORY FLOW ===
                     case 'CATEGORY_UPDATE':
                         await require('./sqs/process-update').handle(enrichedPayload);
                         break;
 
-                    // === CLUBSCAN PIPELINE ===
                     case 'CLUBSCAN_GENERATE_REVIEW':
                         await require('./sqs/generate-review').handle(enrichedPayload);
                         break;
@@ -69,6 +59,11 @@ exports.handler = async (event) => {
                         await require('./sqs/notify').handle(enrichedPayload);
                         break;
 
+                    // === NEW: Email sending via SQS ===
+                    case 'SEND_EMAIL':
+                        await require('./emails').handleSendEmail(enrichedPayload);
+                        break;
+
                     default:
                         logger.warn('Unknown message type — skipping', {
                             messageId: record.messageId,
@@ -81,25 +76,16 @@ exports.handler = async (event) => {
                 logger.error('Failed to process SQS record', {
                     messageId: record.messageId,
                     type: payload?.type,
-                    error: error.message,
-                    stack: error.stack
+                    error: error.message
                 });
 
-                batchItemFailures.push({
-                    itemIdentifier: record.messageId
-                });
+                batchItemFailures.push({ itemIdentifier: record.messageId });
             }
         }
 
     } catch (err) {
-        logger.error('SQS Orchestrator failed', {
-            error: err.message,
-            stack: err.stack
-        });
+        logger.error('SQS Orchestrator failed', { error: err.message });
         throw err;
-
-    } finally {
-        // Intentionally not closing the pool here for stability
     }
 
     return { batchItemFailures };
