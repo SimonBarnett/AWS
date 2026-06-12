@@ -1,7 +1,7 @@
 # SQS Handlers (`sqs/`)
 
 ## Overview
-This folder contains the handlers for different SQS message types.
+This folder contains the handlers for different SQS message types in the background processing pipeline.
 
 ## Handlers
 
@@ -15,7 +15,11 @@ This folder contains the handlers for different SQS message types.
 | `process-update.js` | `CATEGORY_UPDATE` | Handle updates |
 
 ## Common Pattern
-All handlers receive a payload containing the database pool and sandbox flag. They use `executeWithRetry` for database operations and can enqueue follow-up messages.
+All handlers follow a similar structure:
+1. Receive payload (includes DB pool + sandbox flag)
+2. Perform work using `executeWithRetry`
+3. Enqueue follow-up messages when needed
+4. Handle errors gracefully
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
