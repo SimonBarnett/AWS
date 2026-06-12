@@ -1,30 +1,25 @@
 # SQS Handlers (`sqs/`)
 
 ## Overview
-Individual handlers for SQS message types in the ClubScan and background processing pipeline.
+This folder contains the handlers for different SQS message types.
 
-## Handler Details
+## Handlers
 
-### `onboarding.js`
-Handles background work after user onboarding (e.g. triggering initial ClubScan jobs).
-
-### `generate-review.js`
-Generates review content for a newly onboarded URL.
-
-### `generate-categories.js`
-Generates category suggestions.
-
-### `build-catalog.js`
-Final step — assembles the complete catalog.
-
-### `notify.js`
-Sends success/failure notifications (emails).
-
-### `process-update.js`
-Handles incremental updates to categories or content.
+| File | Message Type | Purpose |
+|------|--------------|---------|
+| `onboarding.js` | `ONBOARDING` | Background onboarding tasks |
+| `generate-review.js` | `CLUBSCAN_GENERATE_REVIEW` | Generate review content |
+| `generate-categories.js` | `CLUBSCAN_GENERATE_CATEGORIES` | Generate categories |
+| `build-catalog.js` | `CLUBSCAN_BUILD_CATALOG` | Final catalog assembly |
+| `notify.js` | `CLUBSCAN_NOTIFY` | Send notifications |
+| `process-update.js` | `CATEGORY_UPDATE` | Handle updates |
 
 ## Common Pattern
-All handlers receive a payload that includes the database pool and sandbox flag. They use `executeWithRetry` for DB operations and can enqueue follow-up messages.
+All handlers follow a similar structure:
+1. Receive payload (includes DB pool + sandbox flag)
+2. Perform work using `executeWithRetry`
+3. Enqueue follow-up messages when needed
+4. Handle errors gracefully
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
