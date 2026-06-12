@@ -1,14 +1,13 @@
 # mailer
 
 ## Overview
-Email sending abstraction.
+Email sending layer.
 
 ## Purpose
-- Consistent interface for transactional emails
-- Support for HTML, attachments, and inline images
+Provide a clean interface for sending emails from background jobs.
 
-## Usage
-Mainly called from SQS email handler.
+## Notes
+Do not call directly from API routes — use SQS instead.
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
