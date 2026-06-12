@@ -1,4 +1,4 @@
-// API/routes/token/index.js
+// ====================== routes/token/index.js ======================
 // Token / Auth Routes Sub-Router
 // All handlers now receive { pool, sandbox } from here. No closes inside routes.
 
@@ -9,7 +9,6 @@ const claimsRoute = require('./claims');
 const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
-const completeSignupRoute = require('./complete-signup');
 const tosRoute = require('./tos');
 const addRoleRoute = require('./addRole');
 const delegateRoute = require('./delegate');
