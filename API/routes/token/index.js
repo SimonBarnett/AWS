@@ -1,35 +1,30 @@
-// ====================== routes/token/index.js ======================
-// Token / Auth Routes Sub-Router
-// Called by the main orchestrator
-// Last updated: 02 June 2026
+// API/routes/token/index.js
+// Token / Auth Routes Sub-Router - Updated with pool + action pattern
 
-const { logger } = require('/opt/nodejs/helpers');
+const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
-// Individual route handlers (all now use modern export style)
+// Consolidated route handlers
 const claimsRoute = require('./claims');
 const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
-const verifyResetCodeRoute = require('./verify-reset-code');
 const onboardingRoute = require('./onboarding');
 const completeSignupRoute = require('./complete-signup');
 const tosRoute = require('./tos');
 const addRoleRoute = require('./addRole');
-const generateOnboardingTokenRoute = require('./generateOnboardingToken');
-const validateOnboardingTokenRoute = require('./validateOnboardingToken');
 const delegateRoute = require('./delegate');
-const acceptDelegationRoute = require('./acceptdelegation');
 const deleteRoute = require('./delete');
-const deleteConfirmRoute = require('./deleteconfirm');
 
 module.exports = async (event) => {
     const path = event.path || '/';
     const method = (event.httpMethod || '').toUpperCase();
-    const decoded = event.decoded;
 
     logger.debug('Token router received request', { path, method });
 
+    // Create pool once per request
+    const pool = await getDbConnection();
+    const sandbox = process.env.SANDBOX === 'true';
+
     try {
-        // ====================== ROUTING ======================
         if (path === '/login/claims' && method === 'GET') {
             return await claimsRoute(event);
 
@@ -37,16 +32,16 @@ module.exports = async (event) => {
             return await loginRoute(event);
 
         } else if (path === '/login/reset-password' && method === 'POST') {
-            return await resetPasswordRoute(event);
+            return await resetPasswordRoute(event, { action: 'request', pool, sandbox });
 
         } else if (path === '/login/verify-reset-code' && method === 'POST') {
-            return await verifyResetCodeRoute(event);
+            return await resetPasswordRoute(event, { action: 'verify', pool, sandbox });
 
         } else if (path === '/login/onboarding' && method === 'GET') {
-            return await onboardingRoute(event);
+            return await onboardingRoute(event, { action: 'complete', pool, sandbox });
 
         } else if (path === '/login/complete-signup' && method === 'POST') {
-            return await completeSignupRoute(event);
+            return await onboardingRoute(event, { action: 'complete-signup', pool, sandbox });
 
         } else if (path === '/login/tos' && method === 'GET') {
             return await tosRoute(event);
@@ -55,22 +50,22 @@ module.exports = async (event) => {
             return await addRoleRoute(event);
 
         } else if (path === '/login/generate-onboarding-token' && method === 'POST') {
-            return await generateOnboardingTokenRoute(event);
+            return await onboardingRoute(event, { action: 'generate', pool, sandbox });
 
         } else if (path === '/login/validate-onboarding-token' && method === 'PUT') {
-            return await validateOnboardingTokenRoute(event);
+            return await onboardingRoute(event, { action: 'validate', pool, sandbox });
 
         } else if (path === '/login/delegate' && method === 'POST') {
-            return await delegateRoute(event);
+            return await delegateRoute(event, { action: 'initiate', pool, sandbox });
 
         } else if (path === '/login/acceptdelegation' && method === 'POST') {
-            return await acceptDelegationRoute(event);
+            return await delegateRoute(event, { action: 'accept', pool, sandbox });
 
         } else if (path === '/login/delete' && method === 'POST') {
-            return await deleteRoute(event);
+            return await deleteRoute(event, { action: 'initiate', pool, sandbox });
 
         } else if (path === '/login/deleteconfirm' && method === 'POST') {
-            return await deleteConfirmRoute(event);
+            return await deleteRoute(event, { action: 'confirm', pool, sandbox });
 
         } else {
             logger.warn('Token route not found', { path, method });
@@ -86,5 +81,7 @@ module.exports = async (event) => {
             statusCode: 500,
             body: { status: 'error', error_message: error.message || 'Internal Server Error' }
         };
+    } finally {
+        if (pool) await pool.close();
     }
 };
