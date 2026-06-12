@@ -1,7 +1,7 @@
 # helpers.js
 
 ## Overview
-Core shared utilities for all Lambdas.
+Core shared utilities.
 
 ## Key Functions
 
