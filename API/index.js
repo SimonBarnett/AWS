@@ -1,7 +1,7 @@
 // ====================== index.js ======================
 // Single /{proxy+} API Gateway Orchestrator
 // madeira-api-gateway
-// Last updated: 02 June 2026
+// Last updated: 12 June 2026
 
 const { logger } = require('/opt/nodejs/helpers');
 const { verifyJWT } = require('/opt/nodejs/jwt');
@@ -27,9 +27,9 @@ const PUBLIC_ROUTES = [
     '/login',
     '/onboarding',
     '/complete-signup',
-    '/amazoncard',
+    '/amazoncard',      // Claim only (Topup moved to separate Lambda)
     '/winston',
-    '/query',     // rdsquery - uses low-privilege DB user
+    '/query',
     '/rds'
 ];
 
@@ -39,7 +39,6 @@ module.exports = async (event) => {
 
     logger.debug('Incoming request', { path, method });
 
-    // ====================== HANDLE OPTIONS (Preflight) ======================
     if (method === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -49,11 +48,9 @@ module.exports = async (event) => {
     }
 
     try {
-        // ====================== CONDITIONAL JWT VALIDATION ======================
         const isPublicRoute = PUBLIC_ROUTES.some(route => path.startsWith(route));
 
         if (!isPublicRoute) {
-            // Protected routes require valid JWT
             const decoded = await verifyJWT(event);
             event.decoded = decoded;
             logger.info('Routing protected request', { path, method, userId: decoded.user_id });
@@ -63,7 +60,6 @@ module.exports = async (event) => {
 
         let response;
 
-        // ====================== ROUTING ======================
         if (path.startsWith('/ui')) {
             response = await uiRoutes(event);
 
@@ -76,6 +72,8 @@ module.exports = async (event) => {
             response = await tokenRoutes(event);
 
         } else if (path.startsWith('/amazoncard')) {
+            // Amazon Card routes now only handle Claims.
+            // Topup logic has been moved to Lambdas/amazoncard-topup/
             response = await amazoncardRoutes(event);
 
         } else if (path.startsWith('/query') || path.startsWith('/rds')) {
@@ -92,7 +90,6 @@ module.exports = async (event) => {
             };
         }
 
-        // ====================== RETURN WITH CORS ======================
         return {
             statusCode: response.statusCode || 200,
             headers: {

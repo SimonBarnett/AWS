@@ -1,4 +1,4 @@
-// ====================== lambdas/amazoncard-topup/index.js ======================
+// ====================== Lambdas/amazoncard-topup/index.js ======================
 // Amazon Gift Card Topup Handler (AGCOD v2) - Standalone Lambda
 // Full logic moved from API/routes/amazoncard/topup.js
 
