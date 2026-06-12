@@ -1,46 +1,24 @@
 # SQS Handlers (`sqs/`)
 
 ## Overview
-This folder contains individual message handlers for the SQS Catalogue Processor.
+Individual message handlers for the SQS Catalogue Processor.
 
-Each file handles a specific message type or related group of operations.
+## Handlers Overview
 
-## Handlers
-
-### `onboarding.js`
-**Message Type:** `ONBOARDING`
-Handles background tasks related to user onboarding.
-
-### `generate-review.js`
-**Message Type:** `CLUBSCAN_GENERATE_REVIEW`
-Generates review content for a URL.
-
-### `generate-categories.js`
-**Message Type:** `CLUBSCAN_GENERATE_CATEGORIES`
-Generates category suggestions.
-
-### `build-catalog.js`
-**Message Type:** `CLUBSCAN_BUILD_CATALOG`
-Final assembly of the complete catalog.
-
-### `notify.js`
-**Message Type:** `CLUBSCAN_NOTIFY`
-Sends success/failure notifications after processing.
-
-### `process-update.js`
-**Message Type:** `CATEGORY_UPDATE`
-Handles updates to categories or content.
+| Handler                    | Message Type                    | Purpose                              |
+|----------------------------|---------------------------------|--------------------------------------|
+| `onboarding.js`            | `ONBOARDING`                    | Background onboarding tasks          |
+| `generate-review.js`       | `CLUBSCAN_GENERATE_REVIEW`      | Generate review content              |
+| `generate-categories.js`   | `CLUBSCAN_GENERATE_CATEGORIES`  | Generate categories                  |
+| `build-catalog.js`         | `CLUBSCAN_BUILD_CATALOG`        | Final catalog assembly               |
+| `notify.js`                | `CLUBSCAN_NOTIFY`               | Send success/failure notifications   |
+| `process-update.js`        | `CATEGORY_UPDATE`               | Handle category/content updates      |
 
 ## Common Pattern
-1. Receive enriched payload (includes `pool` and `sandbox`)
-2. Perform work using `executeWithRetry`
-3. May enqueue follow-up messages
-4. Handle errors gracefully and report `batchItemFailures` when needed
-
-## Related Components
-- Main router: `index.js`
-- Email logic: `emails.js`
-- `clubscan` status in RDS
+1. Receive payload with `pool` and `sandbox`
+2. Use `executeWithRetry` for DB work
+3. Enqueue follow-up messages when needed
+4. Handle errors and report batch failures
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
