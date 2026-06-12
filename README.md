@@ -1,41 +1,27 @@
 # Madeira AWS Repository
 
 ## Overview
+This repository contains the full backend for the Club Madeira platform.
 
-This repository contains the backend infrastructure and application code for the **Club Madeira** platform.
+**Architecture style**: Serverless-first on AWS.
 
-It uses a serverless architecture with AWS Lambda, API Gateway, SQS, Lambda Layers, RDS (SQL Server), and S3.
+## Core Components
 
-## High-Level Architecture
+| Component | Folder | Responsibility |
+|-----------|--------|----------------|
+| API | `API/` | HTTP endpoints, auth, business logic |
+| Background Jobs | `SQS/madeira-sqs-catalogue/` + `Lambdas/` | Async processing, ClubScan, emails |
+| Shared Code | `nodejs/` | Lambda Layers (helpers, config, mailer, jwt) |
+| Frontend Assets | `S3-Bucket/` | Madeira widget (JS + CSS) |
+| Database | RDS (SQL Server) | `Users`, `SystemOTPs`, `clubscan`, etc. |
 
-```
-[JS Widgets (S3)]
-       ↓
-[API Gateway] → [API Lambda] → [RDS: SystemOTPs, Users, clubscan...]
-       ↓
-[SQS] → [SQS Catalogue Processor] → ClubScan / Email / Notifications
-       ↓
-[Standalone Lambdas] (e.g. Amazon Card Top-up)
-```
+## Documentation Philosophy
 
-## Repository Structure
-
-| Folder                        | Purpose | Key Contents |
-|-------------------------------|---------|--------------|
-| `API/`                        | Main HTTP API | `routes/token/`, `routes/ui/` |
-| `Lambdas/`                    | Standalone workers | `amazoncard-topup/` |
-| `SQS/madeira-sqs-catalogue/`  | Async processing | `sqs/`, `emails.js` |
-| `nodejs/`                     | Lambda Layers (shared code) | `helpers/`, `conf/`, `mailer/`, `jwt/` |
-| `S3-Bucket/`                  | Frontend widgets | Widget JS/CSS |
-
-## Documentation Approach
-
-This repo uses hierarchical READMEs:
-- Each major folder has a `README.md`
+- Every major folder has a `README.md`
 - Parent folders describe their children
-- Goal: Make the codebase easy to navigate
+- Focus on **what** lives in the folder and **why**
 
-See individual folder READMEs for details.
+See the individual folder READMEs for deeper details.
 
 ---
-*Documentation on `feature/documentation` branch.*
+*Maintained on `feature/documentation` branch.*
