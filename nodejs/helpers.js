@@ -1,20 +1,20 @@
 # helpers.js
 
 ## Overview
-Core shared utilities for all Lambdas.
+Core shared utilities.
 
 ## Key Functions
 
 | Function | Purpose |
 |----------|---------|
-| `executeWithRetry` | Database operations with retry logic |
-| `enqueueMessage` | Send messages to SQS |
+| `executeWithRetry` | Resilient database operations |
+| `enqueueMessage` | Send SQS messages |
 | `logger` | Structured logging |
-| `normalizePhone` | Phone number normalization |
-| `generatePin` | Generate 6-digit OTPs |
+| `normalizePhone` | Phone formatting |
+| `generatePin` | OTP generation |
 
 ## Best Practice
-Use these helpers instead of writing raw code in route files.
+Use these helpers instead of writing raw code in routes.
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
