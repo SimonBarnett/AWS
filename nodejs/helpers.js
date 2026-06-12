@@ -1,23 +1,20 @@
-# helpers.js (Core Shared Helpers)
+# helpers.js
 
 ## Overview
-Main shared utility module.
+Core shared utilities for all Lambdas.
 
-## Key Functions
+## Most Important Functions
 
-| Function                    | Purpose |
-|-----------------------------|---------|
-| `executeWithRetry`          | Resilient DB operations |
-| `enqueueMessage`            | SQS messaging |
-| `getS3Client`               | S3 client |
-| `logger`                    | Structured logging |
-| `normalizePhone`            | Phone normalization |
-| `generatePin`               | OTP generation |
+| Function | Use Case |
+|----------|----------|
+| `executeWithRetry` | Safe database operations |
+| `enqueueMessage` | Trigger background jobs via SQS |
+| `logger` | Consistent logging |
+| `normalizePhone` | Phone formatting |
+| `generatePin` | OTP generation |
 
-## Best Practices
-- Always use `executeWithRetry` for database calls
-- Pass shared pool to handlers
-- Use `enqueueMessage` for background work
+## Recommendation
+Use these helpers instead of writing raw AWS SDK or database code in routes.
 
 ---
 *Part of the hierarchical documentation on the `feature/documentation` branch.*
