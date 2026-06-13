@@ -1,16 +1,15 @@
 // ====================== routes/token/onboarding.js ======================
-// Consolidated single handler for all onboarding-related actions
-// Actions: generate, validate, complete, complete-signup
-// Uses SystemOTPs + SQS enqueues for emails and ClubScan
+// Slim consolidated handler for onboarding actions
+// Actions supported: generate, validate, complete, complete-signup
 // Last updated: 13 June 2026
 
 const { logger, getDbConnection, sql, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 const { getStripeClient } = require('/opt/nodejs/stripe');
-const { generateUserId } = require('/opt/nodejs/auth-utils');
 
-// Local helpers
+// Focused local helpers only
 const {
+    generateUserId,
     isUserIdUnique,
     createUser,
     confirmOnboarding,
@@ -22,7 +21,7 @@ const {
     parseBody
 } = require('./helpers');
 
-// ====================== HELPER: Get onboarding data from SystemOTPs ======================
+// ====================== SHARED HELPER ======================
 async function getOnboardingData(otp) {
     const pool = await getDbConnection();
     try {
@@ -30,9 +29,9 @@ async function getOnboardingData(otp) {
             .input('otp', sql.VarChar(10), otp)
             .input('token_type', sql.VarChar(50), 'onboarding')
             .query(`
-                SELECT * FROM SystemOTPs 
-                WHERE otp = @otp 
-                  AND token_type = @token_type 
+                SELECT * FROM SystemOTPs
+                WHERE otp = @otp
+                  AND token_type = @token_type
                   AND expires_at > GETDATE()
             `);
 
@@ -41,59 +40,45 @@ async function getOnboardingData(otp) {
         const record = result.recordset[0];
         const payload = JSON.parse(record.payload || '{}');
 
-        return {
-            ...record,
-            ...payload,
-            referrer_by: record.user_id
-        };
+        return { ...record, ...payload, referrer_by: record.user_id };
     } finally {
         await pool.close();
     }
 }
 
-// ====================== ACTION: generate ======================
+// ====================== ACTION HANDLERS ======================
+
 async function handleGenerate(event, { pool, sandbox = false }) {
-    const body = parseBody(event);
-    const { mobile, email, tokenType, url, communityId } = body;
-
-    if (!mobile || !email || !tokenType) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Phone, email and tokenType are required' } };
-    }
-
-    // TODO: Add full logic from old generateOnboardingToken.js (Stripe account creation, token generation, email/SMS)
-    // For now return placeholder
+    // TODO: Full implementation (Stripe account creation + token + email/SMS)
     return {
         statusCode: 200,
-        body: { status: 'success', message: 'Onboarding token generation triggered (consolidated handler)' }
+        body: { status: 'success', message: 'Generate action received' }
     };
 }
 
-// ====================== ACTION: validate ======================
 async function handleValidate(event, { pool, sandbox = false }) {
     const body = parseBody(event);
     const { token, pin } = body;
 
     if (!token || !pin) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Token and PIN are required' } };
+        return { statusCode: 400, body: { status: 'error', error_message: 'Token and PIN required' } };
     }
 
-    const onboardingData = await getOnboardingData(pin); // Using pin as OTP lookup
-    if (!onboardingData) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired token/PIN' } };
+    const data = await getOnboardingData(pin);
+    if (!data) {
+        return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired PIN' } };
     }
 
-    // TODO: Full Stripe Account Link creation logic
-    // For now return a placeholder account_link
+    // TODO: Create real Stripe Account Link here
     return {
         statusCode: 200,
         body: {
             status: 'success',
-            account_link: 'https://connect.stripe.com/setup/e/acct_xxx' // placeholder
+            account_link: 'https://connect.stripe.com/setup/placeholder'
         }
     };
 }
 
-// ====================== ACTION: complete (final onboarding step) ======================
 async function handleComplete(event, { pool, sandbox = false }) {
     const queryToken = event.queryStringParameters?.token;
     if (!queryToken) {
@@ -115,18 +100,17 @@ async function handleComplete(event, { pool, sandbox = false }) {
     let stripe;
     try {
         stripe = await getStripeClient(event);
-    } catch (error) {
+    } catch (err) {
         return { statusCode: 500, body: { status: 'error', error_message: 'Failed to initialize Stripe' } };
     }
 
     let stripeAccount;
     try {
         stripeAccount = await stripe.accounts.retrieve(stripeAccountId);
-    } catch (error) {
+    } catch (err) {
         return { statusCode: 500, body: { status: 'error', error_message: 'Failed to retrieve Stripe account' } };
     }
 
-    // Generate unique User ID
     let userId;
     let attempts = 0;
     const maxAttempts = 25;
@@ -154,29 +138,24 @@ async function handleComplete(event, { pool, sandbox = false }) {
     };
 
     if (role === 'community') {
-        const individual = stripeAccount.individual || {};
-        userData.first_name = individual.first_name || null;
-        userData.last_name = individual.last_name || null;
-        userData.dob = individual.dob ? JSON.stringify(individual.dob) : null;
-        userData.address = individual.address || null;
-        userData.ssn_last_4 = individual.ssn_last_4 || null;
+        const ind = stripeAccount.individual || {};
+        userData.first_name = ind.first_name || null;
+        userData.last_name = ind.last_name || null;
+        userData.dob = ind.dob ? JSON.stringify(ind.dob) : null;
+        userData.address = ind.address || null;
+        userData.ssn_last_4 = ind.ssn_last_4 || null;
     } else if (role === 'merchant' || role === 'partner') {
-        const company = stripeAccount.company || {};
-        userData.company_name = company.name || null;
-        userData.tax_id = company.tax_id || null;
-        userData.address = company.address || null;
+        const comp = stripeAccount.company || {};
+        userData.company_name = comp.name || null;
+        userData.tax_id = comp.tax_id || null;
+        userData.address = comp.address || null;
     }
 
-    if (role === 'community' && !userData.first_name && logEmail) {
-        userData.first_name = logEmail.split('@')[0];
-    }
-    if (role === 'merchant' && !userData.company_name && logEmail) {
-        userData.company_name = logEmail.split('@')[0];
-    }
+    if (role === 'community' && !userData.first_name && logEmail) userData.first_name = logEmail.split('@')[0];
+    if (role === 'merchant' && !userData.company_name && logEmail) userData.company_name = logEmail.split('@')[0];
 
     await createUser(userData);
 
-    // Enqueue ONBOARDING for ClubScan (communities)
     if (role === 'community' && onboardingData.url) {
         await enqueueMessage({
             type: 'ONBOARDING',
@@ -187,16 +166,11 @@ async function handleComplete(event, { pool, sandbox = false }) {
         });
     }
 
-    // Enqueue partner onboarded email
     if (role === 'partner' && onboardingData.url) {
         await enqueueMessage({
             type: 'SEND_EMAIL',
             emailType: 'partner_onboarded',
-            payload: {
-                partnerEmail: logEmail,
-                url: onboardingData.url,
-                partnerId: userId
-            }
+            payload: { partnerEmail: logEmail, url: onboardingData.url, partnerId: userId }
         });
     }
 
@@ -216,48 +190,31 @@ async function handleComplete(event, { pool, sandbox = false }) {
     await setLastLogin(userId, event.requestContext?.identity?.sourceIp);
 
     const contactName = userData.company_name || userData.first_name || userId;
-    const decodedSignupUrl = new URL(signupUrl).href;
+    const redirectUrl = buildSetTokenUrl(new URL(signupUrl).href, token, userId, contactName, 'signup', isSandbox, 'This is your first login.');
 
-    const redirectUrl = buildSetTokenUrl(
-        decodedSignupUrl,
-        token,
-        userId,
-        contactName,
-        'signup',
-        isSandbox,
-        'This is your first login.'
-    );
-
-    // Delete used OTP
-    const deletePool = await getDbConnection();
+    // Cleanup used OTP
+    const delPool = await getDbConnection();
     try {
-        await deletePool.request()
+        await delPool.request()
             .input('otp_id', sql.Int, onboardingData.otp_id)
             .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
     } finally {
-        await deletePool.close();
+        await delPool.close();
     }
 
-    return {
-        statusCode: 302,
-        headers: { Location: redirectUrl },
-        body: ''
-    };
+    return { statusCode: 302, headers: { Location: redirectUrl }, body: '' };
 }
 
-// ====================== ACTION: complete-signup ======================
 async function handleCompleteSignup(event, { pool, sandbox = false }) {
     const body = parseBody(event);
-    const { password, confirm_password, authToken, signup_url } = body;
+    const { password, confirm_password, authToken } = body;
 
     if (!password || !confirm_password || !authToken) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Password, confirm_password and authToken are required' } };
+        return { statusCode: 400, body: { status: 'error', error_message: 'Missing required fields' } };
     }
-
     if (password !== confirm_password) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Passwords do not match' } };
     }
-
     if (!isValidPassword(password)) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Invalid password format' } };
     }
@@ -274,8 +231,8 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
         return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
     }
 
-    const hashedPassword = await require('bcryptjs').hash(password, 10);
-    await updateUser(user.user_id, hashedPassword, null, null, pool);
+    const hashed = await require('bcryptjs').hash(password, 10);
+    await updateUser(user.user_id, hashed, null, null, pool);
 
     const token = await signJWT({
         user_id: user.user_id,
@@ -285,44 +242,29 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
 
     await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp, pool);
 
-    const contactName = user.company_name || user.first_name || user.user_id;
-
     return {
         statusCode: 200,
         body: {
             status: 'success',
             token,
             user_id: user.user_id,
-            contact_name: contactName,
+            contact_name: user.company_name || user.first_name || user.user_id,
             workflow: 'login'
         }
     };
 }
 
-// ====================== MAIN HANDLER ======================
+// ====================== MAIN DISPATCH ======================
 module.exports = async (event, { action, pool, sandbox = false } = {}) => {
     try {
-        switch (action) {
-            case 'generate':
-                return await handleGenerate(event, { pool, sandbox });
+        if (action === 'generate') return await handleGenerate(event, { pool, sandbox });
+        if (action === 'validate') return await handleValidate(event, { pool, sandbox });
+        if (action === 'complete') return await handleComplete(event, { pool, sandbox });
+        if (action === 'complete-signup') return await handleCompleteSignup(event, { pool, sandbox });
 
-            case 'validate':
-                return await handleValidate(event, { pool, sandbox });
-
-            case 'complete':
-                return await handleComplete(event, { pool, sandbox });
-
-            case 'complete-signup':
-                return await handleCompleteSignup(event, { pool, sandbox });
-
-            default:
-                return { statusCode: 400, body: { status: 'error', error_message: 'Invalid action' } };
-        }
-    } catch (error) {
-        logger.error('Error in onboarding handler', { action, error: error.message });
-        return {
-            statusCode: 500,
-            body: { status: 'error', error_message: error.message || 'Internal Server Error' }
-        };
+        return { statusCode: 400, body: { status: 'error', error_message: 'Invalid action' } };
+    } catch (err) {
+        logger.error('Error in onboarding handler', { action, error: err.message });
+        return { statusCode: 500, body: { status: 'error', error_message: err.message || 'Internal error' } };
     }
 };
