@@ -5,7 +5,7 @@
 const { logger, comparePassword } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
-const { parseBody, getUserByEmail, getLastLogin, setLastLogin } = require('./helpers');
+const { parseBody, getUserByEmail, getLastLogin, setLastLogin, originCode } = require('./helpers');
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
     const requestId = event.requestContext?.requestId || 'unknown';
@@ -32,9 +32,27 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         return { statusCode: 401, body: { status: 'error', error_message: 'Invalid credentials' } };
     }
 
+    // Build final permissions for this session
+    let permissions = [...(user.permissions || [])];
+
+    // Partner ownership check (add 'owner' permission if applicable)
+    if (permissions.includes('partner')) {
+        try {
+            const affiliateCode = await originCode(event);
+            if (user.user_id === affiliateCode) {
+                if (!permissions.includes('owner')) {
+                    permissions.push('owner');
+                }
+            }
+        } catch (err) {
+            logger.warn('Failed to check affiliate ownership during login', { userId: user.user_id, error: err.message });
+            // Do not fail login if originCode check fails
+        }
+    }
+
     const payload = {
         user_id: user.user_id,
-        permissions: user.permissions,
+        permissions: permissions,
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
     };
 
@@ -64,7 +82,8 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         token,
         user_id: user.user_id,
         contact_name: contactName,
-        workflow: 'login'
+        workflow: 'login',
+        roles: permissions
     };
 
     if (lastLoginMessage) responseBody.lastlogin = lastLoginMessage;
