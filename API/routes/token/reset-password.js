@@ -24,7 +24,7 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
             return { statusCode: 400, body: { status: 'error', error_message: 'Email required' } };
         }
 
-        const user = await getUserByEmail(email);
+        const user = await getUserByEmail(email, event, pool);
         if (!user) {
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
         }
@@ -131,13 +131,13 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
         }
 
         const userId = record.user_id;
-        const user = await getUserById(userId, event);
+        const user = await getUserById(userId, event, pool);
         if (!user) {
             return { statusCode: 400, body: { status: 'error', error_message: 'Invalid user' } };
         }
 
         const hashedPassword = await hashPassword(new_password);
-        await updateUserPassword(userId, hashedPassword);
+        await updateUserPassword(userId, hashedPassword, pool);
 
         await pool.request()
             .input('otp_id', sql.Int, record.otp_id)
@@ -149,9 +149,9 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
             exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
         });
 
-        await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp);
+        await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp, pool);
 
-        const lastLogin = await getLastLogin(user.user_id);
+        const lastLogin = await getLastLogin(user.user_id, pool);
         let lastLoginMessage;
         if (lastLogin) {
             lastLoginMessage = `You last logged in at ${new Date(lastLogin.timestamp).toLocaleString('en-GB')} from ${lastLogin.IP}.`;
