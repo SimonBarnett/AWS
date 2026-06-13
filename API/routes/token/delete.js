@@ -2,13 +2,13 @@
 // Fully refactored to use SystemOTPs table (no placeholders)
 
 const { logger, sql } = require('/opt/nodejs/helpers');
-const { getUserById, normalizePhone, generatePin } = require('./helpers');
+const { getUserById, normalizePhone, generatePin, parseBody } = require('./helpers');
 const { sendSmsTextmagic } = require('/opt/nodejs/sms');
 const crypto = require('crypto');
 
 module.exports = async (event, { action = 'initiate', pool, sandbox = false }) => {
     const decoded = event.decoded;
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
 
     if (action === 'initiate') {
         const user = await getUserById(decoded.user_id, event, pool);

@@ -9,14 +9,23 @@ const { hashPassword } = require('/opt/nodejs/helpers');
 const {
     getUserByEmail,
     getUserById,
-    updateUserPassword,
     getLastLogin,
     setLastLogin,
     generatePin
 } = require('./helpers');
 
 module.exports = async (event, { action = 'request', pool, sandbox = false }) => {
-    const body = event.body ? JSON.parse(event.body) : {};
+    let body = {};
+    if (event.body) {
+        const rawBody = event.isBase64Encoded
+            ? Buffer.from(event.body, 'base64').toString('utf8')
+            : event.body;
+        try {
+            body = JSON.parse(rawBody);
+        } catch (e) {
+            logger.error('Failed to parse body', { error: e.message });
+        }
+    }
 
     if (action === 'request') {
         const { email } = body;
@@ -71,7 +80,7 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
             .input('expires_at', sql.DateTime, expiresAt)
             .input('payload', sql.NVarChar(sql.MAX), payload)
             .query(`
-                INSERT INTO SystemOTPs (user_id, otp, token_type, created_at, expires_at, payload)
+                INSERT INTO SystemOTPs (user_id, otp, token_type, created_at, expires_at, @payload)
                 VALUES (@user_id, @otp, @token_type, GETDATE(), @expires_at, @payload)
             `);
 
@@ -137,7 +146,16 @@ module.exports = async (event, { action = 'request', pool, sandbox = false }) =>
         }
 
         const hashedPassword = await hashPassword(new_password);
-        await updateUserPassword(userId, hashedPassword, pool);
+
+        // Replaced missing updateUserPassword helper with direct query
+        await pool.request()
+            .input('user_id', sql.Char(8), userId)
+            .input('password', sql.VarChar(255), hashedPassword)
+            .query(`
+                UPDATE Users 
+                SET password = @password, updated_at = GETDATE() 
+                WHERE user_id = @user_id
+            `);
 
         await pool.request()
             .input('otp_id', sql.Int, record.otp_id)

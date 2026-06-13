@@ -1,7 +1,7 @@
 // ====================== routes/token/tos.js ======================
 // Serves Terms of Service from S3 based on token or service type
 
-const { logger, getS3Client, GetObjectCommand, executeWithRetry, sql } = require('/opt/nodejs/helpers');
+const { logger, getS3Client, GetObjectCommand, executeWithRetry, sql, parseBody } = require('/opt/nodejs/helpers');
 
 // ====================== HELPERS ======================
 

@@ -11,14 +11,15 @@ const {
     isValidPhone, 
     isValidEmail, 
     getUserById,
-    setLastLogin
+    setLastLogin,
+    parseBody
 } = require('./helpers');
 
 const { hashPassword } = require('/opt/nodejs/helpers');
 
 module.exports = async (event, { action = 'initiate', pool, sandbox = false }) => {
     const decoded = event.decoded;
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
 
     if (action === 'initiate') {
         const { first_name, phone_number, email_address } = body;

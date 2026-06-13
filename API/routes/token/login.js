@@ -5,6 +5,8 @@
 const { logger, comparePassword } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
+const { parseBody } = require('./helpers');
+
 const {
     getUserByEmail,
     getLastLogin,
@@ -16,13 +18,7 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
     const ipAddress = event.requestContext?.identity?.sourceIp;
     const startTotal = Date.now();
 
-    let body;
-    try {
-        body = event.body ? JSON.parse(event.body) : {};
-    } catch (parseError) {
-        logger.warn('Invalid JSON body', { requestId });
-        return { statusCode: 400, body: { status: 'error', error_message: 'Invalid request body' } };
-    }
+    const body = parseBody(event);
 
     const { email, password } = body;
 
