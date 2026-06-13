@@ -11,6 +11,7 @@ const chartDataHandler = require('./chartData');
 const merchantPartsHandler = require('./merchantParts');
 const categoryHandler = require('./category');
 const resetHandler = require('./reset');
+const deleteHandler = require('./delete');
 
 module.exports = async (event) => {
     const path = event.path || '/';
@@ -46,6 +47,9 @@ module.exports = async (event) => {
         } else if (path === '/category/reset' && method === 'POST') {
             const result = await resetHandler(decoded.user_id, { pool, sandbox });
             return { statusCode: 200, body: result };
+
+        } else if (path.startsWith('/delete')) {
+            return await deleteHandler(event, { pool, sandbox });
 
         } else {
             logger.warn('UI route not found', { path, method });
