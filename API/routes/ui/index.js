@@ -2,6 +2,8 @@
 // UI Routes Sub-Router
 // Creates one pool per request and passes { pool, sandbox } to all handlers
 
+// IMPORTANT: Do NOT close the pool here. It is passed from the main orchestrator.
+
 const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
 const cmsProvidersHandler = require('./cmsProviders');
@@ -87,7 +89,6 @@ module.exports = async (event) => {
             statusCode: 500,
             body: { message: error.message || 'Internal Server Error' }
         };
-    } finally {
-        if (pool) await pool.close();
     }
+    // Pool is intentionally NOT closed here (passed from main orchestrator)
 };
