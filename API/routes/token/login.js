@@ -5,13 +5,7 @@
 const { logger, comparePassword } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
-const { parseBody } = require('./helpers');
-
-const {
-    getUserByEmail,
-    getLastLogin,
-    setLastLogin
-} = require('./helpers');
+const { parseBody, getUserByEmail, getLastLogin, setLastLogin } = require('./helpers');
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
     const requestId = event.requestContext?.requestId || 'unknown';
