@@ -18,13 +18,29 @@ const {
     setLastLogin
 } = require('./helpers');
 
-async function getOnboardingData(token) {
+async function getOnboardingData(otp) {
     const pool = await getDbConnection();
     try {
         const result = await pool.request()
-            .input('token_id', sql.VarChar, token)
-            .query('SELECT * FROM Tokens WHERE token_id = @token_id');
-        return result.recordset[0] || null;
+            .input('otp', sql.VarChar(10), otp)
+            .input('token_type', sql.VarChar(50), 'onboarding')
+            .query(`
+                SELECT * FROM SystemOTPs 
+                WHERE otp = @otp 
+                  AND token_type = @token_type 
+                  AND expires_at > GETDATE()
+            `);
+
+        if (result.recordset.length === 0) return null;
+
+        const record = result.recordset[0];
+        const payload = JSON.parse(record.payload || '{}');
+
+        return {
+            ...record,
+            ...payload,
+            referrer_by: record.user_id
+        };
     } finally {
         await pool.close();
     }
@@ -32,15 +48,12 @@ async function getOnboardingData(token) {
 
 async function validateOnboardingToken(tokenData) {
     if (!tokenData) return { valid: false, reason: 'Invalid token' };
-    const issuedAt = new Date(tokenData.issued_at);
-    if (Date.now() > issuedAt.getTime() + (48 * 60 * 60 * 1000)) {
-        return { valid: false, reason: 'Token expired' };
-    }
+    // Expiry is already checked in the query above
     return { valid: true };
 }
 
 module.exports = async (event) => {
-    const queryToken = event.queryStringParameters?.token;
+    const queryToken = event.queryStringParameters?.token; // this is actually the OTP now
     if (!queryToken) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Token is required' } };
     }
@@ -179,11 +192,12 @@ module.exports = async (event) => {
         'This is your first login.'
     );
 
+    // Delete the used OTP
     const deletePool = await getDbConnection();
     try {
         await deletePool.request()
-            .input('token_id', sql.VarChar, queryToken)
-            .query('DELETE FROM Tokens WHERE token_id = @token_id');
+            .input('otp_id', sql.Int, onboardingData.otp_id)
+            .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
     } finally {
         await deletePool.close();
     }
