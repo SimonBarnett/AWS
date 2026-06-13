@@ -1,13 +1,13 @@
 // ====================== routes/token/addRole.js ======================
 // Add merchant role/permission to user
 
-const { logger, sql, executeWithRetry } = require('/opt/nodejs/helpers');
+const { logger, sql, executeWithRetry, parseBody } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
 const { getUserById } = require('./helpers');
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     const decoded = event.decoded;
 
     const { role, agreedToTos } = body;
