@@ -16,16 +16,25 @@ const addRoleHandler = require('./addRole');
 
 module.exports = async (event) => {
     // Normalize path for both direct calls and /{proxy+} under /ui
-    let path = (event.path || '/').replace(/^/ui(/|$)/, '/');
-    if (!path.startsWith('/')) path = '/' + path;
+    let path = event.path || '/';
+
+    // Remove /ui prefix if present (for requests coming through the proxy)
+    if (path.startsWith('/ui')) {
+        path = path.replace(/^/ui/, '');
+    }
+
+    // Ensure path always starts with a forward slash
+    if (!path.startsWith('/')) {
+        path = '/' + path;
+    }
 
     const method = event.httpMethod;
     const decoded = event.decoded;
 
-    logger.debug('UI Router received request', { 
-        originalPath: event.path, 
-        normalizedPath: path, 
-        method 
+    logger.debug('UI Router received request', {
+        originalPath: event.path,
+        normalizedPath: path,
+        method
     });
 
     const pool = await getDbConnection();
