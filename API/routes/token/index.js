@@ -1,6 +1,7 @@
 // ====================== routes/token/index.js ======================
 // Token / Auth Routes Sub-Router
-// All handlers now receive { pool, sandbox } from here. No closes inside routes.
+// All handlers now receive { pool, sandbox } from here.
+// Pool is NOT closed in this router (prevents "Connection is closed" errors).
 
 const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
@@ -80,7 +81,6 @@ module.exports = async (event) => {
             statusCode: 500,
             body: { status: 'error', error_message: error.message || 'Internal Server Error' }
         };
-    } finally {
-        if (pool) await pool.close();
     }
+    // Pool is intentionally not closed here.
 };
