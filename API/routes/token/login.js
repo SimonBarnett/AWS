@@ -31,7 +31,7 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         return { statusCode: 400, body: { status: 'error', error_message: 'Email and password are required' } };
     }
 
-    const user = await getUserByEmail(email, event);
+    const user = await getUserByEmail(email, event, pool);
     if (!user) {
         logger.warn('User not found', { requestId, email });
         return { statusCode: 401, body: { status: 'error', error_message: 'Invalid credentials' } };
@@ -57,7 +57,7 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
     }
 
     const contactName = user.company_name || user.first_name || 'User';
-    const lastLogin = await getLastLogin(user.user_id);
+    const lastLogin = await getLastLogin(user.user_id, pool);
     let lastLoginMessage;
     if (lastLogin) {
         const loginTime = new Date(lastLogin.timestamp);
@@ -67,7 +67,7 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         lastLoginMessage = `You last logged in at ${formattedTime} from ${lastLogin.IP}.`;
     }
 
-    await setLastLogin(user.user_id, ipAddress);
+    await setLastLogin(user.user_id, ipAddress, pool);
 
     const responseBody = {
         status: 'success',
