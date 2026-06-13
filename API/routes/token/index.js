@@ -10,7 +10,6 @@ const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
 const tosRoute = require('./tos');
-const addRoleRoute = require('./addRole');
 const delegateRoute = require('./delegate');
 
 module.exports = async (event) => {
@@ -40,9 +39,6 @@ module.exports = async (event) => {
 
         } else if (path === '/login/tos' && method === 'GET') {
             return await tosRoute(event, { pool, sandbox });
-
-        } else if (path === '/login/add-role' && method === 'POST') {
-            return await addRoleRoute(event, { pool, sandbox });
 
         } else if (path === '/login/generate-onboarding-token' && method === 'POST') {
             return await onboardingRoute(event, { action: 'generate', pool, sandbox });
