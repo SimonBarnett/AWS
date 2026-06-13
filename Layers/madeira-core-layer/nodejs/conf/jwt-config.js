@@ -20,8 +20,9 @@ async function getJwtConfig() {
     const response = await client.send(command);
     let secret = response.Parameters?.[0]?.Value;
 
-    // Create a strong default if missing or still placeholder
-    if (!secret || secret === "CHANGE_ME" || secret.length < 20) {
+    // Only create placeholder if missing or explicitly set to CHANGE_ME.
+    // Do NOT overwrite existing secrets (even short ones) because they may be used for password hashing.
+    if (!secret || secret === "CHANGE_ME") {
         secret = "super-secret-jwt-key-madeira-2026-v2-!@#$%^&*()_change_in_production_";
         await createPlaceholderIfMissing(client, "/madeira/jwt/secret-key", secret);
         logger.warn("🔑 Created strong default JWT secret in SSM. Please replace with a secure key in production!");
