@@ -21,7 +21,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
 
     // ==================== generate ====================
     if (action === 'generate') {
-        const user = await getUserById(decoded.user_id, event);
+        const user = await getUserById(decoded.user_id, event, pool);
         if (!user) {
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
         }
@@ -53,7 +53,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
                 return { statusCode: 400, body: { status: 'error', error_message: 'URL is required for this invitation type' } };
             }
             if (tokenType === 'partner') {
-                const trafficCheck = await getTrafficAv(decoded.user_id);
+                const trafficCheck = await getTrafficAv(decoded.user_id, pool);
                 if (!trafficCheck.success) {
                     return { statusCode: 403, body: { status: 'error', error_message: 'All available invites in use.' } };
                 }
@@ -156,7 +156,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             return { statusCode: 401, body: { status: 'error', error_message: 'Token has expired' } };
         }
 
-        const referrer = await getUserById(payload.referrerId, event);
+        const referrer = await getUserById(payload.referrerId, event, pool);
         if (!referrer || (!referrer.permissions.includes('admin') && !referrer.permissions.includes('partner'))) {
             logger.warn('Invalid or unauthorized referrer', { requestId, referrerId: payload.referrerId });
             return { statusCode: 403, body: { status: 'error', error_message: 'Invalid or unauthorized referrer' } };
@@ -275,7 +275,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         do {
             userId = generateUserId();
             attempts++;
-        } while (!(await isUserIdUnique(userId)) && attempts < maxAttempts);
+        } while (!(await isUserIdUnique(userId, pool)) && attempts < maxAttempts);
 
         if (attempts >= maxAttempts) {
             return { statusCode: 500, body: { status: 'error', error_message: 'Failed to generate unique user ID' } };
@@ -312,7 +312,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         if (role === 'community' && !userData.first_name && logEmail) userData.first_name = logEmail.split('@')[0];
         if (role === 'merchant' && !userData.company_name && logEmail) userData.company_name = logEmail.split('@')[0];
 
-        await createUser(userData);
+        await createUser(userData, pool);
         logger.info('User created from onboarding', { userId, role, email: logEmail });
 
         if (role === 'partner' && tokenPayload.url) {
@@ -326,7 +326,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             user_id: userId,
             role,
             affiliate_code: tokenData.user_id
-        });
+        }, pool);
 
         if (role === 'community' && tokenPayload.url) {
             try {
@@ -364,7 +364,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
         }
 
         if (role === 'merchant') {
-            const paymentResult = await confirmOnboarding(userId, tokenData.user_id, event);
+            const paymentResult = await confirmOnboarding(userId, tokenData.user_id, event, pool);
             if (paymentResult.statusCode !== 200) {
                 return { statusCode: paymentResult.statusCode, body: { status: 'error', error_message: 'Payment failed' } };
             }
@@ -376,7 +376,7 @@ module.exports = async (event, { action, pool, sandbox = false }) => {
             exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
         });
 
-        await setLastLogin(userId, event.requestContext?.identity?.sourceIp);
+        await setLastLogin(userId, event.requestContext?.identity?.sourceIp, pool);
 
         const contactName = userData.company_name || userData.first_name || userId;
         const decodedSignupUrl = new URL(signupUrl || 'https://greenfieldsites.clubmadeira.io').href;
