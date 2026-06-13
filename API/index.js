@@ -1,7 +1,7 @@
 // ====================== index.js ======================
 // Single /{proxy+} API Gateway Orchestrator
 // madeira-api-gateway
-// Last updated: 12 June 2026
+// Last updated: 13 June 2026
 
 const { logger } = require('/opt/nodejs/helpers');
 const { verifyJWT } = require('/opt/nodejs/jwt');
@@ -33,7 +33,7 @@ const PUBLIC_ROUTES = [
     '/rds'
 ];
 
-module.exports = async (event) => {
+module.exports.handler = async (event) => {
     const path = event.path || '/';
     const method = event.httpMethod;
 
@@ -107,7 +107,7 @@ module.exports = async (event) => {
         const statusCode =
             error.message.includes('Unauthorized') || error.message.includes('JWT')
                 ? 401
-                : 500;
+            : 500;
 
         return {
             statusCode,
