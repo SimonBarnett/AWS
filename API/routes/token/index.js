@@ -6,7 +6,6 @@
 const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 
 // All token route handlers
-const claimsRoute = require('./claims');
 const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
@@ -25,10 +24,7 @@ module.exports = async (event) => {
     const sandbox = process.env.SANDBOX === 'true';
 
     try {
-        if (path === '/login/claims' && method === 'GET') {
-            return await claimsRoute(event, { pool, sandbox });
-
-        } else if (path === '/login' && method === 'POST') {
+        if (path === '/login' && method === 'POST') {
             return await loginRoute(event, { pool, sandbox });
 
         } else if (path === '/login/reset-password' && method === 'POST') {
