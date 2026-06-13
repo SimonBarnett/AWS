@@ -3,7 +3,7 @@
 // Updated to support passed pool + executeWithRetry from core layer
 
 const crypto = require('crypto');
-const { executeWithRetry, sql } = require('/opt/nodejs/helpers');
+const { executeWithRetry, sql, logger } = require('/opt/nodejs/helpers');
 
 // ====================== PIN GENERATION ======================
 const generatePin = () => crypto.randomInt(100000, 999999).toString();
@@ -20,6 +20,22 @@ const normalizePhone = (phone) => {
 const isValidPhone = (phone) => /^\+44\d{10}$/.test(phone);
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&=`~#^-_+[\]{}|;:,./<>])[A-Za-z\d@$!%*?&=`~#^-_+[\]{}|;:,./<>]{8,}$/.test(password);
+
+// ====================== SHARED BODY PARSER ======================
+function parseBody(event) {
+    if (!event.body) return {};
+
+    try {
+        const rawBody = event.isBase64Encoded
+            ? Buffer.from(event.body, 'base64').toString('utf8')
+            : event.body;
+
+        return JSON.parse(rawBody);
+    } catch (err) {
+        logger.error('Failed to parse request body', { error: err.message });
+        return {};
+    }
+}
 
 // ====================== GET USER BY ID (updated) ======================
 async function getUserById(userId, event, pool = null) {
@@ -229,5 +245,6 @@ module.exports = {
     getLastLogin,
     setLastLogin,
     originCode,
-    getTrafficAv
+    getTrafficAv,
+    parseBody
 };
