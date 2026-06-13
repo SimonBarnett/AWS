@@ -28,6 +28,9 @@ module.exports = async (event) => {
         path = '/' + path;
     }
 
+    // Update event.path so downstream handlers see the normalized path
+    event.path = path;
+
     const method = event.httpMethod;
     const decoded = event.decoded;
 
