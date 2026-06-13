@@ -32,7 +32,7 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
             return { statusCode: 400, body: { status: 'error', error_message: 'Invalid phone or email format' } };
         }
 
-        const user = await getUserById(decoded.user_id, event);
+        const user = await getUserById(decoded.user_id, event, pool);
         if (!user) {
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
         }
@@ -166,7 +166,7 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
             }
         });
 
-        const user = await getUserById(user_id, event);
+        const user = await getUserById(user_id, event, pool);
 
         const jwtToken = await signJWT({
             user_id: user.user_id,
@@ -174,7 +174,7 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
             exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
         });
 
-        await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp);
+        await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp, pool);
 
         if (sandbox) logger.debug('[SANDBOX] Delegation accepted', { userId: user_id });
 
