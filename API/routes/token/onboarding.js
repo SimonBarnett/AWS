@@ -1,7 +1,7 @@
 // ====================== routes/token/onboarding.js ======================
 // Onboarding flow - creates user from onboarding token + Stripe account
-// For communities: properly starts the ClubScan SQS pipeline
-// Last updated: 03 June 2026
+// Now triggers async ONBOARDING via SQS catalogue
+// Last updated: 13 June 2026
 
 const { logger, getDbConnection, sql, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
@@ -126,6 +126,19 @@ module.exports = async (event) => {
     await createUser(userData);
     logger.info('User created from onboarding', { userId, role, email: logEmail });
 
+    // ====================== TRIGGER ASYNC ONBOARDING VIA SQS ======================
+    if (role === 'community' && onboardingData.url) {
+        await enqueueMessage({
+            type: 'ONBOARDING',
+            userId,
+            url: onboardingData.url,
+            partnerId: onboardingData.referrer_by,
+            sandbox: isSandbox
+        });
+
+        logger.info('Enqueued ONBOARDING message for ClubScan pipeline', { userId, url: onboardingData.url });
+    }
+
     if (role === 'partner' && onboardingData.url) {
         await enqueueMessage({
             type: 'SEND_EMAIL',
@@ -136,46 +149,6 @@ module.exports = async (event) => {
                 partnerId: userId
             }
         });
-    }
-
-    // ====================== START CLUBSCAN PIPELINE ======================
-    if (role === 'community' && onboardingData.url) {
-        let pool;
-        try {
-            pool = await getDbConnection();
-
-            // Insert into clubscan table
-            await pool.request()
-                .input('url', sql.NVarChar, onboardingData.url)
-                .input('clubId', sql.VarChar, userId)
-                .input('partnerId', sql.VarChar, onboardingData.referrer_by || null)
-                .input('status', sql.VarChar, 'queued')
-                .query(`
-                    MERGE INTO clubscan AS target
-                    USING (SELECT @url AS Url) AS source
-                    ON target.Url = source.Url
-                    WHEN NOT MATCHED THEN
-                        INSERT (Url, ClubID, PartnerId, Status, CreatedAt, UpdatedAt)
-                        VALUES (@url, @clubId, @partnerId, @status, GETDATE(), GETDATE());
-                `);
-
-            // Start ClubScan pipeline via SQS
-            await enqueueMessage({
-                type: 'CLUBSCAN_FETCH_CONTENT',
-                url: onboardingData.url
-            });
-
-            logger.info('✅ ClubScan pipeline started via SQS', { userId, url: onboardingData.url });
-
-        } catch (err) {
-            logger.error('Failed to start ClubScan pipeline', { 
-                userId, 
-                url: onboardingData.url, 
-                error: err.message 
-            });
-        } finally {
-            if (pool) await pool.close();
-        }
     }
 
     if (role === 'merchant') {
