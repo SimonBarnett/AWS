@@ -1,18 +1,19 @@
 {
-    "name": "madeira-api-gateway",
-    "version": "1.0.0",
-    "description": "Club Madeira API Gateway",
-    "main": "index.js",
-    "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "dependencies": {
-      "aws-sdk": "^2.1692.0",
-      "qrcode": "^1.5.3"
-    },
-    "devDependencies": {},
-    "private": true,
-    "engines": {
-      "node": "20.x"
-    }
+  "name": "madeira-api-gateway",
+  "version": "1.0.0",
+  "description": "Club Madeira API Gateway",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {},
+  "private": true,
+  "engines": {
+    "node": "20.x"
   }
+}
