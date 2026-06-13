@@ -11,7 +11,7 @@ module.exports = async (event, { action = 'initiate', pool, sandbox = false }) =
     const body = event.body ? JSON.parse(event.body) : {};
 
     if (action === 'initiate') {
-        const user = await getUserById(decoded.user_id, event);
+        const user = await getUserById(decoded.user_id, event, pool);
         if (!user) {
             return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
         }
