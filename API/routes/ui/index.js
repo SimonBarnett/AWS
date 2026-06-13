@@ -20,7 +20,7 @@ module.exports = async (event) => {
 
     // Remove /ui prefix if present (for requests coming through the proxy)
     if (path.startsWith('/ui')) {
-        path = path.replace(/^/ui/, '');
+        path = path.replace(/^\/ui/, '');
     }
 
     // Ensure path always starts with a forward slash
