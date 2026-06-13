@@ -55,8 +55,19 @@ module.exports.handler = async (event) => {
             !path.startsWith('/login/delegate');
 
         if (!isPublicRoute) {
-            const decoded = await verifyJWT(event);
+            // Extract Bearer token from Authorization header
+            const authHeader = event.headers?.Authorization || event.headers?.authorization || '';
+            const token = authHeader.startsWith('Bearer ')
+                ? authHeader.substring(7).trim()
+                : authHeader.trim();
+
+            if (!token) {
+                throw new Error('Unauthorized - No token provided');
+            }
+
+            const decoded = await verifyJWT(token);
             event.decoded = decoded;
+
             logger.info('Routing protected request', { path, method, userId: decoded.user_id });
         } else {
             logger.info('Routing public request', { path, method });
@@ -76,8 +87,6 @@ module.exports.handler = async (event) => {
             response = await tokenRoutes(event);
 
         } else if (path.startsWith('/amazoncard')) {
-            // Amazon Card routes now only handle Claims.
-            // Topup logic has been moved to Lambdas/amazoncard-topup/
             response = await amazoncardRoutes(event);
 
         } else if (path.startsWith('/query') || path.startsWith('/rds')) {
