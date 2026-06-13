@@ -48,7 +48,11 @@ module.exports.handler = async (event) => {
     }
 
     try {
-        const isPublicRoute = PUBLIC_ROUTES.some(route => path.startsWith(route));
+        // /login/delegate requires authentication (the logged-in user is delegating)
+        // /login/acceptdelegation remains public (new user accepting delegation)
+        const isPublicRoute =
+            PUBLIC_ROUTES.some(route => path.startsWith(route)) &&
+            !path.startsWith('/login/delegate');
 
         if (!isPublicRoute) {
             const decoded = await verifyJWT(event);
