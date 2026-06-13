@@ -16,7 +16,7 @@ const addRoleHandler = require('./addRole');
 
 module.exports = async (event) => {
     // Normalize path for both direct calls and /{proxy+} under /ui
-    let path = (event.path || '/').replace(/^/ui(\/|$)/, '/');
+    let path = (event.path || '/').replace(/^/ui(/|$)/, '/');
     if (!path.startsWith('/')) path = '/' + path;
 
     const method = event.httpMethod;
