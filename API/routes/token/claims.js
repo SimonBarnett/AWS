@@ -1,6 +1,6 @@
 // ====================== routes/token/claims.js ======================
 const { logger } = require('/opt/nodejs/helpers');
-const { originCode } = require('./helpers');
+const { originCode, parseBody } = require('./helpers');
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
     const decoded = event.decoded;
