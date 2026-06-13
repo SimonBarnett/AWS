@@ -1,9 +1,11 @@
 // ====================== routes/token/login.js ======================
+// CLEAN VERSION - Matches original production login exactly
+// Only email + password required. No extra fields.
+
 const { logger, comparePassword } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
 const {
-    verifyAffiliate,
     getUserByEmail,
     getLastLogin,
     setLastLogin
@@ -22,26 +24,16 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         return { statusCode: 400, body: { status: 'error', error_message: 'Invalid request body' } };
     }
 
-    const { email, password, signup_url, affiliate } = body;
+    const { email, password } = body;
 
-    if (!email || !password || !signup_url || !affiliate) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Missing required fields' } };
-    }
-
-    let signupUrl;
-    try {
-        signupUrl = new URL(signup_url).href;
-    } catch (err) {
-        return { statusCode: 400, body: { status: 'error', error_message: 'Invalid signup_url' } };
-    }
-
-    const affiliateVerification = await verifyAffiliate(affiliate);
-    if (!affiliateVerification.valid) {
-        return { statusCode: 400, body: { status: 'error', error_message: affiliateVerification.reason } };
+    if (!email || !password) {
+        logger.warn('Missing email or password', { requestId });
+        return { statusCode: 400, body: { status: 'error', error_message: 'Email and password are required' } };
     }
 
     const user = await getUserByEmail(email, event);
     if (!user) {
+        logger.warn('User not found', { requestId, email });
         return { statusCode: 401, body: { status: 'error', error_message: 'Invalid credentials' } };
     }
 
