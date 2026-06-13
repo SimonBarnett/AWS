@@ -1,6 +1,5 @@
 // ====================== routes/token/onboarding.js ======================
 // Slim consolidated handler for onboarding actions
-// Actions supported: generate, validate, complete, complete-signup
 // Last updated: 13 June 2026
 
 const { logger, getDbConnection, sql, enqueueMessage } = require('/opt/nodejs/helpers');
@@ -49,7 +48,6 @@ async function getOnboardingData(otp) {
 // ====================== ACTION HANDLERS ======================
 
 async function handleGenerate(event, { pool, sandbox = false }) {
-    // TODO: Full implementation (Stripe account creation + token + email/SMS)
     return {
         statusCode: 200,
         body: { status: 'success', message: 'Generate action received' }
@@ -64,17 +62,29 @@ async function handleValidate(event, { pool, sandbox = false }) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Token and PIN required' } };
     }
 
-    const data = await getOnboardingData(pin);
-    if (!data) {
+    const onboardingData = await getOnboardingData(pin);
+    if (!onboardingData) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired PIN' } };
     }
 
-    // TODO: Create real Stripe Account Link here
+    const stripe = await getStripeClient(event);
+
+    const return_url = `${event.headers.origin || 'https://greenfieldsites.clubmadeira.io'}/login/onboarding?token=${token}`;
+    const refresh_url = new URL(onboardingData.signup_url);
+    refresh_url.searchParams.append('signup', 'fail');
+
+    const account_link = await stripe.accountLinks.create({
+        account: onboardingData.stripe_account_id,
+        refresh_url: refresh_url.toString(),
+        return_url,
+        type: 'account_onboarding'
+    });
+
     return {
         statusCode: 200,
         body: {
             status: 'success',
-            account_link: 'https://connect.stripe.com/setup/placeholder'
+            account_link: account_link.url
         }
     };
 }
@@ -192,7 +202,6 @@ async function handleComplete(event, { pool, sandbox = false }) {
     const contactName = userData.company_name || userData.first_name || userId;
     const redirectUrl = buildSetTokenUrl(new URL(signupUrl).href, token, userId, contactName, 'signup', isSandbox, 'This is your first login.');
 
-    // Cleanup used OTP
     const delPool = await getDbConnection();
     try {
         await delPool.request()
