@@ -1,0 +1,23 @@
+{
+  "name": "amazoncard-topup",
+  "version": "1.0.0",
+  "description": "Amazon Gift Card Top-up Lambda (AGCOD v2)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1692.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "aws-lambda",
+    "amazon-gift-card",
+    "agcod"
+  ],
+  "author": "Club Madeira Ltd",
+  "license": "UNLICENSED"
+}
