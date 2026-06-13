@@ -15,11 +15,18 @@ const deleteHandler = require('./delete');
 const addRoleHandler = require('./addRole');
 
 module.exports = async (event) => {
-    const path = event.path || '/';
+    // Normalize path for both direct calls and /{proxy+} under /ui
+    let path = (event.path || '/').replace(/^/ui(\/|$)/, '/');
+    if (!path.startsWith('/')) path = '/' + path;
+
     const method = event.httpMethod;
     const decoded = event.decoded;
 
-    logger.debug('UI Router received request', { path, method });
+    logger.debug('UI Router received request', { 
+        originalPath: event.path, 
+        normalizedPath: path, 
+        method 
+    });
 
     const pool = await getDbConnection();
     const sandbox = process.env.SANDBOX === 'true';
