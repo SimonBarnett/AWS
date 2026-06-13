@@ -12,7 +12,6 @@ const onboardingRoute = require('./onboarding');
 const tosRoute = require('./tos');
 const addRoleRoute = require('./addRole');
 const delegateRoute = require('./delegate');
-const deleteRoute = require('./delete');
 
 module.exports = async (event) => {
     const path = event.path || '/';
@@ -56,12 +55,6 @@ module.exports = async (event) => {
 
         } else if (path === '/login/acceptdelegation' && method === 'POST') {
             return await delegateRoute(event, { action: 'accept', pool, sandbox });
-
-        } else if (path === '/login/delete' && method === 'POST') {
-            return await deleteRoute(event, { action: 'initiate', pool, sandbox });
-
-        } else if (path === '/login/deleteconfirm' && method === 'POST') {
-            return await deleteRoute(event, { action: 'confirm', pool, sandbox });
 
         } else {
             logger.warn('Token route not found', { path, method });
