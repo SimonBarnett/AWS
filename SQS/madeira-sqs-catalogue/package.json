@@ -1,26 +1,27 @@
 {
-    "name": "madeira-sqs-catalogue",
-    "version": "1.0.0",
-    "description": "SQS background processors for Club Madeira (category + clubscan flows)",
-    "main": "index.js",
-    "scripts": {
-      "start": "node index.js",
-      "test": "echo \"No tests specified\" && exit 0"
-    },
-    "dependencies": {
-      "cheerio": "^1.0.0-rc.12",
-      "uuid": "^9.0.1"
-    },
-    "devDependencies": {},
-    "engines": {
-      "node": "20.x"
-    },
-    "keywords": [
-      "aws-lambda",
-      "sqs",
-      "club-madeira",
-      "background-processor"
-    ],
-    "author": "Club Madeira Ltd",
-    "license": "UNLICENSED"
-  }
+  "name": "madeira-sqs-catalogue",
+  "version": "1.0.0",
+  "description": "SQS background processors for Club Madeira (category + clubscan flows)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "uuid": "^9.0.1",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "aws-lambda",
+    "sqs",
+    "club-madeira",
+    "background-processor"
+  ],
+  "author": "Club Madeira Ltd",
+  "license": "UNLICENSED"
+}
