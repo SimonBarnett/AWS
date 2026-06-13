@@ -18,8 +18,6 @@ const {
     setLastLogin
 } = require('./helpers');
 
-const { sendCPOnboardedEmail } = require('./email');
-
 async function getOnboardingData(token) {
     const pool = await getDbConnection();
     try {
@@ -129,23 +127,16 @@ module.exports = async (event) => {
     logger.info('User created from onboarding', { userId, role, email: logEmail });
 
     if (role === 'partner' && onboardingData.url) {
-        const pool = await getDbConnection();
-        try {
-            await pool.request()
-                .input('user_id', sql.VarChar, userId)
-                .input('signupurl', sql.VarChar, onboardingData.url)
-                .query('UPDATE Users SET signupurl = @signupurl WHERE user_id = @user_id');
-        } finally {
-            await pool.close();
-        }
+        await enqueueMessage({
+            type: 'SEND_EMAIL',
+            emailType: 'partner_onboarded',
+            payload: {
+                partnerEmail: logEmail,
+                url: onboardingData.url,
+                partnerId: userId
+            }
+        });
     }
-
-    // Analytics
-    await capturePostHogEvent(userId, 'signup', {
-        user_id: userId,
-        role,
-        affiliate_code: onboardingData.referrer_by
-    });
 
     // ====================== START CLUBSCAN PIPELINE ======================
     if (role === 'community' && onboardingData.url) {
@@ -185,10 +176,6 @@ module.exports = async (event) => {
         } finally {
             if (pool) await pool.close();
         }
-    }
-
-    if (role === 'partner' && onboardingData.url) {
-        await sendCPOnboardedEmail(logEmail, onboardingData.url, userId);
     }
 
     if (role === 'merchant') {
