@@ -1,0 +1,29 @@
+{
+  "name": "madeira-aws",
+  "version": "1.0.0",
+  "description": "Club Madeira AWS monorepo - API, SQS processors, and Lambda layers",
+  "private": true,
+  "workspaces": [
+    "API",
+    "SQS/madeira-sqs-catalogue",
+    "Lambdas/*"
+  ],
+  "scripts": {
+    "install:all": "npm install --workspaces",
+    "test": "echo \"No root tests specified\" && exit 0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "aws-lambda",
+    "club-madeira",
+    "monorepo"
+  ],
+  "author": "Club Madeira Ltd",
+  "license": "UNLICENSED"
+}
