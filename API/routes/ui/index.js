@@ -12,6 +12,7 @@ const merchantPartsHandler = require('./merchantParts');
 const categoryHandler = require('./category');
 const resetHandler = require('./reset');
 const deleteHandler = require('./delete');
+const addRoleHandler = require('./addRole');
 
 module.exports = async (event) => {
     const path = event.path || '/';
@@ -50,6 +51,9 @@ module.exports = async (event) => {
 
         } else if (path.startsWith('/delete')) {
             return await deleteHandler(event, { pool, sandbox });
+
+        } else if (path === '/add-role' && method === 'POST') {
+            return await addRoleHandler(event, { pool, sandbox });
 
         } else {
             logger.warn('UI route not found', { path, method });
