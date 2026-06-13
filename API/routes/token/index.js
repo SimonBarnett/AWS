@@ -9,6 +9,7 @@ const { logger, getDbConnection } = require('/opt/nodejs/helpers');
 const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
+const tosRoute = require('./tos');
 const delegateRoute = require('./delegate');
 
 module.exports = async (event) => {
@@ -37,7 +38,7 @@ module.exports = async (event) => {
             return await onboardingRoute(event, { action: 'complete-signup', pool, sandbox });
 
         } else if (path === '/login/tos' && method === 'GET') {
-            return await onboardingRoute(event, { action: 'tos', pool, sandbox });
+            return await tosRoute(event, { pool, sandbox });
 
         } else if (path === '/login/generate-onboarding-token' && method === 'POST') {
             return await onboardingRoute(event, { action: 'generate', pool, sandbox });
