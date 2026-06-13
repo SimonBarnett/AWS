@@ -16,12 +16,7 @@ const {
     getUserById,
     isValidPassword,
     updateUser,
-    parseBody,
-    generatePin,
-    normalizePhone,
-    isValidPhone,
-    isValidEmail,
-    originCode
+    parseBody
 } = require('./helpers');
 
 // ====================== SHARED HELPER ======================
@@ -73,7 +68,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
         return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
     }
 
-    // Permission check
     const permissions = user.permissions || [];
     if (!permissions.includes('admin') && !permissions.includes('partner') && !permissions.includes('owner')) {
         return { statusCode: 403, body: { status: 'error', error_message: 'Insufficient permission' } };
@@ -83,7 +77,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
         return { statusCode: 403, body: { status: 'error', error_message: 'Only owners can invite communities or partners' } };
     }
 
-    // Check if email already exists
     const emailCheck = await pool.request()
         .input('email', sql.VarChar(255), email.toLowerCase())
         .query('SELECT COUNT(*) AS count FROM Users WHERE email_address = @email');
@@ -92,7 +85,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
         return { statusCode: 409, body: { status: 'error', error_message: 'The email address is already in use' } };
     }
 
-    // Create Stripe account
     let stripe;
     try {
         stripe = await getStripeClient(event);
@@ -107,7 +99,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
         return { statusCode: 500, body: { status: 'error', error_message: 'Failed to create Stripe account' } };
     }
 
-    // Generate PIN and onboarding token
     const pin = generatePin();
     const onboardingToken = await signJWT({
         referrerId: decoded.user_id,
@@ -115,9 +106,8 @@ async function handleGenerate(event, { pool, sandbox = false }) {
     });
 
     const signup_url = event.headers.origin || 'https://greenfieldsites.clubmadeira.io';
-
-    // Store in SystemOTPs
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
     await pool.request()
         .input('otp', sql.VarChar(10), pin)
         .input('user_id', sql.Char(8), decoded.user_id)
@@ -137,7 +127,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
             VALUES (@otp, @user_id, @token_type, @expires_at, @payload)
         `);
 
-    // Enqueue email
     await enqueueMessage({
         type: 'SEND_EMAIL',
         emailType: tokenType === 'partner' ? 'partner_invite' : 'onboarding_invite',
@@ -150,11 +139,6 @@ async function handleGenerate(event, { pool, sandbox = false }) {
             url: url || communityId || null
         }
     });
-
-    // Send SMS
-    const smsMessage = `Your onboarding PIN is ${pin}. It expires in 48 hours.`;
-    // Note: sendSmsTextmagic should be called via layer or enqueue if possible
-    // For now we assume it's available or will be moved
 
     return {
         statusCode: 200,
@@ -349,8 +333,8 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
         return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
     }
 
-    const hashed = await require('bcryptjs').hash(password, 10);
-    await updateUser(user.user_id, hashed, null, null, pool);
+    // Pass plain password - updateUser will hash it using core layer hashPassword
+    await updateUser(user.user_id, password, null, null, pool);
 
     const token = await signJWT({
         user_id: user.user_id,
