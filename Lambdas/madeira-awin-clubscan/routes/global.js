@@ -1,6 +1,6 @@
 // routes/global.js
 const { logger, sql } = require('/opt/nodejs/helpers');
-const { callXaiApi } = require('/opt/nodejs/grok');
+const { callGrokStructured } = require('/opt/nodejs/grok');
 const { MERCHANT_PERSONALISATION_SCHEMA } = require('../grok-schemas');
 
 // ====================== ENVIRONMENT VARIABLES ======================
@@ -86,7 +86,7 @@ Return ONLY valid JSON array.`;
                 { role: "user", content: grokPrompt + "\n\nMerchants:\n" + JSON.stringify(enriched, null, 2) }
             ];
 
-            grokResult = await callXaiApi(messages, MERCHANT_PERSONALISATION_SCHEMA) || [];
+            grokResult = await callGrokStructured(messages, MERCHANT_PERSONALISATION_SCHEMA) || [];
         } catch (grokErr) {
             logger.error('Grok failed – quitting', { error: grokErr.message });
             return { statusCode: 200, body: JSON.stringify({ mode: 'global', recommendedCount: 0 }) };
