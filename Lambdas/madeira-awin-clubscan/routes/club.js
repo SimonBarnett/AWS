@@ -1,6 +1,6 @@
 // routes/club.js
 const { logger, sql } = require('/opt/nodejs/helpers');
-const { callXaiApi } = require('/opt/nodejs/grok');
+const { callGrokStructured } = require('/opt/nodejs/grok');
 const { 
     SECTOR_SCHEMA, 
     MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA 
@@ -89,7 +89,7 @@ Example: ["Sports Equipment", "Sportswear", "Clothing"]`;
             { role: "user", content: sectorPrompt }
         ];
 
-        let relevantSectors = await callXaiApi(sectorMessages, SECTOR_SCHEMA) || [];
+        let relevantSectors = await callGrokStructured(sectorMessages, SECTOR_SCHEMA) || [];
         logger.info('Relevant sectors selected by Grok', { count: relevantSectors.length, sectors: relevantSectors });
 
         if (relevantSectors.length === 0) {
@@ -163,7 +163,7 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
                 { role: "user", content: batchPrompt }
             ];
 
-            const batchResult = await callXaiApi(messages, MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA) || [];
+            const batchResult = await callGrokStructured(messages, MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA) || [];
             allPersonalised = allPersonalised.concat(batchResult);
         }
 
