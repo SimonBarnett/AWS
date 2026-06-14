@@ -2,22 +2,27 @@
     "name": "Club Madeira Affiliate Program",
     "short_name": "Club Madeira",
     "description": "Club Madeira Affiliate Program, for clubs, associations and merchants.",
-    "start_url": "https://partner.clubmadeira.io/index.html",
+    "start_url": "/index.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#000000",
     "id": "/index.html",
     "icons": [
         {
-            "src": "https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png",
+            "src": "/images/icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         },
         {
-            "src": "https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-512.png",
+            "src": "/images/icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         }
     ],
-    "scope": "/"
+    "scope": "/",
+    "orientation": "portrait",
+    "categories": ["business", "sports", "lifestyle"],
+    "prefer_related_applications": false
 }
