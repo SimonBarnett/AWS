@@ -1,27 +1,27 @@
 // ====================== routes/rdsquery/index.js ======================
-// RDS Query Handler (low-privilege account via ENV VARS)
+// RDS Query Handler (low-privilege account via ENV VARS ONLY)
 // Uses same server/database as main app, only overrides user & password
-// Last updated: 02 June 2026
+// 
+// IMPORTANT: The low-privilege password MUST ALWAYS come from the environment variable.
+// NO fallbacks to SSM, defaults, or any other source are allowed.
+// Last updated: 14 June 2026
 
 const { logger, getDbConfig, sql } = require('/opt/nodejs/helpers');
 
-// Low-privilege credentials from environment variables
+// Low-privilege credentials — MUST come from ENV VARS. No fallbacks.
 const LOW_PRIV_USER = process.env.DB_LOW_PRIV_USER;
 const LOW_PRIV_PASSWORD = process.env.DB_LOW_PRIV_PASSWORD;
+
+// Fail hard at module load if credentials are missing (no fallbacks allowed)
+if (!LOW_PRIV_USER || !LOW_PRIV_PASSWORD) {
+    throw new Error('FATAL: DB_LOW_PRIV_USER and DB_LOW_PRIV_PASSWORD environment variables are required. No fallbacks are permitted.');
+}
 
 module.exports = async (event) => {
     let pool = null;
 
     try {
         logger.debug('RDS Query request received');
-
-        if (!LOW_PRIV_USER || !LOW_PRIV_PASSWORD) {
-            logger.error('DB_LOW_PRIV_USER or DB_LOW_PRIV_PASSWORD environment variables are not set');
-            return {
-                statusCode: 500,
-                body: { error: 'Low-privilege database credentials not configured' }
-            };
-        }
 
         // Get base config from the core layer (server + database)
         const baseConfig = await getDbConfig();
