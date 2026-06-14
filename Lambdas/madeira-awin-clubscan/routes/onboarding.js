@@ -1,5 +1,6 @@
- // routes/onboarding.js
-const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+// routes/onboarding.js
+const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
+const { sendMail } = require('/opt/nodejs/mailer');
 const { getAwinConfig } = require('/opt/nodejs/conf/awin-config');
 
 // Import Awin-specific function from local helpers
@@ -181,7 +182,7 @@ exports.handler = async (event, { pool: passedPool } = {}) => {
             `
         };
 
-        await invokeMailer(mailOptions);
+        await sendMail(mailOptions);
         logger.info(`✅ Daily report sent successfully to ${emailTo}`);
 
         return { statusCode: 200 };
@@ -329,7 +330,7 @@ async function getAwinStats(pool) {
                 ahm.description,
                 ISNULL((SELECT COUNT(*) FROM [madeiradb].[dbo].[MerchantProducts] mp WHERE mp.UserId = ahm.AwinUserId AND mp.Source = 'awin'), 0) AS merchant_parts_count
             FROM dbo.AwinHighApprovalMerchants ahm
-            WHERE ahm.Joined = 1 AND ahm.AwinUserId IS NOT NULL
+            WHERE ahm.Joined = 1 && ahm.AwinUserId IS NOT NULL
             ORDER BY merchant_parts_count DESC
         `);
 
