@@ -1,13 +1,12 @@
 // partner-widget.js
-// Self-contained JavaScript widget for partner onboarding and sites management with international dial code support
+// Self-contained JavaScript widget for inviting new users (Community / Merchant / Partner)
 // Hosted on S3 and included via <script> tag on partner websites
+// Pure invite mode - myurls, buyurl, Sites tab and toggle removed
 // Interacts with:
 // /login/generate-onboarding-token
 // /api-keys/add-role/validate-onboarding-token
-// /login/myurls
-// /login/buyurl endpoints
 //
-// NOTE: Role/permission logic now uses local JWT decoding (no longer calls deprecated /login/claims)
+// NOTE: Role/permission logic uses local JWT decoding
 // Log storage for debugging
 const logs = [];
 // Utility function to add logs for debugging
@@ -141,11 +140,9 @@ class PartnerWidget {
         this.apiEndpoint = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com';
         this.token = localStorage.getItem('authToken');
         this.userRoles = [];
-        this.hasRequiredRole = false; // Tracks if user has 'partner' or 'admin'
+        this.hasRequiredRole = false;
         this.isAdminOrOwner = false;
         this.isPartnerOnly = false;
-        this.myUrls = []; // To store myurls data
-        this.blindReviews = []; // To store buyurl data
         this.iti = null; // To store the intlTelInput instance
         this.init();
     }
@@ -154,12 +151,6 @@ class PartnerWidget {
         await Promise.all([loadIntlTelInputScript(), loadIntlTelInputCSS(), loadIntlTelInputUtils()]);
         if (this.token && isTokenValid(this.token)) {
             await this.fetchUserRoles();
-            if (this.hasRequiredRole) {
-                await this.fetchMyUrls();
-                if (this.isPartnerOnly) {
-                    await this.fetchBuyUrls();
-                }
-            }
         } else {
             addLog('No valid token found');
         }
@@ -203,86 +194,18 @@ class PartnerWidget {
             this.hasRequiredRole = false;
         }
     }
-    async fetchMyUrls() {
-        try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/myurls`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') {
-                    this.myUrls = data.urls || [];
-                    addLog('My URLs fetched', { urlsCount: this.myUrls.length, myUrls: this.myUrls });
-                } else {
-                    addLog('Error in myurls response', { status: data.status });
-                }
-            } else {
-                addLog('Failed to fetch myurls', { status: response.status });
-            }
-        } catch (error) {
-            addLog('Error fetching myurls', { error: error.message });
-        }
-    }
-    async fetchBuyUrls() {
-        try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/buyurl`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') {
-                    this.blindReviews = data.blind_reviews || [];
-                    addLog('Buy URLs fetched', { reviewsCount: this.blindReviews.length, blindReviews: this.blindReviews });
-                } else {
-                    addLog('Error in buyurl response', { status: data.status });
-                }
-            } else {
-                addLog('Failed to fetch buyurl', { status: response.status });
-            }
-        } catch (error) {
-            addLog('Error fetching buyurl', { error: error.message });
-        }
-    }
-    async purchaseUrl(url) {
-        try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/buyurl`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ url })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') {
-                    addLog('URL purchased successfully', { url });
-                    return true;
-                } else {
-                    addLog('Error in purchase response', { url, status: data.status });
-                    return false;
-                }
-            } else {
-                addLog('Failed to purchase URL', { url, status: response.status });
-                return false;
-            }
-        } catch (error) {
-            addLog('Error purchasing URL', { url, error: error.message });
-            return false;
-        }
-    }
+    // fetchMyUrls and fetchBuyUrls removed - pure invite mode
+    // purchaseUrl removed - pure invite mode
     render() {
         if (this.hasRequiredRole) {
             this.element.innerHTML = `
-                <div style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; max-width: 400px; margin: auto; background: #f9f9f9; position: relative;">
+                <div style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; max-width: 420px; margin: auto; background: #f9f9f9; position: relative;">
                     <style>
                         @keyframes spin {
                             0% { transform: rotate(0deg); }
                             100% { transform: rotate(360deg); }
                         }
-                        #confirmModal, #successModal {
+                        #successModal {
                             display: none;
                             position: fixed;
                             z-index: 1001;
@@ -292,7 +215,7 @@ class PartnerWidget {
                             height: 100%;
                             background-color: rgba(0,0,0,0.4);
                         }
-                        #confirmModal .modal-content, #successModal .modal-content {
+                        #successModal .modal-content {
                             background-color: #fefefe;
                             margin: 15% auto;
                             padding: 20px;
@@ -301,45 +224,19 @@ class PartnerWidget {
                             max-width: 300px;
                             text-align: center;
                         }
-                        #confirmModal button, #successModal button {
-                            padding: 10px 20px;
-                            margin: 10px;
-                            border: none;
-                            border-radius: 5px;
-                            cursor: pointer;
-                        }
-                        #confirmYes {
-                            background-color: #28a745;
-                            color: white;
-                        }
-                        #confirmNo {
-                            background-color: #dc3545;
-                            color: white;
-                        }
                         #successOk {
                             background-color: #28a745;
                             color: white;
                         }
                     </style>
-                    <div class="toggle-container" style="display: flex; margin: 0 5px 20px 5px; width: calc(100% - 10px);">
-                        <button id="toggle-invite" class="toggle-button active" style="flex: 1; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px 0 0 5px; cursor: pointer;">Invite</button>
-                        <button id="toggle-sites" class="toggle-button" style="flex: 1; padding: 10px; background: #ccc; color: white; border: none; border-radius: 0 5px 5px 0; cursor: pointer;">Sites</button>
-                    </div>
+                    <h3 style="text-align: center; margin-bottom: 10px;">Invite New User</h3>
                     <div id="invite-content"></div>
-                    <div id="sites-content" style="display: none;"></div>
                     <div id="widgetLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.8); justify-content: center; align-items: center; z-index: 1000;">
                         <div style="position: relative; width: 200px; height: 200px;">
                             <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 80px; height: 80px; border-top-color: #ff6f61; top: 60px; left: 60px; animation-delay: 0s;"></div>
                             <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 60px; height: 60px; border-top-color: #6bff61; top: 70px; left: 70px; animation-delay: 0.3s;"></div>
                             <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 40px; height: 40px; border-top-color: #61cfff; top: 80px; left: 80px; animation-delay: 0.6s;"></div>
                             <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 20px; height: 20px; border-top-color: #ff61ff; top: 90px; left: 90px; animation-delay: 0.9s;"></div>
-                        </div>
-                    </div>
-                    <div id="confirmModal">
-                        <div class="modal-content">
-                            <p>Are you sure you want to purchase this report for £99.99 + VAT?</p>
-                            <button id="confirmYes">Yes</button>
-                            <button id="confirmNo">No</button>
                         </div>
                     </div>
                     <div id="successModal">
@@ -350,184 +247,14 @@ class PartnerWidget {
                     </div>
                 </div>
             `;
-            const toggleInvite = this.element.querySelector('#toggle-invite');
-            const toggleSites = this.element.querySelector('#toggle-sites');
-            toggleInvite.addEventListener('click', async () => {
-                this.currentView = 'invite';
-                toggleInvite.style.backgroundColor = '#007bff';
-                toggleSites.style.backgroundColor = '#ccc';
-                this.element.querySelector('#sites-content').style.display = 'none';
-                this.element.querySelector('#invite-content').style.display = 'block';
-                const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
-                loadingOverlay.style.display = 'flex';
-                await this.fetchMyUrls();
-                this.renderInviteForm();
-                loadingOverlay.style.display = 'none';
-            });
-            toggleSites.addEventListener('click', async () => {
-                this.currentView = 'sites';
-                toggleSites.style.backgroundColor = '#007bff';
-                toggleInvite.style.backgroundColor = '#ccc';
-                this.element.querySelector('#invite-content').style.display = 'none';
-                this.element.querySelector('#sites-content').style.display = 'block';
-                const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
-                loadingOverlay.style.display = 'flex';
-                // Reload site list
-                await this.fetchMyUrls();
-                if (this.isPartnerOnly) {
-                    await this.fetchBuyUrls();
-                }
-                this.renderSitesContent();
-                loadingOverlay.style.display = 'none';
-            });
-            // Initial load with invite tab
-            toggleInvite.click();
+            this.renderInviteForm();
         } else {
             this.renderValidateTokenIntro();
         }
     }
-    async downloadFile(url, type, iconElement) {
-        const originalIconClass = type === 'json' ? 'fa-file-code' : 'fa-file-pdf';
-        iconElement.classList.remove(originalIconClass);
-        iconElement.classList.add('fa-spinner', 'fa-spin');
-        try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/myurls?url=${encodeURIComponent(url)}&type=${type}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            if (response.ok) {
-                const contentDisposition = response.headers.get('Content-Disposition');
-                const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : `report.${type}`;
-               
-                if (type === 'pdf') {
-                    const base64 = await response.text();
-                    const byteCharacters = atob(base64);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: 'application/pdf' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = blobUrl;
-                    a.download = filename;
-                    a.click();
-                    URL.revokeObjectURL(blobUrl);
-                } else if (type === 'json') {
-                    const text = await response.text();
-                    const blob = new Blob([text], { type: 'application/json' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = blobUrl;
-                    a.download = filename;
-                    a.click();
-                    URL.revokeObjectURL(blobUrl);
-                }
-                addLog(`${type.toUpperCase()} file downloaded successfully`, { url });
-            } else {
-                addLog('Failed to download file', { url, type, status: response.status });
-                alert(`Failed to download ${type.toUpperCase()} file. Please try again.`);
-            }
-        } catch (error) {
-            addLog('Error downloading file', { url, type, error: error.message });
-            alert(`An error occurred while downloading the ${type.toUpperCase()} file. Please try again.`);
-        } finally {
-            iconElement.classList.remove('fa-spinner', 'fa-spin');
-            iconElement.classList.add(originalIconClass);
-        }
-    }
-    renderSitesContent() {
-        const sitesContent = this.element.querySelector('#sites-content');
-        if (!sitesContent) return;
-        addLog('Rendering sites content', { myUrls: this.myUrls, blindReviews: this.blindReviews });
-        let html = `
-            <h3 style="font-size: 1.5em; margin-bottom: 10px;">My Sites</h3>
-            <ul style="list-style: none; padding: 0; margin-bottom: 20px;">
-        `;
-        if (this.myUrls.length > 0) {
-            this.myUrls.forEach(site => {
-                addLog('Processing my site', { site });
-                const displayUrl = site.Url.replace(/^https?:\/\//i, '');
-                html += `
-                    <li style="padding: 10px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center;">
-                        <span><i class="fas fa-link" style="margin-right: 5px; color: #007bff;"></i> ${displayUrl}</span>
-                        <div>
-                            <i class="fas fa-file-code download-link" data-url="${site.Url}" data-type="json" style="color: #007bff; cursor: pointer; margin-right: 10px;" title="Download JSON"></i>
-                            <i class="fas fa-file-pdf download-link" data-url="${site.Url}" data-type="pdf" style="color: #ff0000; cursor: pointer;" title="Download PDF"></i>
-                        </div>
-                    </li>
-                `;
-            });
-        } else {
-            html += `<li style="padding: 10px; color: #666;">No sites found.</li>`;
-        }
-        html += `</ul>`;
-        if (this.isPartnerOnly) {
-            html += `
-                <h3 style="font-size: 1.5em; margin-bottom: 10px;">Available Sites to Buy</h3>
-                <ul style="list-style: none; padding: 0;">
-            `;
-            if (this.blindReviews.length > 0) {
-                this.blindReviews.forEach(review => {
-                    addLog('Processing blind review', { review });
-                    html += `
-                        <li style="padding: 10px; border-bottom: 1px solid #ccc;">
-                            <div style="margin-bottom: 5px;">${review.blind_review || 'No description'}</div>
-                            <div style="text-align: right;">
-                                <button class="purchase-btn" data-url="${review.url}" style="padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Buy (£99.99 + VAT)</button>
-                            </div>
-                        </li>
-                    `;
-                });
-            } else {
-                html += `<li style="padding: 10px; color: #666;">No available sites to buy.</li>`;
-            }
-            html += `</ul>`;
-        }
-        sitesContent.innerHTML = html;
-        // Add event listeners for purchase buttons
-        const purchaseButtons = sitesContent.querySelectorAll('.purchase-btn');
-        purchaseButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const url = e.target.dataset.url;
-                this.showConfirmModal(url);
-            });
-        });
-        // Add event listeners for download icons
-        const downloadLinks = sitesContent.querySelectorAll('.download-link');
-        downloadLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                const url = e.target.dataset.url;
-                const type = e.target.dataset.type;
-                this.downloadFile(url, type, e.target);
-            });
-        });
-    }
-    showConfirmModal(url) {
-        const modal = this.element.querySelector('#confirmModal');
-        modal.style.display = 'block';
-        const yesBtn = modal.querySelector('#confirmYes');
-        const noBtn = modal.querySelector('#confirmNo');
-        yesBtn.onclick = async () => {
-            modal.style.display = 'none';
-            const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
-            loadingOverlay.style.display = 'flex';
-            const success = await this.purchaseUrl(url);
-            loadingOverlay.style.display = 'none';
-            if (success) {
-                // Refresh the lists after purchase
-                await this.fetchMyUrls();
-                await this.fetchBuyUrls();
-                this.renderSitesContent();
-            } else {
-                alert('Failed to purchase the URL. Please try again.');
-            }
-        };
-        noBtn.onclick = () => {
-            modal.style.display = 'none';
-        };
-    }
+    // downloadFile removed - pure invite mode
+    // renderSitesContent removed - pure invite mode
+    // showConfirmModal removed - pure invite mode
     showSuccessModal() {
         const modal = this.element.querySelector('#successModal');
         modal.style.display = 'block';
@@ -539,7 +266,7 @@ class PartnerWidget {
     renderInviteForm() {
         const inviteContent = this.element.querySelector('#invite-content');
         if (!inviteContent) return;
-        addLog('Rendering invite form', { myUrls: this.myUrls });
+        addLog('Rendering invite form');
         inviteContent.innerHTML = `
             <h3 style="font-size: 1.5em; margin-bottom: 10px;">Invite a New User</h3>
             <p style="margin-bottom: 15px;">Please select the role, and provide the email and Mobile number of the new user. We'll send them a token that's valid for 48 hours to join us.</p>
@@ -621,8 +348,8 @@ class PartnerWidget {
                 <div id="site-container">
                     <label for="site" style="display: block; margin-bottom: 5px;">Select Site:</label>
                     <select id="site" name="site" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-                        <option value="">Select a site</option>
-                        ${this.myUrls.map(site => `<option value="${site.Url}">${site.Url}</option>`).join('')}
+                        <option value="">Select a site (your sites)</option>
+                        <!-- Dynamic site list from myUrls removed in pure invite mode; add manually if needed -->
                     </select>
                     <span id="site-error" style="color: red; display: none;"></span>
                 </div>
