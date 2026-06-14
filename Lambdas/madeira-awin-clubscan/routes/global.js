@@ -16,6 +16,7 @@ exports.handler = async (event, { pool } = {}) => {
     }
 
     const maxRecs = parseInt(event.maxRecommendations) || DEFAULT_MAX_RECOMMENDATIONS;
+    const isSandbox = event.sandbox === true || process.env.SANDBOX === 'true';
 
     let notificationEmailTo = event.notificationEmailTo || DEFAULT_NOTIFICATION_EMAIL;
     if (typeof notificationEmailTo === 'string') {
@@ -29,7 +30,8 @@ exports.handler = async (event, { pool } = {}) => {
 
     logger.info('=== STARTING GLOBAL AWIN RECOMMENDATIONS ===', { 
         maxRecs, 
-        notificationEmailTo 
+        notificationEmailTo,
+        isSandbox 
     });
 
     try {
@@ -107,12 +109,17 @@ Return ONLY valid JSON array.`;
             };
         });
 
-        // Record cooldown
-        for (const rec of recommended) {
-            await pool.request()
-                .input('merchantId', sql.Int, rec.id)
-                .input('name', sql.NVarChar, rec.name)
-                .query(`INSERT INTO dbo.AwinRecommendedMerchants (MerchantId, Mode, Name, CreatedAt) VALUES (@merchantId, 'global', @name, GETDATE())`);
+        // ====================== RECORD COOLDOWN (SKIP IN SANDBOX) ======================
+        if (!isSandbox) {
+            for (const rec of recommended) {
+                await pool.request()
+                    .input('merchantId', sql.Int, rec.id)
+                    .input('name', sql.NVarChar, rec.name)
+                    .query(`INSERT INTO dbo.AwinRecommendedMerchants (MerchantId, Mode, Name, CreatedAt) VALUES (@merchantId, 'global', @name, GETDATE())`);
+            }
+            logger.info('Cooldown records written to AwinRecommendedMerchants', { count: recommended.length });
+        } else {
+            logger.info('[SANDBOX] Skipping insert into AwinRecommendedMerchants (no cooldown pollution)');
         }
 
         // ====================== EMAIL ======================
@@ -173,11 +180,11 @@ Return ONLY valid JSON array.`;
             html: emailHtml
         });
 
-        logger.info('✅ Global email sent successfully', { recommendedCount: recommended.length, to: notificationEmailTo });
+        logger.info('✅ Global email sent successfully', { recommendedCount: recommended.length, to: notificationEmailTo, isSandbox });
 
         return { 
             statusCode: 200, 
-            body: JSON.stringify({ mode: 'global', recommendedCount: recommended.length }) 
+            body: JSON.stringify({ mode: 'global', recommendedCount: recommended.length, sandbox: isSandbox }) 
         };
 
     } catch (error) {
