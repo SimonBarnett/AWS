@@ -24,7 +24,7 @@ const { LambdaClient, InvokeCommand } = require("@aws-sdk/client-lambda");
 
 // Logger
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'debug',
+    level: 'debug',                    // Always debug level
     format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.errors({ stack: true }),
@@ -216,7 +216,6 @@ Object.assign(module.exports, {
     getJwtConfig: jwtConfig.getJwtConfig,
     getStripeConfig: stripeConfig.getStripeConfig,
     getEbayConfig: ebayConfig.getEbayConfig,
-    getAmazonConfig: amazonConfig.getAmazonConfig,
     getAwinConfig: awinConfig.getAwinConfig,
     getIncentiveConfig: incentiveConfig.getIncentiveConfig,
     executeWithRetry: dbConfig.executeWithRetry     // ← Re-exported here
