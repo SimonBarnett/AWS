@@ -15,18 +15,18 @@ All modernised Lambdas follow the shared layer architecture (`/opt/nodejs/...`).
 
 ## Lambdas
 
-| Lambda                        | Purpose                                                                 | Trigger                  | Layer Compliant | Notes |
-|-------------------------------|-------------------------------------------------------------------------|--------------------------|-----------------|-------|
-| **madeira-awin-clubscan**     | Awin advertiser recommendations + onboarding support for clubs         | EventBridge Scheduler    | Yes             | Core business logic for partner/club Awin flows |
-| **madeira-posthog-updatedb**  | Ingests PostHog events into local DB for audit trail & future analysis | EventBridge Scheduler    | Yes             | Originally intended for bad actor / fraud detection |
-| **madeira-layer-cake**        | Diagnostic Lambda to verify all shared layers are working correctly    | Manual / Test events     | Yes             | The "canary" for the layer system |
-| **amazoncard-topup**          | Weekly top-up of Amazon gift cards (AGCOD)                             | EventBridge Scheduler    | Partial         | Intentionally keeps aws-sdk v2 for signing reliability |
+| Lambda | Purpose | Trigger | Layer Compliant | Notes |
+|--------|---------|---------|------------------|-------|
+| [**madeira-awin-clubscan**](madeira-awin-clubscan/) | Awin advertiser recommendations + onboarding support for clubs | EventBridge Scheduler | Yes | Core business logic for partner/club Awin flows |
+| [**madeira-posthog-updatedb**](madeira-posthog-updatedb/) | Ingests PostHog events into local DB for audit trail & future analysis | EventBridge Scheduler | Yes | Originally intended for bad actor / fraud detection |
+| [**madeira-layer-cake**](madeira-layer-cake/) | Diagnostic Lambda to verify all shared layers are working correctly | Manual / Test events | Yes | The "canary" for the layer system |
+| [**amazoncard-topup**](amazoncard-topup/) | Weekly top-up of Amazon gift cards (AGCOD) | EventBridge Scheduler | Partial | Intentionally keeps aws-sdk v2 for signing reliability |
 
 ---
 
 ## Summary of Functionality
 
-### 1. `madeira-awin-clubscan`
+### 1. [madeira-awin-clubscan](madeira-awin-clubscan/)
 
 Handles two main flows:
 
@@ -37,7 +37,7 @@ Also supports background jobs for merchant syncing and Awin payment processing.
 
 **Key files:** `routes/global.js`, `routes/club.js`, `routes/onboarding.js`
 
-### 2. `madeira-posthog-updatedb`
+### 2. [madeira-posthog-updatedb](madeira-posthog-updatedb/)
 
 Pulls events from PostHog and stores them locally in the `PostHogEvents` table with referrer enrichment.
 
@@ -45,13 +45,13 @@ Intended as an off-site audit log that could later support bad actor detection a
 
 Currently focused on reliable ingestion. Deeper analysis features are future work.
 
-### 3. `madeira-layer-cake`
+### 3. [madeira-layer-cake](madeira-layer-cake/)
 
 A lightweight diagnostic Lambda used to test that the shared layers (core, auth, grok, payments, etc.) are correctly deployed and functioning.
 
 Useful after layer updates or when deploying to new regions.
 
-### 4. `amazoncard-topup`
+### 4. [amazoncard-topup](amazoncard-topup/)
 
 Runs weekly to top up Amazon gift card balance in the system using the AGCOD API.
 
