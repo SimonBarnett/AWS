@@ -36,6 +36,59 @@ The `sandbox` flag is passed through almost every message in this pipeline.
 
 The flag flows from the initial trigger all the way through `PROCESS_CATEGORY` → `GROK_BATCH` → `GROK_POLL`.
 
+## Stale Pair / Catalog Selection Logic
+
+The system does **not** refresh every catalog on every run. It intelligently selects which (**Catalog + Affiliate**) combinations are "stale" and need updating.
+
+### Core Table: CatalogAffiliateUpdates
+
+This table is the **single source of truth** for the freshness of affiliate data per catalog.
+
+Relevant columns:
+- `CatalogId` + `AffiliateKey` (the "pair")
+- `Status` (`results_ready`, `batch_submitted`, `polling`, `completed`)
+- `LastUpdate`
+- `NextCheck`
+- `S3File` / `BatchName`
+
+### When Is a Pair Considered Stale?
+
+A pair becomes eligible for re-processing when **any** of these conditions are met:
+
+1. **Never processed** — No record exists for this catalog + affiliate combination.
+2. **Completed but old** — `Status = 'completed'` and `LastUpdate` is older than the acceptable freshness window.
+3. **Stuck in processing** — Records stuck in `batch_submitted` or `polling` for too long are automatically reset by self-healing logic in `grokPoll.js`.
+4. **Explicit trigger** — Manual runs or scheduler can force specific catalogs.
+
+### How the Scheduler Selects Stale Pairs
+
+When triggered with:
+
+```json
+{
+  "task": "scheduler",
+  "sandbox": true,
+  "TOP": 5
+}
+```
+
+The scheduler:
+- Queries `CatalogAffiliateUpdates` for stale records (primarily based on `LastUpdate` age).
+- Orders them by `LastUpdate ASC` (oldest/stalest first — ensures fairness).
+- Limits the selection to the number specified in `TOP`.
+- Enqueues `PROCESS_CATEGORY` messages for each selected pair.
+
+This design provides controlled, prioritized, and observable processing.
+
+### Comparison to Merchant Side
+
+| Aspect                  | Merchant (`UserApiKeys`)              | Affiliate (`CatalogAffiliateUpdates`)          |
+|-------------------------|---------------------------------------|------------------------------------------------|
+| What is tracked         | Merchant API connection               | Catalog + Affiliate combination                |
+| Staleness control       | `MIN_AGE_HOURS` + `LastStatus`        | `LastUpdate` + status-based rules              |
+| Selection function      | `getEligibleMerchants()`              | Scheduler query on `CatalogAffiliateUpdates`   |
+| Throttling              | Sequential via `lastId`               | `TOP` parameter                                |
+
 ## Message Flow Overview
 
 1. **Scheduler / Manual Trigger** → `PROCESS_CATEGORY` messages
