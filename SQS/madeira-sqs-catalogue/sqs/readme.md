@@ -18,6 +18,82 @@ The main orchestrator (`index.js`) routes the following SQS message types:
 | `CLUBSCAN_NOTIFY`               | `notify.js`               | End of successful build                 | Sends success/failure emails to the partner |
 | `SEND_EMAIL`                    | `emails.js` (parent)      | Various places (onboarding, notify)     | Generic email sending via SQS |
 
+## Example SQS Test Events
+
+These are example payloads you can use for manual testing via the AWS Console or CLI.
+
+### Onboarding a New Site
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"ONBOARDING\",\"userId\":\"OKKCFJOQ\",\"url\":\"https://www.toddlerandbaby.club\",\"partnerId\":\"L7WDZWC8\",\"sandbox\":true}"
+    }
+  ]
+}
+```
+
+### Generate AI Review
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"CLUBSCAN_GENERATE_REVIEW\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
+    }
+  ]
+}
+```
+
+### Generate Categories
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"CLUBSCAN_GENERATE_CATEGORIES\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
+    }
+  ]
+}
+```
+
+### Build Final Catalogue
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"CLUBSCAN_BUILD_CATALOG\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
+    }
+  ]
+}
+```
+
+### Send Notification
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"CLUBSCAN_NOTIFY\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
+    }
+  ]
+}
+```
+
+### User Updates Categories (via widget)
+
+```json
+{
+  "Records": [
+    {
+      "body": "{\"type\":\"CATEGORY_UPDATE\",\"userId\":\"OKKCFJOQ\",\"body\":{\"prompt\":\"Add a baby monitors category.\"},\"sandbox\":true}"
+    }
+  ]
+}
+```
+
 ## Relation to `/API/routes/token`
 
 - **`ONBOARDING`** is triggered from the token onboarding routes after a user completes signup and agrees to terms.
