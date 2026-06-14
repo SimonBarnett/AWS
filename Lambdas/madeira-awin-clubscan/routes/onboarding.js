@@ -330,7 +330,7 @@ async function getAwinStats(pool) {
                 ahm.description,
                 ISNULL((SELECT COUNT(*) FROM [madeiradb].[dbo].[MerchantProducts] mp WHERE mp.UserId = ahm.AwinUserId AND mp.Source = 'awin'), 0) AS merchant_parts_count
             FROM dbo.AwinHighApprovalMerchants ahm
-            WHERE ahm.Joined = 1 && ahm.AwinUserId IS NOT NULL
+            WHERE ahm.Joined = 1 AND ahm.AwinUserId IS NOT NULL
             ORDER BY merchant_parts_count DESC
         `);
 
