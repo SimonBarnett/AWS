@@ -1,5 +1,5 @@
 // routes/club.js
-const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
 const { callXaiApi } = require('/opt/nodejs/grok');
 const { 
     SECTOR_SCHEMA, 
@@ -267,7 +267,7 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
             <hr>            
         `;
 
-        await invokeMailer({
+        await sendMail({
             from: 'support@clubmadeira.uk',
             to: notificationEmailTo,
             subject: `AWIN Join Recommendations – Club ${clubId}`,
