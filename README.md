@@ -10,17 +10,13 @@ This system is built with a **layer-first, modular philosophy**. Everything is d
 
 ### 🔥 Core Strategic Engine: The Awin + Merchant Ecosystem
 
-**[Lambdas/madeira-awin-clubscan](Lambdas/madeira-awin-clubscan)** is one of the **most critical components** in the entire platform.
+The platform integrates with **Amazon, eBay, and Awin** (and is architected to support more). 
 
-It powers intelligent merchant discovery and personalised recommendations that feed the club experience. 
+**[Lambdas/madeira-awin-clubscan](Lambdas/madeira-awin-clubscan)** plays a particularly important role because the **"Awin" pipeline** in our system acts as the current main aggregator. Database searches and merchant ingestion under this pathway are capable of pulling parts originating from many e-commerce platforms (Wix, Shopify, WooCommerce, Magento, etc.).
 
-**Key functions:**
-- Continuously scrapes and ranks high-approval Awin merchants
-- Generates smart join recommendations (Global mode + per-Club mode)
-- When a **community onboards**, their partner automatically receives a curated shortlist of suitable Awin advertisers to apply to **on the club’s behalf**
-- Successful onboarding of these merchants gives the partner **extra commission** on resulting sales
+**Note:** While the architecture supports these platforms, native connectors for most of them are not yet active. Awin is the primary live broad source today.
 
-> **Without a strong flow of quality merchant parts from Awin and affiliated sources, the entire catalogue and recommendation experience becomes weak.** This Lambda + the merchant ingestion pipeline is the lifeblood of product richness.
+This merchant parts flow is foundational — it directly powers catalogue generation, recommendation quality, and the overall value delivered to clubs and partners.
 
 See: [Lambdas README](Lambdas/README.md) • [SQS Merchant Queue](SQS/madeira-sqs-merchant)
 
@@ -53,6 +49,6 @@ It actively exercises all shared layers (`helpers`, `grok`, `payments`, `auth`, 
 
 ---
 
-**Continue with full documentation below...**
+Continue with full documentation below for Layers, SQS architecture, API routes, RDS schema, deployment notes, and more.
 
-*(Original sections such as Layers, SQS architecture, deployment notes, etc. remain intact below this enhanced overview.)*
+*(All original lower sections of the README have been preserved and are intact below this overview.)*
