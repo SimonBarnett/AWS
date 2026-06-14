@@ -1,5 +1,5 @@
 // routes/club.js
-const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
+const { logger, sql } = require('/opt/nodejs/helpers');
 const { callXaiApi } = require('/opt/nodejs/grok');
 const { 
     SECTOR_SCHEMA, 
@@ -37,7 +37,11 @@ async function getClubData(clubId, pool) {
     };
 }
 
-exports.handler = async (event, { pool: passedPool } = {}) => {
+exports.handler = async (event, { pool } = {}) => {
+    if (!pool) {
+        throw new Error('Pool must be passed from the orchestrator');
+    }
+
     const clubId = event.clubId;
     const partnerId = event.partnerId || event.PartnerID || event.partnerID || null;
     const minRelevanceScore = parseFloat(event.minRelevanceScore) || parseFloat(process.env.MIN_RELEVANCE_SCORE) || 0.5;
@@ -58,15 +62,7 @@ exports.handler = async (event, { pool: passedPool } = {}) => {
         notificationEmailTo 
     });
 
-    let pool = passedPool;
-    let shouldClosePool = false;
-
     try {
-        if (!pool) {
-            pool = await getDbConnection();
-            shouldClosePool = true;
-        }
-
         const clubData = await getClubData(clubId, pool);
 
         // Get real sectors from high-approval merchants
@@ -288,9 +284,6 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
     } catch (error) {
         logger.error('Club mode failed', { error: error.message, stack: error.stack });
         return { statusCode: 500, body: error.message };
-    } finally {
-        if (shouldClosePool && pool) {
-            await pool.close().catch(() => {});
-        }
     }
+    // NOTE: Pool is managed by the orchestrator (index.js). Do not close here.
 };
