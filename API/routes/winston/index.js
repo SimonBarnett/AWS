@@ -11,7 +11,7 @@ module.exports = async (event) => {
         if (method === 'POST') {
             const body = event.body ? JSON.parse(event.body) : {};
 
-            logger.info('Winston endpoint received event', { body });
+            logger.debug('Winston endpoint received event', { body });
 
             return {
                 statusCode: 200,
