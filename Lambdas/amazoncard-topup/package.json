@@ -1,7 +1,7 @@
 {
   "name": "amazoncard-topup",
   "version": "1.0.0",
-  "description": "Amazon Gift Card Top-up Lambda (AGCOD v2)",
+  "description": "Amazon Gift Card Top-up Lambda (AGCOD v2) - Runs weekly. Uses aws-sdk v2 intentionally for reliable AGCOD signing (isolated from the rest of the platform).",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
