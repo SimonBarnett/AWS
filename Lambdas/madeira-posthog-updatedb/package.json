@@ -1,17 +1,10 @@
 {
   "name": "madeira-posthog-updatedb",
   "version": "1.0.0",
+  "description": "PostHog event ingestion Lambda - Modernised to use shared layers",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "axios": "^1.9.0",
-    "mssql": "^11.0.1",
-    "winston": "^3.17.0"
-  }
+  "dependencies": {}
 }
