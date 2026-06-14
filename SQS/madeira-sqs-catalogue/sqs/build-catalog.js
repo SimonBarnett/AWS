@@ -2,9 +2,9 @@
 // Builds Catalog table from UserCategories.json_categories
 // Saves SearchTerms + RelevantKeywords + IrrelevantKeywords + Notes
 // Cleans up old/stale categories (including those with NULL ProcessedBatchId)
-// Triggers CLUBSCAN_NOTIFY (unless sandbox or enqueueNotify === false)
+// Triggers CLUBSCAN_NOTIFY during onboarding (when enqueueNotify === true)
 // Automatically records errors in LastError on failure
-// Last updated: 11 June 2026
+// Last updated: 14 June 2026
 
 const { v4: uuidv4 } = require('uuid');
 
@@ -146,21 +146,19 @@ async function handle(event) {
             const isSandbox = sandbox === true;
 
             if (!isSandbox) {
-                if (enqueueNotify !== false) {
+                if (enqueueNotify === true) {
+                    // Onboarding flow - notify will be handled by CLUBSCAN_NOTIFY
                     await enqueueMessage({
                         type: 'CLUBSCAN_NOTIFY',
                         url
                     });
-                    logger.info('✅ Catalog build complete. Triggered CLUBSCAN_NOTIFY', { url });
+                    logger.info('✅ Catalog build complete (onboarding). Triggered CLUBSCAN_NOTIFY', { url });
                 } else {
-                    await enqueueMessage({
-                        type: 'CATEGORY_ENQUEUE_SEARCH_TERMS',
-                        userId
-                    });
-                    logger.info('✅ Catalog build complete. Triggered CATEGORY_ENQUEUE_SEARCH_TERMS', { userId });
+                    // Normal category update - do not notify here
+                    logger.info('✅ Catalog build complete (no notify enqueued)', { url });
                 }
             } else {
-                logger.info('Sandbox mode enabled - skipping enqueue of next step', { url });
+                logger.info('Sandbox mode enabled - skipping notify', { url });
             }
 
         } catch (err) {
