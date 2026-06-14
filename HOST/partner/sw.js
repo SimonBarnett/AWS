@@ -1,167 +1,112 @@
 // sw.js
-const CACHE_NAME = 'my-app-cache-v1';
+// Service Worker for Partner PWA - Optimized for partner sites
+// Version: 2026.06.14 - Cleaned + Hardened
+
+const CACHE_NAME = 'madeira-pwa-cache-v2';   // Bump this version when you update cached files
+
 const urlsToCache = [
     '/',
     '/index.html',
     '/apikey.html',
     '/category.html',
     '/dashboard.html',
-    '/footer.html',
     '/login.html',
     '/signup.html',
-    '/css/page.css',
     '/images/icon-192.png',
     '/images/icon-512.png'
 ];
 
-// Enhanced logging function to send detailed logs to the client
+// Simple debug flag (set to false in production if you want zero logging)
+const DEBUG = true;
+
 const sendLog = (eventType, data = {}) => {
+    if (!DEBUG) return;
     const logEntry = {
         timestamp: new Date().toISOString(),
         event: eventType,
-        swContext: {
-            scope: self.registration.scope,
-            userAgent: self.navigator.userAgent || 'Not available',
-            online: navigator.onLine,
-            connection: navigator.connection ? {
-                effectiveType: navigator.connection.effectiveType,
-                rtt: navigator.connection.rtt,
-                downlink: navigator.connection.downlink
-            } : 'Not available'
-        },
         ...data
     };
     self.clients.matchAll({ includeUncontrolled: true }).then(clients => {
-        if (clients.length === 0) {
-            console.warn('No clients found to send log:', logEntry);
-        }
-        clients.forEach(client => client.postMessage({ type: 'LOG', log: JSON.stringify(logEntry) }));
-    }).catch(err => {
-        console.error('Error sending log to clients:', err);
+        clients.forEach(client => client.postMessage({ type: 'SW_LOG', log: logEntry }));
     });
 };
 
-// Install event: Cache resources with detailed logging
+// Install - Pre-cache critical files
 self.addEventListener('install', event => {
-    sendLog('install_start', { message: 'Service worker installation initiated' });
+    sendLog('install', { message: 'Service Worker installing' });
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => {
-            sendLog('install_caching', { message: 'Caching resources', urls: urlsToCache });
-            return cache.addAll(urlsToCache).then(() => {
-                sendLog('install_success', { message: 'Resources cached successfully' });
-            }).catch(err => {
-                sendLog('install_error', {
-                    errorType: err.constructor.name,
-                    errorMessage: err.message,
-                    errorStack: err.stack || 'No stack available'
-                });
-                throw err;
-            });
-        }).catch(err => {
-            sendLog('install_cache_open_failed', {
-                errorType: err.constructor.name,
-                errorMessage: err.message
-            });
-            throw err;
-        })
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(urlsToCache))
+            .then(() => self.skipWaiting())           // Activate immediately
+            .catch(err => sendLog('install_error', { error: err.message }))
     );
 });
 
-// Activate event: Clean up old caches with logging
+// Activate - Clean up old caches
 self.addEventListener('activate', event => {
-    sendLog('activate_start', { message: 'Service worker activation initiated' });
-    const cacheWhitelist = [CACHE_NAME];
+    sendLog('activate', { message: 'Service Worker activating' });
     event.waitUntil(
         caches.keys().then(cacheNames => {
-            sendLog('activate_cache_list', { cacheNames });
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    if (!cacheWhitelist.includes(cacheName)) {
-                        sendLog('activate_deleting_cache', { cacheName });
-                        return caches.delete(cacheName).then(() => {
-                            sendLog('activate_cache_deleted', { cacheName });
-                        });
+                    if (cacheName !== CACHE_NAME) {
+                        sendLog('delete_old_cache', { cache: cacheName });
+                        return caches.delete(cacheName);
                     }
-                }).filter(Boolean)
+                })
             );
-        }).then(() => {
-            sendLog('activate_complete', { message: 'Activation completed' });
-        }).catch(err => {
-            sendLog('activate_error', {
-                errorType: err.constructor.name,
-                errorMessage: err.message
-            });
-        })
+        }).then(() => self.clients.claim())   // Take control of all tabs immediately
     );
 });
 
-// Fetch event: Handle requests with comprehensive debugging
+// Fetch handler
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
-    const requestClone = event.request.clone();
-    const isIOS = /iPhone|iPad|iPod/.test(self.navigator.userAgent || '');
 
-    sendLog('fetch_triggered', {
-        url: url.href,
-        method: event.request.method,
-        headers: Object.fromEntries(event.request.headers.entries()),
-        mode: event.request.mode,
-        credentials: event.request.credentials,
-        cache: event.request.cache,
-        redirect: event.request.redirect,
-        referrer: event.request.referrer,
-        isIOS
-    });
-
-    // Always bypass API requests to AWS API Gateway
+    // Always bypass Madeira API calls
     if (url.origin === 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com') {
-        sendLog('api_bypassing', { message: 'Bypassing service worker for API request', url: url.href });
         event.respondWith(fetch(event.request));
         return;
     }
 
-    // Handle cached resources (unchanged)
-    sendLog('fetch_cache_check', { url: url.href });
+    // Only cache GET requests
+    if (event.request.method !== 'GET') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     event.respondWith(
-        caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) {
-                sendLog('cache_hit', { url: url.href });
-                return cachedResponse;
-            }
-            sendLog('fetch_network', { url: url.href });
-            return fetch(event.request).then(networkResponse => {
-                const duration = Date.now() - (event.request.startTimestamp || Date.now());
-                sendLog('fetch_success', {
-                    url: url.href,
-                    status: networkResponse.status,
-                    headers: Object.fromEntries(networkResponse.headers.entries()),
-                    durationMs: duration
-                });
-                return networkResponse;
-            }).catch(err => {
-                sendLog('fetch_failed', {
-                    url: url.href,
-                    errorType: err.constructor.name,
-                    errorMessage: err.message,
-                    errorStack: err.stack || 'No stack available'
-                });
-                if (event.request.mode === 'navigate') {
-                    sendLog('fetch_fallback', { url: '/index.html' });
-                    return caches.match('/index.html');
+        caches.match(event.request)
+            .then(cachedResponse => {
+                // Return cached version first (Cache-First)
+                if (cachedResponse) {
+                    return cachedResponse;
                 }
-                return new Response(JSON.stringify({ error: 'Fetch failed', details: err.message }), {
-                    status: 503,
-                    headers: { 'Content-Type': 'application/json' }
+
+                // Not in cache → fetch from network
+                return fetch(event.request).then(networkResponse => {
+                    // Cache successful responses
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return networkResponse;
+                }).catch(() => {
+                    // Offline fallback for navigation requests
+                    if (event.request.mode === 'navigate') {
+                        return caches.match('/index.html');
+                    }
+                    return new Response('Offline', { status: 503 });
                 });
-            });
-        })
+            })
     );
 });
 
-// Message event: Handle client messages
+// Optional: Listen for messages from the page
 self.addEventListener('message', event => {
-    sendLog('message_received', { data: event.data });
-    if (event.data.type === 'CLEAR_LOGS') {
-        sendLog('message_clear_logs', { message: 'Logs cleared by user request' });
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
     }
 });

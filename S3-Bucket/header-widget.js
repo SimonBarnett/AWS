@@ -175,30 +175,49 @@ class HeaderWidget {
 
     addPwaMetaTags() {
         console.log('Adding PWA meta tags');
+
         if (!document.querySelector('link[rel="manifest"]')) {
             const manifestLink = document.createElement('link');
             manifestLink.rel = 'manifest';
             manifestLink.href = '/manifest.json';
             document.head.appendChild(manifestLink);
         }
+
         if (!document.querySelector('meta[name="mobile-web-app-capable"]')) {
             const metaAppleCapable = document.createElement('meta');
             metaAppleCapable.name = 'mobile-web-app-capable';
             metaAppleCapable.content = 'yes';
             document.head.appendChild(metaAppleCapable);
         }
+
         if (!document.querySelector('meta[name="mobile-web-app-status-bar-style"]')) {
             const metaAppleStatus = document.createElement('meta');
             metaAppleStatus.name = 'apple-mobile-web-app-status-bar-style';
             metaAppleStatus.content = 'black';
             document.head.appendChild(metaAppleStatus);
         }
+
+        if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+            const metaAppleCapable = document.createElement('meta');
+            metaAppleCapable.name = 'apple-mobile-web-app-capable';
+            metaAppleCapable.content = 'yes';
+            document.head.appendChild(metaAppleCapable);
+        }
+
+        if (!document.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+            const metaAppleTitle = document.createElement('meta');
+            metaAppleTitle.name = 'apple-mobile-web-app-title';
+            metaAppleTitle.content = 'Club Madeira';
+            document.head.appendChild(metaAppleTitle);
+        }
+
         if (!document.querySelector('link[rel="apple-touch-icon"]')) {
             const appleIconLink = document.createElement('link');
             appleIconLink.rel = 'apple-touch-icon';
-            appleIconLink.href = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png';
+            appleIconLink.href = '/images/icon-192.png';
             document.head.appendChild(appleIconLink);
         }
+
         if (!document.querySelector('meta[name="theme-color"]')) {
             const metaTheme = document.createElement('meta');
             metaTheme.name = 'theme-color';
@@ -251,7 +270,6 @@ class HeaderWidget {
                 <symbol id="bigcommerce-icon" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M12.645 13.663h3.027c.861 0 1.406-.474 1.406-1.235 0-.717-.545-1.234-1.406-1.234h-3.027c-.1 0-.187.086-.187.172v2.125c.015.1.086.172.187.172zm0 4.896h3.128c.961 0 1.535-.488 1.535-1.35 0-.746-.545-1.35-1.535-1.35h-3.128c-.1 0-.187.087-.187.173v2.34c.015.115.086.187.187.187zM23.72.053l-8.953 8.93h1.464c2.281 0 3.63 1.435 3.63 3 0 1.235-.832 2.14-1.722 2.541-.143.058-.143.259.014.316 1.033.402 1.765 1.48 1.765 2.742 0 1.78-1.19 3.202-3.5 3.202h-6.342c-.1 0-.187-.086-.187-.172V13.85L.062 23.64c-.13.13-.043.359.143.359h23.631a.16.16 0 0 0 .158-.158V.182c.043-.158-.158-.244-.273-.13z"/>
                 </symbol>
-                <!-- Add more symbols as needed -->
             `;
             document.body.appendChild(sprite);
             console.log('SVG sprite injected');
@@ -264,13 +282,11 @@ class HeaderWidget {
         console.log('Initializing HeaderWidget');
         console.log('requireToken:', this.requireToken);
 
-        // Inject the SVG sprite
         this.injectSvgSprite();
 
-        // Fetch configuration from index.json
         let config = {
-            loginUrl: '/login.html', // Default fallback
-            affiliateCode: '' // Default fallback
+            loginUrl: '/login.html',
+            affiliateCode: ''
         };
         try {
             console.log('Fetching config from /index.json');
@@ -289,38 +305,22 @@ class HeaderWidget {
         console.log('Login URL:', this.loginUrl);
         console.log('Affiliate Code:', this.affiliateCode);
 
-        // Retrieve token from localStorage
         const token = localStorage.getItem('authToken');
         console.log('Auth token:', token ? 'Present' : 'Absent');
 
         if (token && isTokenValid(token)) {
             this.isAuthenticated = true;
-            console.log('Valid token found, fetching user roles');
+
+            // ✅ Claims fix: Read permissions directly from JWT instead of calling removed /login/claims endpoint
             try {
-                console.log('Fetching authenticated claims from https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/login/claims');
-                const response = await fetch('https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/login/claims', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to fetch claims: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-                const rolesData = await response.json();
-                this.userRoles = rolesData.roles || [];
-                console.log('User roles:', this.userRoles);
+                const decoded = decodeToken(token);
+                this.userRoles = decoded?.permissions || [];
+                console.log('User roles from JWT:', this.userRoles);
             } catch (error) {
-                console.error('Error fetching claims:', error.message, error.stack);
+                console.error('Error decoding token for roles:', error.message);
                 this.userRoles = [];
-                if (this.requireToken) {
-                    console.log('requireToken is true and claims fetch failed, redirecting to login');
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('contact_name');
-                    window.location.href = this.loginUrl;
-                    return;
-                }
             }
+
         } else {
             this.isAuthenticated = false;
             this.userRoles = ['notoken'];
@@ -334,7 +334,6 @@ class HeaderWidget {
             }
         }
 
-        // Update Smart Catalogue menu item with affiliateCode
         this.menuItems = this.menuItems.map(item => {
             if (item.name === 'Smart Catalogue') {
                 return {
