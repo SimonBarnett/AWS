@@ -23,7 +23,7 @@ These Lambdas are triggered primarily by SQS queues and handle heavy, asynchrono
 |-------------------------------|------------------------------------------------------|--------------------------------------------|---------------|
 | `madeira-sqs-merchant`        | Imports full product catalogues from merchant stores | `PROCESS_MERCHANT`, `MERGE_BATCH`, `FINAL_CLEANUP`, `MAINTAINANCE_WINDOW` | [readme.md](./madeira-sqs-merchant/readme.md) |
 | `madeira-sqs-affiliate`       | Searches affiliate sources + runs Grok relevance     | `PROCESS_CATEGORY`, `GROK_BATCH`, `GROK_POLL` | [readme.md](./madeira-sqs-affiliate/readme.md) |
-| `madeira-sqs-catalogue`       | Builds and maintains the live searchable catalogue   | (See internal docs)                        | —             |
+| `madeira-sqs-catalogue`       | Builds and maintains the live searchable catalogue   | `ONBOARDING`, `CATEGORY_UPDATE`, `CLUBSCAN_*` | [readme.md](./madeira-sqs-catalogue/readme.md) |
 
 ## Common Patterns Across Pipelines
 
@@ -57,6 +57,7 @@ SQS/
 │   └── readme.md
 │
 └── madeira-sqs-catalogue/   # Catalogue building pipeline
+    └── readme.md
 ```
 
 ## Getting Started
