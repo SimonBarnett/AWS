@@ -1,0 +1,25 @@
+[
+    {
+      "id": 1,
+      "priority": 1,
+      "action": {
+        "type": "redirect",
+        "redirect": {
+          "transform": {
+            "queryTransform": {
+              "addOrReplaceParams": [
+                {
+                  "key": "tag",
+                  "value": "mymodelflying-21"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "condition": {
+        "urlFilter": "||amazon.co.uk/*",
+        "resourceTypes": ["main_frame"]
+      }
+    }
+  ]

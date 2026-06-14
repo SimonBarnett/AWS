@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Club Madeira Amazon Affiliate",
+  "short_name": "Club Madeira",
+  "version": "1.5",
+  "description": "Automatically adds your affiliate tag + shows voucher claim button on Amazon.co.uk",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.amazon.co.uk/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.amazon.co.uk/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icon48.png"],
+      "matches": ["*://*.amazon.co.uk/*"]
+    }
+  ]
+}
