@@ -2,10 +2,12 @@
 // Self-contained JavaScript widget for partner onboarding and sites management with international dial code support
 // Hosted on S3 and included via <script> tag on partner websites
 // Interacts with:
-// /prod/login/generate-onboarding-token
-// /prod/api-keys/add-role/validate-onboarding-token
-// /prod/login/myurls,
-// /prod/login/buyurl endpoints
+// /login/generate-onboarding-token
+// /api-keys/add-role/validate-onboarding-token
+// /login/myurls
+// /login/buyurl endpoints
+//
+// NOTE: Role/permission logic now uses local JWT decoding (no longer calls deprecated /login/claims)
 // Log storage for debugging
 const logs = [];
 // Utility function to add logs for debugging
@@ -165,22 +167,40 @@ class PartnerWidget {
     }
     async fetchUserRoles() {
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/claims`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                this.userRoles = data.roles || [];
-                this.hasRequiredRole = this.userRoles.includes('partner') || this.userRoles.includes('admin') || this.userRoles.includes('owner');
-                this.isAdminOrOwner = this.userRoles.includes('admin') || this.userRoles.includes('owner');
-                this.isPartnerOnly = this.userRoles.includes('partner') && !this.isAdminOrOwner;
-                addLog('User roles fetched', { roles: this.userRoles, hasRequiredRole: this.hasRequiredRole, isAdminOrOwner: this.isAdminOrOwner, isPartnerOnly: this.isPartnerOnly });
-            } else {
-                addLog('Failed to fetch user roles', { status: response.status });
+            if (!this.token) {
+                this.hasRequiredRole = false;
+                addLog('No token available for role derivation');
+                return;
             }
+
+            const decoded = decodeToken(this.token);
+            if (!decoded) {
+                this.hasRequiredRole = false;
+                addLog('Failed to decode token for roles');
+                return;
+            }
+
+            this.userRoles = decoded.permissions || [];
+
+            this.hasRequiredRole = this.userRoles.includes('partner') || 
+                                   this.userRoles.includes('admin') || 
+                                   this.userRoles.includes('owner');
+
+            this.isAdminOrOwner = this.userRoles.includes('admin') || 
+                                  this.userRoles.includes('owner');
+
+            this.isPartnerOnly = this.userRoles.includes('partner') && !this.isAdminOrOwner;
+
+            addLog('User roles derived from JWT (local decode)', { 
+                roles: this.userRoles, 
+                hasRequiredRole: this.hasRequiredRole, 
+                isAdminOrOwner: this.isAdminOrOwner, 
+                isPartnerOnly: this.isPartnerOnly 
+            });
+
         } catch (error) {
-            addLog('Error fetching user roles', { error: error.message });
+            addLog('Error deriving user roles from token', { error: error.message });
+            this.hasRequiredRole = false;
         }
     }
     async fetchMyUrls() {
