@@ -50,6 +50,12 @@ These schedules pass structured event payloads (e.g. `{ "onboarding": true }`, `
 - **Idempotent & safe**: Uses `MERGE` statements, cooldown tracking, and sandbox mode for safe testing.
 - **Sandbox mode**: Pass `"sandbox": true` to generate test data and route emails to `si@ntsa.uk` (useful for end-to-end validation without hitting real AWIN quotas).
 
+### Business Context: Club Onboarding Flow
+
+When a new **community or club** onboards to the Club Madeira platform, the `club` route is triggered. It generates a curated, personalised list of relevant AWIN advertisers that the **partner can apply to on behalf of the club**.
+
+If the partner successfully onboards the AWIN supplier, they earn an **extra percentage** on all future transactions from that supplier. This creates strong commercial alignment between the partner’s success and the growth of the overall network.
+
 ---
 
 ## Test Events
