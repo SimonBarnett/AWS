@@ -1,6 +1,7 @@
 // routes/club.js
 const { logger, sql } = require('/opt/nodejs/helpers');
 const { callGrokStructured } = require('/opt/nodejs/grok');
+const { sendMail } = require('/opt/nodejs/mailer');
 const { 
     SECTOR_SCHEMA, 
     MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA 
