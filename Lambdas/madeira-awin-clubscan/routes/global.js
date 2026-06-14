@@ -1,5 +1,5 @@
 // routes/global.js
-const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
 const { callXaiApi } = require('/opt/nodejs/grok');   // ← Grok is in its own layer
 const { MERCHANT_PERSONALISATION_SCHEMA } = require('../grok-schemas');
 
@@ -151,7 +151,7 @@ Return ONLY valid JSON array.`;
 
         const emailHtml = `
             <h2>Daily AWIN Global Join Recommendations – ${recommended.length} merchants</h2>
-            <p><strong>Club Madeira AI Platform</strong> — curating products for sports, leisure &amp; community groups across the UK.</p>
+            <p><strong>Club Madeira AI Platform</strong> — curating products for sports, leisure & community groups across the UK.</p>
             
             <p><strong>Instructions:</strong> When requesting to join, please use this link: 
                <a href="https://clubmadeira.uk/for-awin-advertisers" target="_blank">https://clubmadeira.uk/for-awin-advertisers</a></p>
@@ -169,7 +169,7 @@ Return ONLY valid JSON array.`;
             </table>
         `;
 
-        await invokeMailer({
+        await sendMail({
             from: 'support@clubmadeira.uk',
             to: notificationEmailTo,
             subject: `Daily AWIN Global Recommendations – ${recommended.length} merchants`,
