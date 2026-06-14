@@ -1,5 +1,5 @@
 // routes/onboarding.js
-const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
+const { logger, sql } = require('/opt/nodejs/helpers');
 const { sendMail } = require('/opt/nodejs/mailer');
 const { getAwinConfig } = require('/opt/nodejs/conf/awin-config');
 
@@ -16,7 +16,11 @@ async function getAwinCredentials() {
 }
 
 // ====================== MAIN HANDLER ======================
-exports.handler = async (event, { pool: passedPool } = {}) => {
+exports.handler = async (event, { pool } = {}) => {
+    if (!pool) {
+        throw new Error('Pool must be passed from the orchestrator');
+    }
+
     const sandbox = event.sandbox === true;
     const newAdvertisers = [];
 
@@ -25,15 +29,7 @@ exports.handler = async (event, { pool: passedPool } = {}) => {
     const ACCESS_TOKEN = awin.AWIN_ACCESS_TOKEN;
     const NOTIFICATION_EMAIL_TO = process.env.NOTIFICATION_EMAIL_TO || 'stakeholder@clubmadeira.uk';
 
-    let pool = passedPool;
-    let shouldClosePool = false;
-
     try {
-        if (!pool) {
-            pool = await getDbConnection();
-            shouldClosePool = true;
-        }
-
         if (!sandbox) {
             const programmes = await getJoinedProgrammes(PUBLISHER_ID, ACCESS_TOKEN);
             logger.info(`Fetched ${programmes.length} joined Awin programmes`);
@@ -190,11 +186,8 @@ exports.handler = async (event, { pool: passedPool } = {}) => {
     } catch (error) {
         logger.error(`Awin onboarding failed: ${error.message}`, { stack: error.stack });
         throw error;
-    } finally {
-        if (shouldClosePool && pool) {
-            await pool.close().catch(() => {});
-        }
     }
+    // NOTE: Pool is managed by the orchestrator (index.js). Do not close here.
 };
 
 // ====================== HELPER FUNCTIONS (updated to accept pool) ======================
