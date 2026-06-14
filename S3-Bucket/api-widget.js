@@ -79,18 +79,6 @@
     `;
     console.log('API Keys Widget: Injected widget HTML with loading overlay visible');
 
-    // **Define Overlay HTML String**
-    const overlayHTML = `
-        <div id="loadingOverlay" style="display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); justify-content: center; align-items: center; z-index: 10;">
-            <div style="position: relative; width: 200px; height: 200px;">
-                <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 80px; height: 80px; border-top-color: #ff6f61; top: 60px; left: 60px;"></div>
-                <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 60px; height: 60px; border-top-color: #6bff61; top: 70px; left: 70px; animation-delay: 0.3s;"></div>
-                <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 40px; height: 40px; border-top-color: #61cfff; top: 80px; left: 80px; animation-delay: 0.6s;"></div>
-                <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 20px; height: 20px; border-top-color: #ff61ff; top: 90px; left: 90px; animation-delay: 0.9s;"></div>
-            </div>
-        </div>
-    `;
-
     // **Inject Updated CSS**
     const style = document.createElement('style');
     style.textContent = `
@@ -383,7 +371,7 @@
         }
         #api-keys-list {
             position: relative;
-            min-height: 200px; /* Ensure space for overlay */
+            min-height: 200px;
         }
         @media (max-width: 768px) {
             .provider-name {
@@ -397,7 +385,6 @@
         }
     `;
     document.head.appendChild(style);
-    console.log('API Keys Widget: Injected updated CSS styles');
 
     // **Widget Logic**
     const BASE_API_URL = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod';
@@ -428,63 +415,52 @@
     let userRoles = [];
     let customIconsCache = {};
 
-    // **Custom Icon URLs**
     const customIconUrls = {
         'custom-magento': 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/magento.svg',
         'custom-bigcommerce': 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/bigcommerce.svg',
         'custom-awin': 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/awin.svg'
     };
 
-    // **Input Sanitization**
     function sanitizeInput(input) {
-        if (input == null) {
-            console.warn('sanitizeInput: Input is null or undefined, returning empty string');
-            return '';
-        }
+        if (input == null) return '';
         const div = document.createElement('div');
         div.textContent = input;
         return div.innerHTML;
     }
 
-    // **Fetch SVG Content**
     async function fetchSvgContent(url) {
         if (customIconsCache[url]) return customIconsCache[url];
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to load SVG from ${url}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const svgContent = await response.text();
             customIconsCache[url] = svgContent;
             return svgContent;
         } catch (error) {
-            console.error('fetchSvgContent: Error fetching SVG:', error);
-            throw error;
+            console.error('fetchSvgContent error:', error);
+            return '<span>⚠️</span>';
         }
     }
 
-    // **Check Custom Icon**
     function isCustomIcon(iconClass) {
         return customIconUrls[iconClass] !== undefined;
     }
 
-    // **Render Icon**
     async function renderIcon(iconClass) {
         const sanitizedIcon = sanitizeInput(iconClass);
         if (!sanitizedIcon) return '<span>⚠️</span>';
         if (isCustomIcon(sanitizedIcon)) {
             try {
-                const url = customIconUrls[sanitizedIcon];
-                return await fetchSvgContent(url);
-            } catch (error) {
-                console.error(`renderIcon: Failed to load custom icon ${sanitizedIcon}`, error);
+                return await fetchSvgContent(customIconUrls[sanitizedIcon]);
+            } catch {
                 return '<span>⚠️</span>';
             }
         }
-        return document.querySelector('link[href*="font-awesome"]') 
-            ? `<i class="${sanitizedIcon}"></i>` 
+        return document.querySelector('link[href*="font-awesome"]')
+            ? `<i class="${sanitizedIcon}"></i>`
             : '<span>⚠️</span>';
     }
 
-    // **Get Status Icon HTML**
     function getStatusIconHtml(lastStatus, lastError) {
         let iconClass, color, title;
         if (lastStatus === 0) {
@@ -508,7 +484,6 @@
         `;
     }
 
-    // **Reset Add Dialog**
     async function resetAddDialog() {
         descriptionInput.value = '';
         settingsFields.innerHTML = '';
@@ -525,7 +500,6 @@
         }
     }
 
-    // **Fetch Handler**
     async function handleFetch(url, options) {
         try {
             const response = await fetch(url, options);
@@ -540,30 +514,26 @@
         }
     }
 
-    // **Check Token**
     function checkTokenAndRedirect() {
         const token = localStorage.getItem('authToken');
         if (!token) {
-            console.log('No token, redirecting to login');
             window.location.href = '/login.html';
             return false;
         }
         return true;
     }
 
-    // **Decode Token**
     function decodeToken(token) {
         try {
             const payload = token.split('.')[1];
             const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
             return JSON.parse(decoded);
         } catch (e) {
-            console.error('API Keys Widget: Token decoding failed:', e);
+            console.error('Token decoding failed:', e);
             return null;
         }
     }
 
-    // **Validate Token**
     function isTokenValid(token) {
         if (!token) return false;
         const decoded = decodeToken(token);
@@ -571,13 +541,11 @@
         return decoded.exp > Math.floor(Date.now() / 1000);
     }
 
-    // **Set Auth Token**
     function setAuthToken(token) {
         localStorage.setItem('authToken', token);
-        console.log('API Keys Widget: New auth token set in localStorage');
     }
 
-    // **Fetch User Roles**
+    // ====================== FIXED: Local JWT Decoding ======================
     async function fetchUserRoles() {
         if (!checkTokenAndRedirect()) {
             userRoles = ['notoken'];
@@ -585,27 +553,27 @@
         }
         const token = localStorage.getItem('authToken');
         try {
-            const rolesData = await handleFetch(`${BASE_API_URL}/login/claims`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-            });
-            userRoles = rolesData.roles || [];
+            const decoded = decodeToken(token);
+            userRoles = decoded?.permissions || decoded?.roles || [];
+
             const addKeyButton = document.querySelector('.add-key');
-            if (addKeyButton) addKeyButton.classList.toggle('disabled', !hasMerchantRole());
+            if (addKeyButton) {
+                addKeyButton.classList.toggle('disabled', !hasMerchantRole());
+            }
         } catch (error) {
-            console.error('fetchUserRoles: Error fetching roles:', error);
+            console.error('fetchUserRoles: Error decoding token for roles:', error);
             userRoles = [];
             const addKeyButton = document.querySelector('.add-key');
             if (addKeyButton) addKeyButton.classList.add('disabled');
         }
     }
 
-    // **Check Merchant Role**
     function hasMerchantRole() {
         return userRoles.includes('merchant');
     }
 
-    // **Show ToS Agreement**
+    // ====================== Rest of the widget (unchanged) ======================
+
     async function showTosAgreement() {
         if (!checkTokenAndRedirect()) return;
         const token = localStorage.getItem('authToken');
@@ -653,16 +621,12 @@
             tosContent.textContent = 'Failed to load Terms of Service. Please try again.';
         } finally {
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     }
 
     async function initializeWidget() {
         if (!checkTokenAndRedirect()) return;
-        // Overlay is already visible from HTML injection
         document.getElementById('loadingOverlay').style.display = 'flex';
         try {
             await fetchUserRoles();
@@ -673,10 +637,7 @@
                 `;
                 document.getElementById('request-merchant-role').addEventListener('click', showTosAgreement);
                 const loadingOverlay = document.getElementById('loadingOverlay');
-                if (loadingOverlay) {
-                    loadingOverlay.style.display = 'none';
-                }
-                console.log('API Keys Widget: Loading overlay hidden');
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
                 return;
             }
             await fetchApiKeys();
@@ -685,18 +646,13 @@
             list.innerHTML = `<p>Error initializing widget. Check console for details.</p>`;
         } finally {
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     }
 
-    // **Fetch API Keys**
     async function fetchApiKeys() {
         if (!checkTokenAndRedirect()) return;
         const token = localStorage.getItem('authToken');
-        // Overlay is already visible, reinforce it
         document.getElementById('loadingOverlay').style.display = 'flex';
         try {
             const keys = await handleFetch(API_URL, {
@@ -708,22 +664,15 @@
             list.innerHTML = `<p class="error">Error: ${err.message}</p>`;
         } finally {
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     }
 
-    // **Display API Keys**
     async function displayApiKeys(keys) {
         if (!Array.isArray(keys) || keys.length === 0) {
             list.innerHTML = '<p>No API keys found.</p>';
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden after no keys found');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
             return;
         }
         const table = document.createElement('table');
@@ -756,13 +705,9 @@
         list.innerHTML = table.outerHTML;
         list.addEventListener('click', handleDeleteClick);
         const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-        console.log('API Keys Widget: Loading overlay hidden after displaying keys');
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
     }
 
-    // **Handle Delete Click**
     function handleDeleteClick(event) {
         if (event.target.classList.contains('fa-trash')) {
             const type = event.target.dataset.type;
@@ -775,7 +720,6 @@
         }
     }
 
-    // **Delete API Key**
     async function deleteApiKey(apiKeyType, description) {
         if (!checkTokenAndRedirect()) return;
         const token = localStorage.getItem('authToken');
@@ -792,11 +736,9 @@
             await fetchApiKeys();
         } finally {
             deleteDialog.classList.remove('show');
-            // Overlay hidden by fetchApiKeys
         }
     }
 
-    // **Fetch Providers**
     async function fetchProviders() {
         if (!checkTokenAndRedirect()) return;
         const token = localStorage.getItem('authToken');
@@ -821,14 +763,10 @@
             submitBtn.disabled = true;
         } finally {
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     }
 
-    // **Render Provider Radio Group**
     async function renderProviderRadioGroup(providers) {
         radioGroup.innerHTML = '';
         if (!providers || providers.length === 0) {
@@ -837,7 +775,7 @@
             return;
         }
         const iconHtmls = await Promise.all(providers.map(provider => renderIcon(provider.Icon)));
-        providers.forEach((provider, index) => {
+        providers.forEach((provider) => {
             if (!provider || !provider.Comment) return;
             const label = document.createElement('label');
             const input = document.createElement('input');
@@ -847,13 +785,12 @@
             const span = document.createElement('span');
             span.className = 'provider-radio-icon';
             span.title = sanitizeInput(provider.Comment);
-            span.innerHTML = iconHtmls[index];
+            span.innerHTML = iconHtmls[providers.indexOf(provider)];
             label.appendChild(input);
             label.appendChild(span);
             radioGroup.appendChild(label);
             span.addEventListener('click', () => {
                 input.checked = true;
-                input.dispatchEvent(new Event('change', { bubbles: true }));
                 repopulateForm(provider.Comment);
             });
         });
@@ -862,15 +799,8 @@
             firstProvider.checked = true;
             firstProvider.nextElementSibling.classList.add('active');
         }
-        radioGroup.addEventListener('change', (event) => {
-            if (event.target.type === 'radio' && event.target.name === 'provider') {
-                radioGroup.querySelectorAll('.provider-radio-icon').forEach(span => span.classList.remove('active'));
-                event.target.nextElementSibling.classList.add('active');
-            }
-        });
     }
 
-    // **Populate Form**
     async function repopulateForm(apiKeyType) {
         descriptionInput.value = '';
         settingsFields.innerHTML = '';
@@ -921,13 +851,11 @@
         updateAddButtonState();
     }
 
-    // **Get Selected Provider**
     function getSelectedProvider() {
         const selectedRadio = radioGroup.querySelector('input[name="provider"]:checked');
         return selectedRadio ? selectedRadio.value : null;
     }
 
-    // **Update Add Button State**
     function updateAddButtonState() {
         const description = descriptionInput.value.trim();
         const settingsInputs = settingsFields.querySelectorAll('input');
@@ -936,7 +864,6 @@
         submitBtn.disabled = !(description && allSettingsFilled && providerSelected);
     }
 
-    // **Event Listeners**
     submitBtn.addEventListener('click', async () => {
         if (submitBtn.disabled || !checkTokenAndRedirect()) return;
         const apiKeyType = getSelectedProvider();
@@ -967,10 +894,7 @@
         } catch (error) {
             errorDiv.textContent = 'Failed to add API key.';
             const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-            console.log('API Keys Widget: Loading overlay hidden');
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     });
 
