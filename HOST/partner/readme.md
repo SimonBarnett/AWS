@@ -1,60 +1,85 @@
-![ClubMadeira.io Icon](https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png)
-# ClubMadeira.io Partner Integration Guide
+![Club Madeira](https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png)
 
-Welcome to the ClubMadeira.io Affiliate Program! This guide is designed to help you, our valued partner, seamlessly integrate our widgets into your website to sign up merchants and communities for our affiliate program, earning commissions on sales. Our widgets are lightweight, easy to implement, and can be hosted on simple static hosting platforms like Amazon S3. This README provides step-by-step instructions for webmasters to set up and deploy the provided HTML templates and scripts.
+# Club Madeira Partner Integration Guide
+
+Welcome to the Club Madeira Partner Program.
+
+This guide is written for **web design agencies, developers, and partners** who build and maintain websites for clubs, associations, and communities. You are the primary onboarding channel for Club Madeira. Through this package you can deliver a complete, professional solution — including a modern **Progressive Web App (PWA)** experience — that your clients can be proud of.
+
+## Partner Role
+
+Partners are not just installers of widgets. You are the trusted technical partner who helps clubs and communities succeed online.
+
+Your responsibilities typically include:
+- Building and maintaining the club’s public website
+- Integrating all Club Madeira widgets
+- Handling branding, user experience, and technical implementation
+- Delivering a branded, installable Progressive Web App
+- Ongoing support and optimisation for your clients
+
+By using the files and guidance in this package, you can offer a significantly more valuable service to your club clients.
+
+## What’s New: Progressive Web App (PWA) Support
+
+Club Madeira now supports **Progressive Web Apps**. This is a major new offering you can provide to your clients.
+
+Clubs can now offer their members and visitors the ability to install the site as a native-feeling app on phones and desktops — fully branded under their own domain.
+
+**For detailed PWA setup instructions, please read:**
+
+→ **[PWA_readme.md](./PWA_readme.md)**
+
+This new guide covers `manifest.json`, `sw.js`, icon replacement, testing, and best practices.
 
 ## Overview
 
-Our affiliate program widgets enable your website to:
-- Display a public home page to attract visitors.
-- Provide login and signup functionality for merchants and communities.
-- Offer authenticated users access to a dashboard, API keys management, and discount category management.
-- Track affiliate referrals using your unique affiliate code.
+This package enables you to integrate the following into any static website:
 
-The provided templates (`index.html`, `login.html`, `signup.html`, `dashboard.html`, `api-keys.html`, `category.html`) demonstrate how to integrate our widgets. These can be hosted on any static web hosting service, making setup straightforward and cost-effective.
+- Public home page
+- Login and signup flows for merchants and communities
+- Authenticated dashboard with performance charts
+- API key management
+- Discount category management (Smart Catalogue)
+- Full Progressive Web App experience (installable, offline-capable)
+
+All widgets are lightweight and designed for static hosting (Amazon S3, Netlify, Vercel, IONOS, Fasthosts, etc.).
 
 ## Prerequisites
 
-Before you begin, ensure you have:
-- Your unique **affiliate code** (e.g., `PARTNER123`), provided by ClubMadeira.io.
-- A static hosting platform (see Hosting Options below).
-- Basic knowledge of HTML, CSS, and JavaScript.
-- Access to your website’s file structure to upload files.
+Before you begin, you should have:
+
+- Your unique **affiliate code** (e.g. `PARTNER123`)
+- A static hosting platform
+- Basic knowledge of HTML, CSS, and JavaScript
+- Access to your client’s website file structure
 
 ## Hosting Options
 
-Our widgets are designed for static hosting, meaning no server-side processing is required. You can host your site on platforms like:
+Club Madeira widgets are designed for static hosting. Recommended platforms include:
 
-- **Amazon S3**: A cost-effective, scalable option for static websites. Create a bucket, enable static website hosting, and upload your files. Ideal for low-maintenance setups.
-- **Netlify**: A user-friendly platform with free tiers, automatic HTTPS, and easy deployment via drag-and-drop or Git integration. Popular for static sites.
-- **Vercel**: Offers a free plan, simple deployment, and built-in domain management. Great for developers familiar with Git workflows.
-- **IONOS**: A UK-based provider offering affordable static hosting with domain registration and 24/7 support.
-- **Fasthosts**: Another UK option with reliable static hosting, domain services, and beginner-friendly tools.
+- **Amazon S3** – Cost-effective and scalable
+- **Netlify** – Excellent free tier and easy deployments
+- **Vercel** – Great developer experience
+- **IONOS** and **Fasthosts** – Popular UK options with local support and GDPR compliance
 
-For UK partners, **IONOS** and **Fasthosts** are excellent choices due to local support and GDPR compliance. Alternatively, **Amazon S3** is ideal for simplicity and global scalability. Choose a platform that suits your budget and technical expertise.
+For most UK-based partners, **IONOS** or **Fasthosts** offer a good balance of support and simplicity. Amazon S3 remains the most flexible and cost-effective for larger deployments.
 
 ## Setup Instructions
 
-Follow these steps to integrate the ClubMadeira.io widgets into your website:
+### 1. Download the Partner Package
 
-### 1. Clone or Download the Repository
+Copy the files from the `HOST/partner/` folder into your project. Key files include:
 
-Clone this Git repository or download the provided HTML templates and associated files. The key files are:
-- `index.html`: Public home page.
-- `login.html`: Login page for users.
-- `signup.html`: Signup page for new merchants and communities.
-- `dashboard.html`: Authenticated dashboard with performance charts.
-- `api-keys.html`: Authenticated page for managing API keys.
-- `category.html`: Authenticated page for managing discount categories.
-- `css/page.css`: Your custom CSS file (create or customize as needed).
-- `footer.html`: Your footer content (create with contact info, links, etc.).
-- `index.json`: Configuration file (create as described below).
-- `manifest.json`: PWA configuration (create as described below).
-- `sw.js`: Service worker for offline support (optional, see widget documentation).
+- `header-widget.js` (updated with PWA support)
+- `manifest.json` (PWA configuration)
+- `sw.js` (Service Worker)
+- `PWA_readme.md` (detailed PWA guide)
+- `images/icon-192.png` and `images/icon-512.png` (replace with client branding)
+- Plus the other widget scripts from the S3 bucket as needed
 
 ### 2. Configure `index.json`
 
-Create a file named `index.json` at your site’s root (e.g., `https://your-site.com/index.json`) with the following structure:
+Create a file called `index.json` at the root of your site:
 
 ```json
 {
@@ -64,210 +89,115 @@ Create a file named `index.json` at your site’s root (e.g., `https://your-site
 }
 ```
 
-- **`loginUrl`**: The relative or absolute URL to your login page (e.g., `/login.html` or `https://your-site.com/login.html`).
-- **`affiliateCode`**: Your unique affiliate identifier (e.g., `PARTNER123`). This is appended to the Affiliate AI menu URL (e.g., `/category.html?affiliate=PARTNER123`) and is required for the login and signup widgets.
-- **`signupLinkUrl`**: The relative or absolute URL to your signup page (e.g., `/signup.html`).
+- `loginUrl`: URL to your login page
+- `affiliateCode`: Your unique partner code
+- `signupLinkUrl`: URL to your signup page
 
-Ensure `index.json` is publicly accessible and correctly formatted. If missing or invalid, widgets fall back to defaults (`/login.html`, empty affiliate code, `/signup.html`), which may cause errors.
+This file must be publicly accessible.
 
-### 3. Set Up Progressive Web App (PWA) Support
+### 3. Set Up the Progressive Web App (PWA)
 
-To enable PWA features (e.g., installation prompts, offline access), create a `manifest.json` file at your site’s root:
+Follow the dedicated guide:
 
-```json
-{
-  "name": "Your App Name",
-  "icons": [
-    {
-      "src": "https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ],
-  "start_url": "/index.html",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
-}
+**→ [PWA_readme.md](./PWA_readme.md)**
+
+This replaces the older PWA instructions. It uses local icon paths so each partner can easily brand the app for their clients.
+
+### 4. Integrate the Widgets
+
+#### Header Widget (required on all pages)
+
+```html
+<header 
+  data-header-widget 
+  data-page-name="Dashboard" 
+  data-requireToken="true">
+</header>
+
+<script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/header-widget.js"></script>
 ```
 
-Optionally, host a service worker file (`sw.js`) for offline support. Refer to the widget documentation for a basic example.
+- Use `data-requireToken="true"` on protected pages (dashboard, api-keys, category)
+- Use `data-requireToken="false"` on public pages (login, signup, index)
 
-### 4. Integrate Widgets
+#### Login Widget
 
-Each HTML template includes widgets for specific functionality. Below is a summary of how to integrate them:
+```html
+<div id="login-widget"></div>
 
-#### Header Widget (All Pages)
-- **Purpose**: Provides navigation, authentication, and PWA features.
-- **Integration**:
-  - Add a `<header>` element with attributes:
-    ```html
-    <header data-header-widget data-page-name="Page Name" data-requireToken="true|false" [data-icon="fas fa-cog"]></header>
-    ```
-    - `data-page-name`: Display name (e.g., "Dashboard").
-    - `data-requireToken`: Set to `true` for authenticated pages (e.g., dashboard), `false` for public pages (e.g., login).
-    - `data-icon`: Optional Font Awesome icon class (defaults to menu icon or `fas fa-home`).
-  - Include the script:
-    ```html
-    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/header-widget.js"></script>
-    ```
+<script 
+  data-login-widget 
+  data-container-id="login-widget"
+  src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/login-widget.js">
+</script>
+```
 
-#### Login Widget (`login.html`)
-- **Purpose**: Handles user login, forgot password, and OTP verification.
-- **Integration**:
-  - Add a container: `<div id="login-widget"></div>`.
-  - Include the script:
-    ```html
-    <script data-login-widget data-container-id="login-widget" src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/login-widget.js"></script>
-    ```
-  - Ensure `index.json` includes a valid `affiliateCode`, or the widget will display an error.
+#### Signup Widget
 
-#### Signup Widget (`signup.html`)
-- **Purpose**: Manages user registration for merchants and communities.
-- **Integration**:
-  - Add a container: `<div id="signup-widget"></div>`.
-  - Include the script:
-    ```html
-    <script data-signup-widget data-container-id="signup-widget" src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/signup-widget.js"></script>
-    ```
+```html
+<div id="signup-widget"></div>
 
-#### API Keys Widget (`api-keys.html`)
-- **Purpose**: Allows authenticated users to manage API keys.
-- **Integration**:
-  - Add a container: `<div id="api-keys-container"></div>`.
-  - Include the script:
-    ```html
-    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/api-widget.js"></script>
-    ```
+<script 
+  data-signup-widget 
+  data-container-id="signup-widget"
+  src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/signup-widget.js">
+</script>
+```
 
-#### Categories Widget (`category.html`)
-- **Purpose**: Enables authenticated users to manage discount categories.
-- **Integration**:
-  - Add a container: `<div id="categories-widget"></div>`.
-  - Include the script:
-    ```html
-    <script 
-      src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/category-widget.js"
-      data-categories-widget
-      data-api-endpoint="https://ytepcnwske.execute-api.eu-west-2.amazonaws.com"
-      data-container-id="categories-widget"
-    ></script>
-    ```
+#### Other Widgets (Dashboard, API Keys, Category, Charts)
 
-#### Chart Widget (`dashboard.html`)
-- **Purpose**: Displays performance charts for authenticated users.
-- **Integration**:
-  - Add a container: `<div id="madeira-charts"></div>`.
-  - Include the script:
-    ```html
-    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/chart-widget.js"></script>
-    ```
+Add the relevant container `<div>` and include the corresponding script from the S3 bucket. Full examples are available in the individual widget documentation and the old template files.
 
-#### Footer (All Pages)
-- **Purpose**: Displays dynamic or static footer content.
-- **Integration**:
-  - Add a `<footer id="footer"></footer>` element.
-  - Include the script to load `footer.html`:
-    ```html
-    <script>
-      fetch('footer.html')
-        .then(response => {
-          if (!response.ok) throw new Error('Failed to load footer.html');
-          return response.text();
-        })
-        .then(data => {
-          document.getElementById('footer').innerHTML = data;
-        })
-        .catch(error => {
-          console.error('Error loading footer:', error.message);
-          document.getElementById('footer').innerHTML = '<p>Footer content unavailable</p>';
-        });
-    </script>
-    ```
-  - Host a `footer.html` file at your site’s root with your content (e.g., contact info, links). Alternatively, use static content directly in the `<footer>`.
+#### Footer (recommended)
 
-### 5. Customize Styling
+```html
+<footer id="footer"></footer>
 
-- Create a `css/page.css` file to style your pages, ensuring compatibility with widget styles.
-- Widgets use Font Awesome icons and their own CSS, which can be overridden (see widget documentation).
-- Avoid conflicting CSS that may affect widget rendering (e.g., global resets impacting Font Awesome).
+<script>
+  fetch('footer.html')
+    .then(res => res.text())
+    .then(html => document.getElementById('footer').innerHTML = html);
+</script>
+```
 
-### 6. Authentication
+Create a `footer.html` file with your client’s contact information and links.
 
-- Widgets use AWS Lambda for authentication, checking an `authToken` in `localStorage`.
-- Public pages (`login.html`, `signup.html`, `index.html`) use `data-requireToken="false"`.
-- Protected pages (`dashboard.html`, `api-keys.html`, `category.html`) use `data-requireToken="true"`, redirecting unauthenticated users to the `loginUrl` from `index.json`.
-- The login widget stores `authToken`, `user_id`, and `contact_name` in `localStorage` upon successful login.
-- The signup widget stores an `authToken` in cookies during registration, completed via email, phone, and password.
+### 5. Authentication Flow
 
-### 7. Test Your Implementation
+- Public pages use `data-requireToken="false"`
+- Protected pages use `data-requireToken="true"` and will redirect unauthenticated users to the `loginUrl` defined in `index.json`
+- On successful login, the widget stores `authToken`, `user_id`, and `contact_name` in `localStorage`
 
-Deploy your site to your chosen hosting platform and test the following:
-- **Navigation**: Header menu works, displaying public and authenticated options correctly.
-- **Configuration**: `index.json` is fetched without errors (check console logs).
-- **Widgets**: Login, signup, API keys, categories, and chart widgets render and function as expected.
-- **Authentication**: Protected pages redirect to `loginUrl` if unauthenticated; login/signup store `authToken` correctly.
-- **PWA**: Installation prompt appears on supported browsers (e.g., Chrome, Safari).
-- **Footer**: `footer.html` loads, or static content displays correctly.
-- **Affiliate Tracking**: The `affiliateCode` is appended to the Affiliate AI menu URL (e.g., `/category.html?affiliate=PARTNER123`).
+### 6. Testing
 
-Use browser developer tools to debug issues (e.g., 404 errors for `index.json` or `footer.html`, API failures).
+Before going live, verify:
 
-### 8. Deploy and Monitor
+- `index.json` loads without errors
+- Header navigation shows correct menu items for logged-in vs logged-out states
+- Login and signup flows work end-to-end
+- Protected pages redirect correctly when unauthenticated
+- PWA installation prompt appears (Chrome DevTools → Application → Manifest)
+- All widgets render and function as expected
+- Footer loads correctly
 
-- Upload all files to your hosting platform (e.g., S3 bucket, Netlify project).
-- Verify HTTPS is enabled (most platforms, like Netlify and S3, support this).
-- Monitor console logs for errors and test user flows (signup, login, dashboard access).
-- Contact our integration team if you encounter issues.
+### 7. Deployment Example: Amazon S3
 
-## Common UK Hosting Setup Example: Amazon S3
-
-For partners new to static hosting, here’s a quick guide to using Amazon S3:
-1. **Create an S3 Bucket**:
-   - Sign into the AWS Console, navigate to S3, and create a bucket (e.g., `your-partner-site`).
-   - Choose the `eu-west-2` region for UK compliance.
-2. **Enable Static Hosting**:
-   - In the bucket’s Properties tab, enable Static Website Hosting.
-   - Set `index.html` as the index document.
-3. **Upload Files**:
-   - Upload all HTML, CSS, JSON, and other files to the bucket.
-   - Ensure `index.json` and `footer.html` are at the root.
-4. **Set Permissions**:
-   - Update the bucket policy to allow public read access:
-     ```json
-     {
-       "Version": "2012-10-17",
-       "Statement": [
-         {
-           "Sid": "PublicReadGetObject",
-           "Effect": "Allow",
-           "Principal": "*",
-           "Action": "s3:GetObject",
-           "Resource": "arn:aws:s3:::your-partner-site/*"
-         }
-       ]
-     }
-     ```
-5. **Test the Endpoint**:
-   - Access your site via the S3 static website endpoint (e.g., `http://your-partner-site.s3-website.eu-west-2.amazonaws.com`).
-   - Optionally, configure a custom domain with Route 53 or CloudFront for HTTPS.
+1. Create an S3 bucket in `eu-west-2`
+2. Enable **Static website hosting**
+3. Upload all files (including `index.json`, `manifest.json`, `sw.js`, and images)
+4. Apply a bucket policy for public read access
+5. Test using the S3 website endpoint
+6. (Optional) Add a custom domain via CloudFront or Route 53
 
 ## Support
 
-If you need assistance, please:
-- Refer to the widget documentation for detailed API and styling information.
-- Contact our integration team at [support```clubmadeira.io](mailto:support```clubmadeira.io).
-- Join our partner community on [X](https://x.com/clubmadeira) for tips and updates.
+- Technical questions about widgets and integration → Club Madeira support
+- Questions specifically about PWA setup → First read `PWA_readme.md`, then contact support
+- Feedback from active partners is always welcome
 
-Thank you for partnering with ClubMadeira.io! We’re excited to help you drive affiliate success with our easy-to-use widgets.
+Thank you for being a Club Madeira Partner. You play a vital role in helping clubs and communities build professional, modern digital presences.
 
 ---
 
-**License**: This software is provided under the MIT License. See the repository’s license file for details.
-
-**Copyright © 2025 Simon Barnett**
+**Last updated:** June 2026  
+**Version:** Updated with full Progressive Web App support and clarified partner onboarding role.
