@@ -821,7 +821,7 @@ class PartnerWidget {
         }
    
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/api-keys/add-role/validate-onboarding-token`, {
+            const response = await fetch(`${this.apiEndpoint}/prod/login/validate-onboarding-token`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
