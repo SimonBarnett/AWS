@@ -46,81 +46,7 @@ The main message types handled are:
 - `CLUBSCAN_NOTIFY`
 - `SEND_EMAIL`
 
-**Full details** (including handler logic and flow): See [sqs/readme.md](./sqs/readme.md)
-
-## Test Invocation Scripts
-
-### 1. Onboarding a New Site
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"ONBOARDING\",\"userId\":\"OKKCFJOQ\",\"url\":\"https://www.toddlerandbaby.club\",\"partnerId\":\"L7WDZWC8\",\"sandbox\":true}"
-    }
-  ]
-}
-```
-
-### 2. Generate AI Review
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"CLUBSCAN_GENERATE_REVIEW\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
-    }
-  ]
-}
-```
-
-### 3. Generate Categories
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"CLUBSCAN_GENERATE_CATEGORIES\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
-    }
-  ]
-}
-```
-
-### 4. Build Final Catalogue
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"CLUBSCAN_BUILD_CATALOG\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
-    }
-  ]
-}
-```
-
-### 5. Send Notification
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"CLUBSCAN_NOTIFY\",\"url\":\"https://www.toddlerandbaby.club/\",\"sandbox\":true}"
-    }
-  ]
-}
-```
-
-### 6. User Updates Categories (via widget)
-
-```json
-{
-  "Records": [
-    {
-      "body": "{\"type\":\"CATEGORY_UPDATE\",\"userId\":\"OKKCFJOQ\",\"body\":{\"prompt\":\"Add a baby monitors category.\"},\"sandbox\":true}"
-    }
-  ]
-}
-```
+**Full details** (including handler logic and flow, plus example test events): See [sqs/readme.md](./sqs/readme.md)
 
 ## Onboarding Flow
 
@@ -157,7 +83,7 @@ This allows ongoing refinement without full re-onboarding.
 
 ## Related Documentation
 
-- [SQS Message Handlers (detailed)](./sqs/readme.md) — Message types, handlers, email logic, and full flows
+- [SQS Message Handlers (detailed)](./sqs/readme.md) — Message types, handlers, email logic, full flows, and test event examples
 
 ---
 
