@@ -55,6 +55,8 @@ See the [top-level README](../README.md) for architecture overview, environment 
 
 **Purpose**: Generate highly relevant merchant recommendations tailored to a specific club.
 
+> **Business Context**: This route is called when a new community/club onboards. The partner receives a ready-to-use list of AWIN advertisers they can apply to **on behalf of the club**. Successful onboarding of the supplier earns the partner an **extra %** on all future transactions from that advertiser.
+
 ### Accepted Parameters
 
 | Parameter             | Type              | Required | Description                                                                 | Default / Notes                     |
