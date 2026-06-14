@@ -1,9 +1,14 @@
-// ====================== Lambdas/amazoncard-topup/index.js ======================
-// Amazon Gift Card Topup Handler (AGCOD v2) - Standalone Lambda
-// Uses centralized incentive config from layer
+// Lambdas/amazoncard-topup/index.js
+// Amazon Gift Card Top-up Lambda (AGCOD v2)
+//
+// NOTE: This Lambda intentionally uses aws-sdk v2 for request signing.
+// It has been isolated here because AGCOD signing is sensitive and this
+// process only runs once per week. Reliability was prioritised over
+// migrating to AWS SDK v3.
 
 const AWS = require('aws-sdk');
 const https = require('https');
+
 const { sql, logger, getDbConnection } = require('/opt/nodejs/helpers');
 const { getIncentiveConfig } = require('/opt/nodejs/conf/incentive-config');
 
@@ -11,7 +16,7 @@ exports.handler = async (event) => {
     let pool = null;
 
     try {
-        // Load config from SSM via layer (with caching)
+        // === Load configuration from shared incentive config layer ===
         const config = await getIncentiveConfig();
 
         const partnerId = config.AMAZON_PARTNER_ID;
@@ -19,28 +24,31 @@ exports.handler = async (event) => {
         const secretKey = config.AMAZON_SECRET_ACCESS_KEY;
         const brand     = config.AMAZON_BRAND || 'Club Madeira';
         const currency  = (config.AMAZON_CURRENCY || 'GBP').toUpperCase();
-        const isSandbox = (config.AMAZON_SANDBOX || 'true') === 'true';
+        const isSandbox = String(config.AMAZON_SANDBOX || 'true').toLowerCase() === 'true';
 
-        // Budget remains as a direct environment variable
+        // Budget is intentionally kept as an environment variable so it can be
+        // changed by people who do not have access to SSM parameters.
         const budget = parseFloat(process.env.BUDGET);
 
-        if (!partnerId) throw new Error('AMAZON_PARTNER_ID is required (from incentive config)');
+        if (!partnerId) {
+            throw new Error('AMAZON_PARTNER_ID is missing from incentive config');
+        }
         if (!accessKey || !secretKey) {
             throw new Error('AMAZON_ACCESS_KEY_ID and AMAZON_SECRET_ACCESS_KEY are required (from incentive config)');
         }
         if (isNaN(budget) || budget <= 0) {
-            throw new Error('BUDGET must be a positive number (set as environment variable)');
+            throw new Error('BUDGET must be a positive number (set via environment variable)');
         }
 
-        logger.info('Starting Amazon Gift Card Topup', {
+        logger.info('Amazon Gift Card Top-up started', {
             budget: `£${budget}`,
             environment: isSandbox ? 'SANDBOX' : 'PRODUCTION',
             currency,
             brand
         });
 
-        // Card generation logic (unchanged)
-        let cards = [];
+        // === Generate card denominations ===
+        const cards = [];
         let remaining = budget;
 
         if (Math.random() < 0.25) {
@@ -64,11 +72,16 @@ exports.handler = async (event) => {
             for (let i = 0; i < numOnePound; i++) cards.push(1);
         }
 
-        logger.info(`Generated card denominations: [${cards.join(', ')}] (Total: £${cards.reduce((a, b) => a + b, 0)})`);
+        const totalValue = cards.reduce((sum, val) => sum + val, 0);
+        logger.info('Generated gift card denominations', {
+            cards,
+            totalValue: `£${totalValue}`
+        });
 
         pool = await getDbConnection();
         let insertedCount = 0;
 
+        // === AGCOD v2 signing setup (aws-sdk v2 - intentionally kept) ===
         const signer = new AWS.Signers.V4(
             { service: 'execute-api', region: 'us-east-1' },
             'AGCODService'
@@ -106,6 +119,7 @@ exports.handler = async (event) => {
             signer.addAuthorization(credentials, requestDate);
             Object.assign(options.headers, signer.headers);
 
+            // Call Amazon AGCOD
             const result = await new Promise((resolve, reject) => {
                 const req = https.request(options, (res) => {
                     let data = '';
@@ -114,12 +128,12 @@ exports.handler = async (event) => {
                         if (res.statusCode === 200) {
                             resolve(JSON.parse(data));
                         } else {
-                            reject(new Error(`Amazon API Error: ${data}`));
+                            reject(new Error(`Amazon AGCOD error (status ${res.statusCode}): ${data}`));
                         }
                     });
                 });
 
-                req.on('error', reject);
+                req.on('error', (err) => reject(new Error(`Amazon request failed: ${err.message}`)));
                 req.write(body);
                 req.end();
             });
@@ -127,8 +141,13 @@ exports.handler = async (event) => {
             const claimCode = result.gcClaimCode;
             const gcId = result.gcId;
 
-            logger.info(`Created £${value} gift card`, { claimCode, gcId });
+            logger.info('Amazon gift card created', {
+                value: `£${value}`,
+                claimCode,
+                gcId
+            });
 
+            // Store in database
             await pool.request()
                 .input('code', sql.NVarChar(100), claimCode)
                 .input('value', sql.Decimal(10, 2), value)
@@ -143,7 +162,7 @@ exports.handler = async (event) => {
             insertedCount++;
         }
 
-        // Day-of-week cycling
+        // === Day-of-week cycling for distribution ===
         await pool.request().query(`
             WITH Numbered AS (
                 SELECT 
@@ -153,15 +172,15 @@ exports.handler = async (event) => {
                 WHERE status = 'available'
             )
             UPDATE ac 
-            SET day_of_week = n.new_day, 
+            SET day_of_week = n.new_day,
                 updated_at = GETDATE()
             FROM amazon_cards ac
             JOIN Numbered n ON ac.id = n.id;
         `);
 
-        logger.info('Topup completed successfully', {
+        logger.info('Amazon Gift Card Top-up completed successfully', {
             inserted: insertedCount,
-            totalValue: cards.reduce((a, b) => a + b, 0)
+            totalValue: `£${totalValue}`
         });
 
         return {
@@ -169,13 +188,17 @@ exports.handler = async (event) => {
             body: JSON.stringify({
                 success: true,
                 inserted: insertedCount,
-                totalValue: cards.reduce((a, b) => a + b, 0),
-                cards: cards
+                totalValue,
+                cards
             })
         };
 
     } catch (error) {
-        logger.error('Amazon Gift Card Topup failed', { error: error.message });
+        logger.error('Amazon Gift Card Top-up failed', {
+            error: error.message,
+            stack: error.stack
+        });
+
         return {
             statusCode: 500,
             body: JSON.stringify({
