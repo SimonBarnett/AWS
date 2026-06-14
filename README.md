@@ -16,7 +16,7 @@ Club Madeira is an intelligent affiliate platform that connects:
 - **Merchants** (who list products)
 - **Partners** (web designers/agencies who onboard clubs)
 
-The system allows any website to embed powerful affiliate widgets that dynamically display relevant products, while running sophisticated background processing (catalogue ingestion, AI relevance scoring via Grok, multi-network search, etc.).
+The system allows any website to embed powerful affiliate widgets that dynamically display relevant products, while running sophisticated background processing (catalogue ingestion, **AI relevance scoring & best-part selection via Grok**, multi-network search, etc.).
 
 ### Core Value Proposition
 
@@ -24,29 +24,32 @@ A fully modular, **region-agnostic**, production-grade serverless platform that 
 
 ---
 
-## 🏗️ High-Level Architecture & Key Capabilities
+## 🏗️ High-Level Architecture
 
-### Merchant Parts & Product Discovery (Foundation)
+```mermaid
+flowchart TD
+    subgraph "Frontend / Partner Sites"
+        Widgets[JavaScript Widgets in S3-Bucket] --> API
+        Partner[HOST/partner Package] --> Widgets
+    end
 
-Madeira discovers and imports real merchant products from multiple affiliate networks.
+    subgraph "API Layer"
+        APIGW[API Gateway] --> LambdaAPI[Madeira API Orchestrator]
+        LambdaAPI --> Token[Token/Auth Routes]
+        LambdaAPI --> UI[UI Routes]
+        LambdaAPI --> RDS[RDS Query - Public Catalogue]
+    end
 
-**Current status:**
-- **Awin integration** is fully active with **hundreds of advertisers**.
-- Connectors for **Wix**, **WooCommerce**, and **Shopify** have been built and tested.
-- However, we currently have **no live merchants using those platforms**.
-- Amazon Associates and eBay Partner Network are also active.
+    subgraph "Background Processing"
+        SQS[SQS Queues] --> Merchant[Merchant Ingestion]
+        SQS --> Affiliate[Affiliate Search + Grok AI]
+        SQS --> Catalogue[Catalogue Builder]
+    end
 
-The **Awin pipeline** (Lambdas + SQS) currently serves as the main aggregator. This rich merchant parts data powers catalogue generation, **Grok-powered AI selection of best parts per category/website**, and the widgets shown to end users.
-
-**Key component:** [Lambdas/madeira-awin-clubscan](Lambdas/madeira-awin-clubscan)
-
-### Self-Healing & Diagnostics
-
-**[Lambdas/madeira-layer-cake](Lambdas/madeira-layer-cake)** — The dedicated **Layer Validation & Self-Healing Test Lambda**.
-
-It actively exercises every shared layer and acts as a canary for detecting broken dependencies.
-
-**[Browse all Lambdas →](Lambdas/README.md)**
+    Layers[Shared Lambda Layers] --> All[All Services]
+    RDS_DB[(Aurora / madeiradb)] <--> All
+    S3[(S3 Buckets)] <--> All
+```
 
 ---
 
@@ -60,25 +63,41 @@ It actively exercises every shared layer and acts as a canary for detecting brok
 | **[RDS](./RDS)** | Database schema & low-priv access | [RDS/README.md](./RDS/readme.md) |
 | **[S3-Bucket](./S3-Bucket)** | All JavaScript widgets | Widgets for clubs, partners, merchants |
 | **[HOST/partner](./HOST/partner)** | Complete package given to web agencies | [Partner Guide](./HOST/partner/readme.md) |
-| **[Lambdas](./Lambdas)** | Standalone functions | [Lambdas Overview](./Lambdas/README.md) |
+| **[Lambdas](./Lambdas)** | Standalone functions (e.g. Amazon Top-up) | — |
 | **[Extension](./Extension)** | Browser extension for voucher claiming | Chrome + Safari |
 
 ---
 
 ## ✨ Key Innovations & Design Highlights
 
-- **Multi-Region Ready**: All configuration lives in SSM Parameter Store + shared Layers.
-- **Layer-First Architecture**: Dramatically reduces duplication.
-- **Event-Driven Backbone**: Three specialised SQS queues handle heavy lifting.
-- **Smart Sandboxing**: Every pipeline supports `sandbox: true`.
-- **Self-Healing**: Automatic recovery, retry logic, and `madeira-layer-cake` validation.
-- **Embedded Widgets**: Zero-dependency JavaScript that works on any static site.
+- **Multi-Region Ready**: All configuration lives in SSM Parameter Store + shared Layers. Deploy the entire platform to `eu-west-1`, `us-east-1`, `ap-southeast-2` etc. with almost zero code changes.
+- **Layer-First Architecture**: Four powerful shared layers drastically reduce duplication and improve security/maintainability.
+- **Event-Driven Backbone**: Three specialised SQS Lambdas handle heavy lifting (product ingestion, affiliate enrichment, catalogue building).
+- **Smart Sandboxing**: Every pipeline supports a `sandbox: true` flag for safe testing and development.
+- **Self-Healing & Resilient**: Automatic recovery from stuck states, retry logic, and graceful degradation built in.
+- **Embedded Widgets**: Zero-dependency JavaScript widgets that work on any static site (Wix, WordPress, custom, etc.).
+- **AI-Powered Catalogue Curation**: Grok is heavily used to intelligently select the **best** products for each website and category.
 
 ---
 
 ## 🧩 Major Components
 
-**See individual folder READMEs for deep dives.**
+### 1. API (`/API`)
+Full-featured serverless REST API with public auth endpoints and protected UI/dashboard functionality. Uses a single orchestrator Lambda in sandbox mode for rapid iteration.
+
+### 2. Shared Layers (`/Layers`)
+The heart of the platform. Reusable across all services.
+
+### 3. Background Processing (`/SQS`)
+- **Merchant Queue**: Imports full catalogues from Shopify, WooCommerce, Magento, etc.
+- **Affiliate Queue**: Searches Awin, eBay, Amazon + runs Grok relevance scoring in batches.
+- **Catalogue Queue**: Orchestrates onboarding, category management, **AI-driven best-part selection**, and live catalogue building.
+
+### 4. Database (`/RDS`)
+Sophisticated MSSQL schema with stored procedures for performance-critical operations.
+
+### 5. Client-Side (`/S3-Bucket` + `/HOST/partner`)
+Production-ready widgets and full partner onboarding package.
 
 ---
 
@@ -86,12 +105,22 @@ It actively exercises every shared layer and acts as a canary for detecting brok
 
 See individual folder readmes for detailed instructions.
 
-**General flow:**
+General flow:
 1. Deploy Lambda Layers first
 2. Deploy API + SQS functions
-3. Configure SSM parameters
+3. Configure SSM parameters (or use self-healing placeholders)
 4. Upload widgets to S3
 5. Give partners the `/HOST/partner` package
+
+---
+
+## 📚 Full Documentation Map
+
+- [SQS System Overview](./SQS/readme.md)
+- [API Architecture](./API/README.md)
+- [Core Layer](./Layers/madeira-core-layer/readme.md)
+- [Partner Integration Guide](./HOST/partner/readme.md)
+- [Database Schema](./RDS/readme.md)
 
 ---
 
