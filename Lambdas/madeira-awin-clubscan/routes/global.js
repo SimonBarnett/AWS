@@ -1,6 +1,6 @@
 // routes/global.js
-const { logger, getDbConnection, sql } = require('/opt/nodejs/helpers');
-const { callXaiApi } = require('/opt/nodejs/grok');   // ← Grok is in its own layer
+const { logger, sql } = require('/opt/nodejs/helpers');
+const { callXaiApi } = require('/opt/nodejs/grok');
 const { MERCHANT_PERSONALISATION_SCHEMA } = require('../grok-schemas');
 
 // ====================== ENVIRONMENT VARIABLES ======================
@@ -9,7 +9,11 @@ const DEFAULT_MAX_RECOMMENDATIONS = parseInt(process.env.GLOBAL_MAX_RECOMMENDATI
 const DEFAULT_NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL_TO;
 
 // ====================== GLOBAL MODE HANDLER ======================
-exports.handler = async (event, { pool: passedPool } = {}) => {
+exports.handler = async (event, { pool } = {}) => {
+    if (!pool) {
+        throw new Error('Pool must be passed from the orchestrator');
+    }
+
     const maxRecs = parseInt(event.maxRecommendations) || DEFAULT_MAX_RECOMMENDATIONS;
 
     let notificationEmailTo = event.notificationEmailTo || DEFAULT_NOTIFICATION_EMAIL;
@@ -27,15 +31,7 @@ exports.handler = async (event, { pool: passedPool } = {}) => {
         notificationEmailTo 
     });
 
-    let pool = passedPool;
-    let shouldClosePool = false;
-
     try {
-        if (!pool) {
-            pool = await getDbConnection();
-            shouldClosePool = true;
-        }
-
         const candidatesResult = await pool.request().query(`
             SELECT TOP (${maxRecs}) 
                 MerchantId as id,
@@ -186,9 +182,6 @@ Return ONLY valid JSON array.`;
     } catch (error) {
         logger.error('Global AWIN recommendations failed', { error: error.message, stack: error.stack });
         return { statusCode: 500, body: error.message };
-    } finally {
-        if (shouldClosePool && pool) {
-            await pool.close().catch(() => {});
-        }
     }
+    // NOTE: Pool is managed by the orchestrator (index.js). Do not close here.
 };
