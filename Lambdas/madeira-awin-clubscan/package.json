@@ -1,16 +1,9 @@
 {
   "name": "madeira-awin-clubscan",
   "version": "1.0.0",
-  "description": "AWIN Club Recommendations Lambda - Generates personalised AWIN merchant recommendations for clubs",
+  "description": "AWIN Club Recommendations + Onboarding Lambda",
   "main": "index.js",
-  "dependencies": {
-    "@aws-sdk/client-lambda": "^3.600.0",
-    "@aws-sdk/client-ssm": "^3.600.0",
-    "bcryptjs": "^2.4.3",
-    "mssql": "^10.0.2",
-    "node-fetch": "^2.7.0",
-    "winston": "^3.13.0"
-  },
+  "dependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

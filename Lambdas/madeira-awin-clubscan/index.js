@@ -1,6 +1,7 @@
 // index.js - madeira-awin-clubscan (CLEAN ORCHESTRATOR)
+// Updated to use shared layers
 
-const { getDbConnection, logger } = require('./helpers');
+const { getDbConnection, logger } = require('/opt/nodejs/helpers');
 
 const syncMerchantsRoute = require('./routes/sync-merchants');
 const clubRoute          = require('./routes/club');
@@ -33,33 +34,39 @@ exports.handler = async (event) => {
             return await awinPaymentsRoute.run(pool);
         }
 
-        // ====================== ONBOARDING (runs BOTH background jobs first) ======================
+        // ====================== ONBOARDING ======================
         if (event.onboarding === true || event.route === 'onboarding') {
             logger.info('🔄 Onboarding detected → running sync + payments first');
 
-            await syncMerchantsRoute.run(pool);     // always run sync
-            await awinPaymentsRoute.run(pool);      // always run payments
+            await syncMerchantsRoute.run(pool);
+            await awinPaymentsRoute.run(pool);
 
             logger.info('✅ Background jobs completed before onboarding');
-            
-            logger.info('🎯 Starting onboarding route');
-            return await onboardingRoute.handler(event);
+            return await onboardingRoute.handler(event, { pool });
         }
 
-        // ====================== OTHER ROUTES ======================
+        // ====================== CLUB-SPECIFIC ======================
         if (event.clubId) {
             logger.info('🎯 Club route triggered', { clubId: event.clubId });
-            return await clubRoute.handler(event);
+            return await clubRoute.handler(event, { pool });
         }
 
-        // Default fallback
+        // ====================== GLOBAL / DEFAULT ======================
         logger.info('🎯 Global route triggered (default)');
-        return await globalRoute.handler(event);
+        return await globalRoute.handler(event, { pool });
 
     } catch (error) {
-        logger.error('💥 Orchestrator failed', { error: error.message, stack: error.stack });
+        logger.error('💥 Orchestrator failed', {
+            error: error.message,
+            stack: error.stack,
+            route: event.route
+        });
         return { statusCode: 500, body: error.message };
     } finally {
-        if (pool) await pool.close().catch(() => {});
+        if (pool) {
+            await pool.close().catch(err =>
+                logger.warn('Pool close warning', { error: err.message })
+            );
+        }
     }
 };

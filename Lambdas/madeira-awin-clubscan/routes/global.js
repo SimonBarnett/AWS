@@ -1,35 +1,18 @@
 // routes/global.js
-const sql = require('mssql');
-const { getDbConnection, logger, callXaiApi, invokeMailer } = require('../helpers');
+const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+const { callXaiApi } = require('/opt/nodejs/grok');   // ← Grok is in its own layer
+const { MERCHANT_PERSONALISATION_SCHEMA } = require('../grok-schemas');
 
 // ====================== ENVIRONMENT VARIABLES ======================
 const GLOBAL_COOLDOWN_DAYS = parseInt(process.env.GLOBAL_COOLDOWN_DAYS) || 90;
 const DEFAULT_MAX_RECOMMENDATIONS = parseInt(process.env.GLOBAL_MAX_RECOMMENDATIONS) || 20;
 const DEFAULT_NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL_TO;
 
-// ====================== GROK SCHEMA ======================
-const MERCHANT_PERSONALISATION_SCHEMA = {
-    type: "array",
-    items: {
-        type: "object",
-        properties: {
-            merchantId: { type: "number" },
-            merchantName: { type: "string" },
-            whyItFits: { type: "string" },
-            joinRequestMessage: { type: "string", maxLength: 200 }
-        },
-        required: ["merchantId", "merchantName", "whyItFits", "joinRequestMessage"],
-        additionalProperties: false
-    }
-};
-
 // ====================== GLOBAL MODE HANDLER ======================
-exports.handler = async (event) => {
+exports.handler = async (event, { pool: passedPool } = {}) => {
     const maxRecs = parseInt(event.maxRecommendations) || DEFAULT_MAX_RECOMMENDATIONS;
 
-    // === NEW: Support string OR array for notificationEmailTo ===
     let notificationEmailTo = event.notificationEmailTo || DEFAULT_NOTIFICATION_EMAIL;
-
     if (typeof notificationEmailTo === 'string') {
         notificationEmailTo = notificationEmailTo.split(',').map(e => e.trim()).filter(Boolean);
     }
@@ -44,9 +27,14 @@ exports.handler = async (event) => {
         notificationEmailTo 
     });
 
-    let pool;
+    let pool = passedPool;
+    let shouldClosePool = false;
+
     try {
-        pool = await getDbConnection();
+        if (!pool) {
+            pool = await getDbConnection();
+            shouldClosePool = true;
+        }
 
         const candidatesResult = await pool.request().query(`
             SELECT TOP (${maxRecs}) 
@@ -138,7 +126,6 @@ Return ONLY valid JSON array.`;
                 : `<strong>${rec.name}</strong>`;
 
             const whyHtml = (rec.description ? rec.description + '<br><br>' : '') + rec.whyItFits;
-
             const joinHtml = rec.joinRequestMessage.replace(/\n/g, '<br>');
 
             emailRows += `
@@ -184,7 +171,7 @@ Return ONLY valid JSON array.`;
 
         await invokeMailer({
             from: 'support@clubmadeira.uk',
-            to: notificationEmailTo,           // ← now supports array or string
+            to: notificationEmailTo,
             subject: `Daily AWIN Global Recommendations – ${recommended.length} merchants`,
             html: emailHtml
         });
@@ -200,6 +187,8 @@ Return ONLY valid JSON array.`;
         logger.error('Global AWIN recommendations failed', { error: error.message, stack: error.stack });
         return { statusCode: 500, body: error.message };
     } finally {
-        if (pool) await pool.close();
+        if (shouldClosePool && pool) {
+            await pool.close().catch(() => {});
+        }
     }
 };

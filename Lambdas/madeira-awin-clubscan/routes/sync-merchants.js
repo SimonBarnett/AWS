@@ -1,6 +1,5 @@
 // routes/sync-merchants.js
-const fetch = require('node-fetch');
-const { logger } = require('../helpers');
+const { logger } = require('/opt/nodejs/helpers');
 
 async function run(pool) {
     logger.info('🔄 Starting CLEAN SYNC of AwinHighApprovalMerchants');

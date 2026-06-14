@@ -1,12 +1,14 @@
 // routes/awin-payments.js
 // ✅ FINAL PRODUCTION — Batches using correct `ids` parameter + robust ClubID from clickRef
 
-const sql = require('mssql');
-const fetch = require('node-fetch');
-const { logger } = require('../helpers');
+const { logger, sql } = require('/opt/nodejs/helpers');
+const { getAwinConfig } = require('/opt/nodejs/conf/awin-config');
 
 async function run(pool) {
     logger.info('💰 [AwinPayments] FINAL PRODUCTION — All joined merchants');
+
+    const awin = await getAwinConfig();
+    const ACCESS_TOKEN = awin.AWIN_ACCESS_TOKEN;
 
     try {
         // Last 365 days
@@ -36,16 +38,16 @@ async function run(pool) {
             const batch = allIds.slice(i, i + BATCH_SIZE);
             const idsParam = batch.join(',');
 
-            const url = `https://api.awin.com/publishers/2889699/transactions?` +
+            const url = `https://api.awin.com/publishers/${awin.AWIN_PUBLISHER_ID}/transactions?` +
                         `startDate=${startDate}&endDate=${endDate}&` +
                         `dateType=transaction&ids=${idsParam}&timezone=UTC&limit=500`;
 
-            logger.info(`🔍 Batch ${Math.floor(i/BATCH_SIZE)+1}/${Math.ceil(allIds.length/BATCH_SIZE)} — ${batch.length} merchants`);
+            logger.info(`🔍 Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allIds.length / BATCH_SIZE)} — ${batch.length} merchants`);
 
             const res = await fetch(url, {
-                headers: { 
-                    'Authorization': `Bearer ${process.env.AWIN_ACCESS_TOKEN}`,
-                    'Accept': 'application/json' 
+                headers: {
+                    'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                    'Accept': 'application/json'
                 }
             });
 
@@ -102,9 +104,9 @@ async function run(pool) {
         }
 
         logger.info(`🎉 AwinPayments COMPLETE — Fetched ${totalFetched} | Upserted ${totalUpserted} records`);
-        return { 
-            statusCode: 200, 
-            body: `✅ Imported ${totalUpserted} Awin transactions from all joined merchants` 
+        return {
+            statusCode: 200,
+            body: `✅ Imported ${totalUpserted} Awin transactions from all joined merchants`
         };
 
     } catch (err) {

@@ -1,20 +1,40 @@
-// routes/onboarding.js
-const fetch = require('node-fetch');
-const sql = require('mssql');
-const { logger, invokeMailer, createAwinMerchantUser, getDbConnection } = require('../helpers');
+ // routes/onboarding.js
+const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+const { getAwinConfig } = require('/opt/nodejs/conf/awin-config');
 
-const PUBLISHER_ID = process.env.AWIN_PUBLISHER_ID;
-const ACCESS_TOKEN = process.env.AWIN_ACCESS_TOKEN;
-const NOTIFICATION_EMAIL_TO = process.env.NOTIFICATION_EMAIL_TO || 'stakeholder@clubmadeira.uk';
+// Import Awin-specific function from local helpers
+const { createAwinMerchantUser } = require('../helpers');
+
+let AWIN_CONFIG = null;
+
+async function getAwinCredentials() {
+    if (!AWIN_CONFIG) {
+        AWIN_CONFIG = await getAwinConfig();
+    }
+    return AWIN_CONFIG;
+}
 
 // ====================== MAIN HANDLER ======================
-exports.handler = async (event) => {
+exports.handler = async (event, { pool: passedPool } = {}) => {
     const sandbox = event.sandbox === true;
     const newAdvertisers = [];
 
+    const awin = await getAwinCredentials();
+    const PUBLISHER_ID = awin.AWIN_PUBLISHER_ID;
+    const ACCESS_TOKEN = awin.AWIN_ACCESS_TOKEN;
+    const NOTIFICATION_EMAIL_TO = process.env.NOTIFICATION_EMAIL_TO || 'stakeholder@clubmadeira.uk';
+
+    let pool = passedPool;
+    let shouldClosePool = false;
+
     try {
+        if (!pool) {
+            pool = await getDbConnection();
+            shouldClosePool = true;
+        }
+
         if (!sandbox) {
-            const programmes = await getJoinedProgrammes();
+            const programmes = await getJoinedProgrammes(PUBLISHER_ID, ACCESS_TOKEN);
             logger.info(`Fetched ${programmes.length} joined Awin programmes`);
 
             for (const prog of programmes) {
@@ -26,14 +46,14 @@ exports.handler = async (event) => {
                 const primarySector = prog.primarySector || '';
                 const description = prog.description || '';
 
-                if (await emailAlreadyExists(email)) continue;
+                if (await emailAlreadyExists(pool, email)) continue;
 
-                const user = await createAwinMerchantUser({ advertiserId, name, website });
-                await updateAwinUserId(advertiserId, user.userId);
+                const user = await createAwinMerchantUser(pool, { advertiserId, name, website });
+                await updateAwinUserId(pool, advertiserId, user.userId);
 
-                newAdvertisers.push({ 
-                    user_id: user.userId, 
-                    company_name: name, 
+                newAdvertisers.push({
+                    user_id: user.userId,
+                    company_name: name,
                     email: user.email,
                     website: website,
                     logoUrl: logoUrl,
@@ -43,15 +63,15 @@ exports.handler = async (event) => {
             }
         } else {
             logger.info('🧪 SANDBOX MODE – Selecting 8 random joined merchants + generating test sales');
-            const randomMerchants = await getSandboxMerchants();
+            const randomMerchants = await getSandboxMerchants(pool);
             newAdvertisers.push(...randomMerchants);
 
-            await generateSandboxSales(randomMerchants);
+            await generateSandboxSales(pool, randomMerchants);
         }
 
         // ====================== STATS & LAST 24H SALES ======================
-        const stats = await getAwinStats();
-        const last24hSales = await getLast24hAwinSales();
+        const stats = await getAwinStats(pool);
+        const last24hSales = await getLast24hAwinSales(pool);
 
         // ====================== ALWAYS SEND REPORT ======================
         const emailTo = sandbox ? 'si@ntsa.uk' : NOTIFICATION_EMAIL_TO;
@@ -62,7 +82,7 @@ exports.handler = async (event) => {
             .map(a => {
                 const emailValue = a.email || `${a.id}@awin.com`;
                 const loginLink = `https://partner.clubmadeira.io/login.html?uid=${encodeURIComponent(emailValue)}`;
-                const logoHtml = a.logoUrl 
+                const logoHtml = a.logoUrl
                     ? `<a href="${a.website || '#'}" target="_blank"><img src="${a.logoUrl}" alt="${a.company_name}" style="max-height:60px; max-width:140px;"></a><br><small>${a.primarySector || ''}</small>`
                     : `<strong>${a.company_name}</strong>`;
 
@@ -70,87 +90,71 @@ exports.handler = async (event) => {
             })
             .join('');
 
-        const newMerchantsTable = newAdvertisers.length > 0 
+        const newMerchantsTable = newAdvertisers.length > 0
             ? `<h3>New Awin Merchants Onboarded Today (${newAdvertisers.length})</h3><table border="1" cellpadding="8" style="border-collapse:collapse; width:100%;"><thead><tr style="background:#f0f0f0;"><th>Company</th><th>Description</th><th>Email</th></tr></thead><tbody>${newTableRows}</tbody></table>`
             : `<p><em>No new merchants onboarded today.</em></p>`;
 
-        // ====================== LAST 24 HOURS SALES TABLE WITH PER-CURRENCY TOTALS ======================
-        const salesRows = last24hSales
-            .map(s => `
-                <tr>
-                    <td>${s.ClubID}</td>
-                    <td>${s.AdvertiserName || '—'}</td>
-                    <td style="text-align:right;">${parseFloat(s.SaleAmount || 0).toLocaleString()} ${s.Currency}</td>
-                    <td style="text-align:right;">${parseFloat(s.CommissionAmount || 0).toLocaleString()} ${s.Currency}</td>
-                    <td>${s.Currency}</td>
-                </tr>
-            `)
-            .join('');
+        // Last 24h Sales + Currency Totals (kept exactly as before)
+        const salesRows = last24hSales.map(s => `
+            <tr>
+                <td>${s.ClubID}</td>
+                <td>${s.AdvertiserName || '—'}</td>
+                <td style="text-align:right;">${parseFloat(s.SaleAmount || 0).toLocaleString()} ${s.Currency}</td>
+                <td style="text-align:right;">${parseFloat(s.CommissionAmount || 0).toLocaleString()} ${s.Currency}</td>
+                <td>${s.Currency}</td>
+            </tr>`).join('');
 
-        // Group totals by currency
         const currencyTotals = {};
         last24hSales.forEach(s => {
             const curr = s.Currency || 'GBP';
-            if (!currencyTotals[curr]) {
-                currencyTotals[curr] = { totalSale: 0, totalCommission: 0 };
-            }
+            if (!currencyTotals[curr]) currencyTotals[curr] = { totalSale: 0, totalCommission: 0 };
             currencyTotals[curr].totalSale += parseFloat(s.SaleAmount || 0);
             currencyTotals[curr].totalCommission += parseFloat(s.CommissionAmount || 0);
         });
 
-        // Build one total row per currency
-        const currencyTotalRows = Object.keys(currencyTotals)
-            .map(curr => {
-                const t = currencyTotals[curr];
-                return `
-                    <tr style="background:#e6f0ff; font-weight:bold;">
-                        <td colspan="2" style="text-align:right;">TOTAL ${curr}</td>
-                        <td style="text-align:right;">${t.totalSale.toLocaleString()} ${curr}</td>
-                        <td style="text-align:right;">${t.totalCommission.toLocaleString()} ${curr}</td>
-                        <td>${curr}</td>
-                    </tr>`;
-            })
-            .join('');
+        const currencyTotalRows = Object.keys(currencyTotals).map(curr => {
+            const t = currencyTotals[curr];
+            return `
+                <tr style="background:#e6f0ff; font-weight:bold;">
+                    <td colspan="2" style="text-align:right;">TOTAL ${curr}</td>
+                    <td style="text-align:right;">${t.totalSale.toLocaleString()} ${curr}</td>
+                    <td style="text-align:right;">${t.totalCommission.toLocaleString()} ${curr}</td>
+                    <td>${curr}</td>
+                </tr>`;
+        }).join('');
 
-        const salesHtml = `
-            <h3>Awin Sales - Last 24 Hours (${last24hSales.length} transactions)</h3>
-            ${last24hSales.length > 0 ? `
-            <table border="1" cellpadding="8" style="border-collapse:collapse; width:100%; font-size:14px;">
-                <thead>
-                    <tr style="background:#f0f0f0;">
-                        <th>ClubID</th>
-                        <th>AdvertiserName</th>
-                        <th style="text-align:right;">Sale Amount</th>
-                        <th style="text-align:right;">Commission</th>
-                        <th>Currency</th>
-                    </tr>
-                </thead>
-                <tbody>${salesRows}</tbody>
-                <tfoot>
-                    ${currencyTotalRows}
-                </tfoot>
-            </table>` : `<p><em>No sales in the last 24 hours.</em></p>`}
-        `;
+        const salesHtml = last24hSales.length > 0
+            ? `<h3>Awin Sales - Last 24 Hours (${last24hSales.length} transactions)</h3>
+               <table border="1" cellpadding="8" style="border-collapse:collapse; width:100%; font-size:14px;">
+                   <thead><tr style="background:#f0f0f0;">
+                       <th>ClubID</th><th>AdvertiserName</th>
+                       <th style="text-align:right;">Sale Amount</th>
+                       <th style="text-align:right;">Commission</th>
+                       <th>Currency</th>
+                   </tr></thead>
+                   <tbody>${salesRows}</tbody>
+                   <tfoot>${currencyTotalRows}</tfoot>
+               </table>`
+            : `<p><em>No sales in the last 24 hours.</em></p>`;
 
         // Top 10 Merchants
-        const topTableRows = stats.topMerchants
-            .map(m => {
-                const logoHtml = m.logoUrl 
-                    ? `<a href="${m.website || '#'}" target="_blank"><img src="${m.logoUrl}" alt="${m.company_name}" style="max-height:60px; max-width:140px;"></a><br><small>${m.primarySector || ''}</small>`
-                    : `<strong>${m.company_name}</strong>`;
-                return `<tr><td style="text-align:center;">${logoHtml}</td><td>${m.description ? m.description.substring(0, 150) + '...' : '—'}</td><td style="text-align:right; font-weight:bold;">${m.merchant_parts_count.toLocaleString()}</td></tr>`;
-            })
-            .join('');
+        const topTableRows = stats.topMerchants.map(m => {
+            const logoHtml = m.logoUrl
+                ? `<a href="${m.website || '#'}" target="_blank"><img src="${m.logoUrl}" alt="${m.company_name}" style="max-height:60px; max-width:140px;"></a><br><small>${m.primarySector || ''}</small>`
+                : `<strong>${m.company_name}</strong>`;
+            return `<tr><td style="text-align:center;">${logoHtml}</td><td>${m.description ? m.description.substring(0, 150) + '...' : '—'}</td><td style="text-align:right; font-weight:bold;">${m.merchant_parts_count.toLocaleString()}</td></tr>`;
+        }).join('');
 
         const topMerchantsHtml = `
             <h3>Top 10 Awin Merchants by Product Count</h3>
             <table border="1" cellpadding="8" style="border-collapse:collapse; width:100%;">
                 <thead><tr style="background:#f0f0f0;"><th>Company</th><th>Description</th><th>Parts Count</th></tr></thead>
                 <tbody>${topTableRows}</tbody>
-            </table>
-        `;
+            </table>`;
 
-        const sandboxBanner = sandbox ? `<div style="background:#ff9800; color:#fff; padding:15px; text-align:center; font-weight:bold;">🚨 SANDBOX MODE — Test data generated</div>` : '';
+        const sandboxBanner = sandbox
+            ? `<div style="background:#ff9800; color:#fff; padding:15px; text-align:center; font-weight:bold;">🚨 SANDBOX MODE — Test data generated</div>`
+            : '';
 
         const mailOptions = {
             from: 'support@clubmadeira.uk',
@@ -185,12 +189,68 @@ exports.handler = async (event) => {
     } catch (error) {
         logger.error(`Awin onboarding failed: ${error.message}`, { stack: error.stack });
         throw error;
+    } finally {
+        if (shouldClosePool && pool) {
+            await pool.close().catch(() => {});
+        }
     }
 };
 
-// ====================== GENERATE TEST SALES FOR SANDBOX ======================
-async function generateSandboxSales(randomMerchants) {
-    const pool = await getDbConnection();
+// ====================== HELPER FUNCTIONS (updated to accept pool) ======================
+
+async function getJoinedProgrammes(publisherId, accessToken) {
+    const url = `https://api.awin.com/publishers/${publisherId}/programmes?relationship=joined`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok) throw new Error(`Awin API error: ${response.status}`);
+    return await response.json();
+}
+
+async function emailAlreadyExists(pool, email) {
+    try {
+        const result = await pool.request()
+            .input('email', sql.VarChar, email)
+            .query(`SELECT 1 FROM Users WHERE email_address = @email`);
+        return result.recordset.length > 0;
+    } catch (error) {
+        logger.error('Failed to check if email exists', { email, error: error.message });
+        return false;
+    }
+}
+
+async function updateAwinUserId(pool, merchantId, userId) {
+    try {
+        await pool.request()
+            .input('merchantId', sql.BigInt, merchantId)
+            .input('userId', sql.VarChar(20), userId)
+            .query(`UPDATE dbo.AwinHighApprovalMerchants SET AwinUserId = @userId WHERE MerchantId = @merchantId`);
+    } catch (error) {
+        logger.error('Failed to update AwinUserId', { merchantId, userId, error: error.message });
+    }
+}
+
+async function getSandboxMerchants(pool) {
+    try {
+        const result = await pool.request().query(`
+            SELECT TOP 8
+                MerchantId as id,
+                Name as company_name,
+                Email as email,
+                Website as website,
+                logoUrl,
+                primarySector,
+                description
+            FROM dbo.AwinHighApprovalMerchants
+            WHERE Joined = 1
+            ORDER BY NEWID()
+        `);
+        return result.recordset || [];
+    } catch (error) {
+        logger.error('Failed to get sandbox merchants', { error: error.message });
+        return [];
+    }
+}
+
+async function generateSandboxSales(pool, randomMerchants) {
     try {
         const testSales = [];
         const currencies = ['GBP', 'GBP', 'GBP', 'EUR', 'USD'];
@@ -227,83 +287,27 @@ async function generateSandboxSales(randomMerchants) {
         }
 
         logger.info(`✅ Sandbox generated ${testSales.length} test sales for the last 24 hours`);
-    } finally {
-        await pool.close();
+    } catch (error) {
+        logger.error('Failed to generate sandbox sales', { error: error.message });
     }
 }
 
-// ====================== LAST 24H SALES ======================
-async function getLast24hAwinSales() {
-    const pool = await getDbConnection();
+async function getLast24hAwinSales(pool) {
     try {
         const result = await pool.request().query(`
-            SELECT 
-                ClubID,
-                AdvertiserName,
-                SaleAmount,
-                CommissionAmount,
-                Currency
+            SELECT ClubID, AdvertiserName, SaleAmount, CommissionAmount, Currency
             FROM dbo.AwinTransactions
             WHERE TransactionDate >= DATEADD(hour, -24, GETDATE())
             ORDER BY TransactionDate DESC
         `);
         return result.recordset || [];
-    } finally {
-        await pool.close();
+    } catch (error) {
+        logger.error('Failed to get last 24h Awin sales', { error: error.message });
+        return [];
     }
 }
 
-// ====================== OTHER HELPERS ======================
-async function getJoinedProgrammes() {
-    const url = `https://api.awin.com/publishers/${PUBLISHER_ID}/programmes?relationship=joined`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } });
-    if (!response.ok) throw new Error(`Awin API error: ${response.status}`);
-    return await response.json();
-}
-
-async function emailAlreadyExists(email) {
-    const pool = await getDbConnection();
-    try {
-        const result = await pool.request().input('email', sql.VarChar, email)
-            .query(`SELECT 1 FROM Users WHERE email_address = @email`);
-        return result.recordset.length > 0;
-    } finally { await pool.close(); }
-}
-
-async function updateAwinUserId(merchantId, userId) {
-    const pool = await getDbConnection();
-    try {
-        await pool.request()
-            .input('merchantId', sql.BigInt, merchantId)
-            .input('userId', sql.VarChar(20), userId)
-            .query(`UPDATE dbo.AwinHighApprovalMerchants SET AwinUserId = @userId WHERE MerchantId = @merchantId`);
-    } finally { await pool.close(); }
-}
-
-async function getSandboxMerchants() {
-    const pool = await getDbConnection();
-    try {
-        const result = await pool.request().query(`
-            SELECT TOP 8
-                MerchantId as id,
-                Name as company_name,
-                Email as email,
-                Website as website,
-                logoUrl,
-                primarySector,
-                description
-            FROM dbo.AwinHighApprovalMerchants
-            WHERE Joined = 1
-            ORDER BY NEWID()
-        `);
-        return result.recordset || [];
-    } finally {
-        await pool.close();
-    }
-}
-
-async function getAwinStats() {
-    const pool = await getDbConnection();
+async function getAwinStats(pool) {
     try {
         const totalMerchantsResult = await pool.request().query(`
             SELECT COUNT(*) AS totalAwinMerchants FROM dbo.AwinHighApprovalMerchants WHERE Joined = 1
@@ -334,8 +338,9 @@ async function getAwinStats() {
             totalAwinParts,
             topMerchants: topMerchantsResult.recordset
         };
-    } finally {
-        await pool.close();
+    } catch (error) {
+        logger.error('Failed to get Awin stats', { error: error.message });
+        return { totalAwinMerchants: 0, totalAwinParts: 0, topMerchants: [] };
     }
 }
 

@@ -1,24 +1,10 @@
 // routes/club.js
-const sql = require('mssql');
-const { getDbConnection, logger, callXaiApi, invokeMailer } = require('../helpers');
-
-const SECTOR_SCHEMA = { type: "array", items: { type: "string" } };
-
-const MERCHANT_PERSONALISATION_SCHEMA = {
-    type: "array",
-    items: {
-        type: "object",
-        properties: {
-            merchantId: { type: "number" },
-            merchantName: { type: "string" },
-            whyItFits: { type: "string" },
-            joinRequestMessage: { type: "string", maxLength: 200 },
-            relevanceScore: { type: "number", minimum: 0, maximum: 1 }
-        },
-        required: ["merchantId", "merchantName", "whyItFits", "joinRequestMessage", "relevanceScore"],
-        additionalProperties: false
-    }
-};
+const { logger, getDbConnection, invokeMailer, sql } = require('/opt/nodejs/helpers');
+const { callXaiApi } = require('/opt/nodejs/grok');
+const { 
+    SECTOR_SCHEMA, 
+    MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA 
+} = require('../grok-schemas');
 
 async function getClubData(clubId, pool) {
     logger.info('Fetching club data from clubscan', { clubId });
@@ -51,9 +37,9 @@ async function getClubData(clubId, pool) {
     };
 }
 
-exports.handler = async (event) => {
+exports.handler = async (event, { pool: passedPool } = {}) => {
     const clubId = event.clubId;
-    const partnerId = event.partnerId || event.PartnerID || event.partnerID || null;   // ← NEW
+    const partnerId = event.partnerId || event.PartnerID || event.partnerID || null;
     const minRelevanceScore = parseFloat(event.minRelevanceScore) || parseFloat(process.env.MIN_RELEVANCE_SCORE) || 0.5;
 
     let notificationEmailTo = event.notificationEmailTo || process.env.NOTIFICATION_EMAIL_TO;
@@ -67,14 +53,19 @@ exports.handler = async (event) => {
 
     logger.info('=== STARTING CLUB MODE ===', { 
         clubId, 
-        partnerId,           // ← NEW
+        partnerId,
         minRelevanceScore, 
         notificationEmailTo 
     });
 
-    let pool;
+    let pool = passedPool;
+    let shouldClosePool = false;
+
     try {
-        pool = await getDbConnection();
+        if (!pool) {
+            pool = await getDbConnection();
+            shouldClosePool = true;
+        }
 
         const clubData = await getClubData(clubId, pool);
 
@@ -176,7 +167,7 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
                 { role: "user", content: batchPrompt }
             ];
 
-            const batchResult = await callXaiApi(messages, MERCHANT_PERSONALISATION_SCHEMA) || [];
+            const batchResult = await callXaiApi(messages, MERCHANT_PERSONALISATION_WITH_SCORE_SCHEMA) || [];
             allPersonalised = allPersonalised.concat(batchResult);
         }
 
@@ -298,6 +289,8 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
         logger.error('Club mode failed', { error: error.message, stack: error.stack });
         return { statusCode: 500, body: error.message };
     } finally {
-        if (pool) await pool.close();
+        if (shouldClosePool && pool) {
+            await pool.close().catch(() => {});
+        }
     }
 };
