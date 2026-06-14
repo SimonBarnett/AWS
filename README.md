@@ -10,17 +10,27 @@ Built on **AWS Lambda + API Gateway + SQS + Aurora** with heavy use of **shared 
 
 ## 🚀 Big Picture
 
-Club Madeira is an intelligent affiliate platform that connects:
+Club Madeira is an **intelligent multi-sided affiliate platform** that connects:
 
-- **Clubs & Communities** (who earn commissions)
-- **Merchants** (who list products)
-- **Partners** (web designers/agencies who onboard clubs)
+- **Clubs & Communities** (who earn commissions by embedding widgets)
+- **Merchants** (who list products via multiple networks)
+- **Partners** (web agencies who onboard clubs and earn override commissions)
 
-The system allows any website to embed powerful affiliate widgets that dynamically display relevant products, while running sophisticated background processing (catalogue ingestion, AI relevance scoring via Grok, multi-network search, etc.).
+### The Critical Awin + Merchant Parts Engine 🔥
 
-### Core Value Proposition
+**One of the most important parts of the entire system** is the **[madeira-awin-clubscan](./Lambdas/madeira-awin-clubscan)** Lambda and its associated queues.
 
-A fully modular, **region-agnostic**, production-grade serverless platform that can be deployed in any AWS region with minimal changes thanks to **centralised Layers** + **SSM Parameter Store** configuration.
+This pipeline continuously ingests high-quality merchant catalogues from **Awin** (and other networks), runs **Grok-powered relevance scoring**, and maintains a rich pool of **merchant parts/products**. 
+
+> **Why this matters**: The entire recommendation engine (Global mode + Club-specific mode) and the live catalogue widgets **depend on having a healthy, fresh supply of merchant parts**. Without strong Awin ingestion, there is nothing compelling for clubs to show their visitors.
+
+When a partner successfully helps a club onboard an Awin advertiser, they earn an **extra commission override** — creating powerful incentive alignment across the whole ecosystem.
+
+See: [Awin Clubscan Documentation](./Lambdas/madeira-awin-clubscan/README.md)
+
+### Self-Healing & Layer Verification
+
+The **[madeira-layer-cake](./Lambdas/madeira-layer-cake)** Lambda serves as the **official integration test harness** for all shared layers. It exercises every major component (`helpers`, `grok`, `jwt`, `mailer`, `stripe`, database, etc.) and acts as both a diagnostic tool and a living example of correct layer usage.
 
 ---
 
@@ -42,7 +52,7 @@ flowchart TD
 
     subgraph "Background Processing"
         SQS[SQS Queues] --> Merchant[Merchant Ingestion]
-        SQS --> Affiliate[Affiliate Search + Grok AI]
+        SQS --> Awin[**Awin + Grok AI** 🔥]
         SQS --> Catalogue[Catalogue Builder]
     end
 
@@ -63,53 +73,44 @@ flowchart TD
 | **[RDS](./RDS)** | Database schema & low-priv access | [RDS/README.md](./RDS/readme.md) |
 | **[S3-Bucket](./S3-Bucket)** | All JavaScript widgets | Widgets for clubs, partners, merchants |
 | **[HOST/partner](./HOST/partner)** | Complete package given to web agencies | [Partner Guide](./HOST/partner/readme.md) |
-| **[Lambdas](./Lambdas)** | Standalone functions (e.g. Amazon Top-up) | — |
+| **[Lambdas](./Lambdas)** | Standalone & critical functions | **[Awin Clubscan](./Lambdas/madeira-awin-clubscan/README.md)** • [Layer Cake](./Lambdas/madeira-layer-cake/README.md) • [Amazon Top-up](./Lambdas/amazoncard-topup/README.md) |
 | **[Extension](./Extension)** | Browser extension for voucher claiming | Chrome + Safari |
 
 ---
 
 ## ✨ Key Innovations & Design Highlights
 
-- **Multi-Region Ready**: All configuration lives in SSM Parameter Store + shared Layers. Deploy the entire platform to `eu-west-1`, `us-east-1`, `ap-southeast-2` etc. with almost zero code changes.
-- **Layer-First Architecture**: Four powerful shared layers drastically reduce duplication and improve security/maintainability.
-- **Event-Driven Backbone**: Three specialised SQS Lambdas handle heavy lifting (product ingestion, affiliate enrichment, catalogue building).
-- **Smart Sandboxing**: Every pipeline supports a `sandbox: true` flag for safe testing and development.
-- **Self-Healing & Resilient**: Automatic recovery from stuck states, retry logic, and graceful degradation built in.
-- **Embedded Widgets**: Zero-dependency JavaScript widgets that work on any static site (Wix, WordPress, custom, etc.).
+- **Multi-Region Ready**: All configuration lives in SSM Parameter Store + shared Layers.
+- **Layer-First Architecture**: Four powerful shared layers drastically reduce duplication.
+- **Event-Driven Backbone**: Three specialised SQS Lambdas handle heavy lifting.
+- **Critical Merchant Supply Chain**: Awin ingestion pipeline is the lifeblood of product availability.
+- **Self-Healing & Diagnostics**: `madeira-layer-cake` provides continuous validation of the layer ecosystem.
+- **Smart Sandboxing**: Every pipeline supports a `sandbox: true` flag.
 
 ---
 
 ## 🧩 Major Components
 
 ### 1. API (`/API`)
-Full-featured serverless REST API with public auth endpoints and protected UI/dashboard functionality. Uses a single orchestrator Lambda in sandbox mode for rapid iteration.
+Full-featured serverless REST API...
 
 ### 2. Shared Layers (`/Layers`)
-The heart of the platform. Reusable across all services.
+The heart of the platform...
 
 ### 3. Background Processing (`/SQS`)
-- **Merchant Queue**: Imports full catalogues from Shopify, WooCommerce, Magento, etc.
-- **Affiliate Queue**: Searches Awin, eBay, Amazon + runs Grok relevance scoring in batches.
-- **Catalogue Queue**: Orchestrates onboarding, category management, and live catalogue building.
+...
 
-### 4. Database (`/RDS`)
-Sophisticated MSSQL schema with stored procedures for performance-critical operations.
+### 4. **Awin-Powered Merchant Engine** (`/Lambdas/madeira-awin-clubscan`)
+**Critical system component.** Maintains merchant product inventory through continuous Awin scraping, AI scoring, and enrichment. Powers all product recommendations shown to end users.
 
-### 5. Client-Side (`/S3-Bucket` + `/HOST/partner`)
-Production-ready widgets and full partner onboarding package.
+### 5. Database (`/RDS`)
+...
 
 ---
 
 ## 🚀 Getting Started & Deployment
 
-See individual folder readmes for detailed instructions.
-
-General flow:
-1. Deploy Lambda Layers first
-2. Deploy API + SQS functions
-3. Configure SSM parameters (or use self-healing placeholders)
-4. Upload widgets to S3
-5. Give partners the `/HOST/partner` package
+...
 
 ---
 
@@ -117,9 +118,10 @@ General flow:
 
 - [SQS System Overview](./SQS/readme.md)
 - [API Architecture](./API/README.md)
+- [Awin Clubscan + Merchant Pipeline](./Lambdas/madeira-awin-clubscan/README.md) ← **Highly Recommended**
+- [Layer Cake - Layer Health Check](./Lambdas/madeira-layer-cake/README.md)
 - [Core Layer](./Layers/madeira-core-layer/readme.md)
 - [Partner Integration Guide](./HOST/partner/readme.md)
-- [Database Schema](./RDS/readme.md)
 
 ---
 
