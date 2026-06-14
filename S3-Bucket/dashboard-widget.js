@@ -35,7 +35,6 @@
 
   // Widget initialization function
   function initDashboardWidget() {
-    // Find the container based on data-container-id
     const scriptTag = document.querySelector('script[data-dashboard-widget]');
     if (!scriptTag) {
       console.error('Dashboard Widget: No script tag with data-dashboard-widget found');
@@ -49,10 +48,8 @@
       return;
     }
 
-    // Check for authentication token
     const token = localStorage.getItem('authToken');
     console.log('Auth token:', token ? 'Present' : 'Absent');
-    let userRoles = [];
 
     if (!token || !isTokenValid(token)) {
       console.log('No valid token found, redirecting to /login.html');
@@ -60,50 +57,33 @@
       return;
     }
 
-    // Fetch user claims to get roles
-    fetch('https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/login/claims', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch claims: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        userRoles = data.roles || [];
-        console.log('User roles fetched:', userRoles);
-        renderDashboard();
-      })
-      .catch(error => {
-        console.error('Error fetching claims:', error.message);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('contact_name');
-        window.location.href = '/login.html';
-      });
+    // ✅ FIX: Read permissions directly from JWT instead of calling removed /login/claims endpoint
+    let userRoles = [];
+    try {
+      const decoded = decodeToken(token);
+      userRoles = decoded?.permissions || [];
+      console.log('User permissions from JWT:', userRoles);
+    } catch (e) {
+      console.warn('Could not decode permissions from token');
+    }
 
-    // Function to render the dashboard
+    renderDashboard();
+
     function renderDashboard() {
-      // Clear container to prevent duplicate content
       container.innerHTML = '';
 
-      // Create shadow DOM to encapsulate styles and content
       const shadow = container.attachShadow({ mode: 'open' });
 
-      // Get contact_name and lastlogin from localStorage
       const contactName = localStorage.getItem('contact_name') || 'User';
       const lastLogin = localStorage.getItem('lastlogin');
-      
-      // Determine welcome message and additional text based on lastlogin
-      const welcomeMessage = lastLogin ? `Welcome back, ${contactName}!` : `Welcome to your new dashboard, ${contactName}!`;
-      const additionalText = lastLogin ? lastLogin : "This is your first login.";
 
-      // Create a wrapper div for the dashboard content
+      const welcomeMessage = lastLogin 
+        ? `Welcome back, ${contactName}!` 
+        : `Welcome to your new dashboard, ${contactName}!`;
+      const additionalText = lastLogin || "This is your first login.";
+
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
-        <!-- Header with navigation -->
         <header>
           <nav>
             <div class="logo">Dashboard</div>
@@ -116,7 +96,6 @@
           </nav>
         </header>
 
-        <!-- Main content area -->
         <main>
           <div id="Login" style="display: none;">
             <section class="login">
@@ -136,13 +115,11 @@
             </section>
             <section class="chart">
               <h2>Performance Charts</h2>
-              <!-- Placeholder for a chart -->
               <div id="madeira-charts"></div>
             </section>
           </div>
           <div id="ApiKeys">
             <section class="api-keys">
-              <!-- Container for the widget -->
               <div id="api-keys-container"></div>
             </section>
           </div>
@@ -153,13 +130,11 @@
           </div>
         </main>
 
-        <!-- Footer -->
         <footer>
           <p>© 2025 Dashboard Widget. All rights reserved.</p>
         </footer>
       `;
 
-      // Inject styles into shadow DOM
       const style = document.createElement('style');
       style.textContent = `
         :host {
@@ -167,31 +142,24 @@
           position: relative;
           min-height: 100vh;
         }
-
-        /* Basic styles for the dashboard */
         :host {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
         }
-
-        /* Header styles */
         header {
           background-color: #333;
           color: white;
           padding: 1rem;
         }
-
         nav {
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
-
         nav .logo {
           font-size: 1.5rem;
         }
-
         nav ul {
           list-style: none;
           display: flex;
@@ -199,33 +167,26 @@
           margin: 0;
           padding: 0;
         }
-
         nav a {
           color: white;
           text-decoration: none;
           display: flex;
           align-items: center;
         }
-
         nav a i {
           margin-right: 0.5rem;
         }
-
-        /* Main content styles */
         main {
           padding: 2rem;
         }
-
         .welcome h1 {
           margin-bottom: 0.5rem;
         }
-
         .stats {
           display: flex;
           gap: 1rem;
           margin-top: 2rem;
         }
-
         .card {
           background-color: #f4f4f4;
           padding: 1rem;
@@ -233,16 +194,12 @@
           flex: 1;
           text-align: center;
         }
-
         .chart {
           margin-top: 2rem;
         }
-
         .chart h2 {
           margin-bottom: 1rem;
         }
-
-        /* Footer styles */
         footer {
           background-color: #333;
           color: white;
@@ -255,17 +212,14 @@
         }
       `;
 
-      // Append styles and content to shadow DOM
       shadow.appendChild(style);
       shadow.appendChild(wrapper);
 
-      // Load Font Awesome dynamically
       const fontAwesome = document.createElement('link');
       fontAwesome.rel = 'stylesheet';
       fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
       shadow.appendChild(fontAwesome);
 
-      // Load external widget scripts dynamically
       const scripts = [
         {
           src: 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/login-widget.js',
@@ -303,7 +257,6 @@
         shadow.appendChild(script);
       });
 
-      // Add logout event listener
       const logoutLink = shadow.querySelector('.logout');
       if (logoutLink) {
         logoutLink.addEventListener('click', (event) => {
@@ -318,7 +271,6 @@
     }
   }
 
-  // Initialize widget when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initDashboardWidget);
   } else {
