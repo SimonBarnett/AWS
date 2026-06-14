@@ -1,6 +1,7 @@
 // routes/global.js
 const { logger, sql } = require('/opt/nodejs/helpers');
 const { callGrokStructured } = require('/opt/nodejs/grok');
+const { sendMail } = require('/opt/nodejs/mailer');
 const { MERCHANT_PERSONALISATION_SCHEMA } = require('../grok-schemas');
 
 // ====================== ENVIRONMENT VARIABLES ======================
@@ -64,7 +65,7 @@ exports.handler = async (event, { pool } = {}) => {
             id: m.id,
             name: m.name,
             logoUrl: m.logoUrl || '',
-            approvalRate: m.ApprovalRate || 'n/a',
+            approvalRate: m.approvalRate || 'n/a',
             description: m.description || ''
         }));
 
