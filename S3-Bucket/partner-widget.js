@@ -768,7 +768,7 @@ class PartnerWidget {
         if (url) body.url = url;
         if (communityId) body.communityId = communityId;
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/generate-onboarding-token`, {
+            const response = await fetch(`${this.apiEndpoint}/prod/ui/invite`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

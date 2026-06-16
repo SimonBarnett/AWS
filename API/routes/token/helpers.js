@@ -1,6 +1,6 @@
 // ====================== routes/token/helpers.js ======================
 // Local helpers specific to token routes
-// Updated to support passed pool + executeWithRetry from core layer
+// Pools are managed by the caller (no closing inside helpers)
 
 const crypto = require('crypto');
 const { executeWithRetry, sql, logger } = require('/opt/nodejs/helpers');
@@ -21,6 +21,39 @@ const isValidPhone = (phone) => /^\+44\d{10}$/.test(phone);
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&=`~#^-_+[\]{}|;:,./<>])[A-Za-z\d@$!%*?&=`~#^-_+[\]{}|;:,./<>]{8,}$/.test(password);
 
+// ====================== USER ID GENERATION ======================
+function generateUserId() {
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 7; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        code += charset[randomIndex];
+    }
+    let total = 0;
+    for (let char of code) {
+        total += charset.indexOf(char);
+    }
+    const checksum = charset[total % 36];
+    return code + checksum;
+}
+
+// ====================== USER ID UNIQUENESS CHECK (no close) ======================
+async function isUserIdUnique(userId, pool = null) {
+    const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
+    try {
+        const result = await executeWithRetry(() =>
+            usePool.request()
+                .input('user_id', sql.VarChar, userId)
+                .query('SELECT COUNT(*) as count FROM Users WHERE user_id = @user_id')
+        );
+        return result.recordset[0].count === 0;
+    } catch (error) {
+        logger.error('Failed to check user_id uniqueness', { userId, error: error.message });
+        throw error;
+    }
+    // No pool.close() here
+}
+
 // ====================== SHARED BODY PARSER ======================
 function parseBody(event) {
     if (!event.body) return {};
@@ -37,7 +70,7 @@ function parseBody(event) {
     }
 }
 
-// ====================== GET USER BY ID (updated) ======================
+// ====================== GET USER BY ID ======================
 async function getUserById(userId, event, pool = null) {
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
     try {
@@ -57,12 +90,13 @@ async function getUserById(userId, event, pool = null) {
             return user;
         }
         return null;
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to get user by ID', { userId, error: error.message });
+        throw error;
     }
 }
 
-// ====================== GET USER BY EMAIL (updated) ======================
+// ====================== GET USER BY EMAIL ======================
 async function getUserByEmail(email, event = null, pool = null) {
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
     try {
@@ -82,12 +116,13 @@ async function getUserByEmail(email, event = null, pool = null) {
             return user;
         }
         return null;
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to get user by email', { email, error: error.message });
+        throw error;
     }
 }
 
-// ====================== CREATE USER (updated) ======================
+// ====================== CREATE USER ======================
 async function createUser(userData, pool = null) {
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
     try {
@@ -124,12 +159,13 @@ async function createUser(userData, pool = null) {
         );
 
         return userData.user_id;
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to create user', { error: error.message });
+        throw error;
     }
 }
 
-// ====================== UPDATE USER (updated) ======================
+// ====================== UPDATE USER ======================
 async function updateUser(userId, password, email, phone, pool = null) {
     const { hashPassword } = require('/opt/nodejs/helpers');
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
@@ -158,12 +194,13 @@ async function updateUser(userId, password, email, phone, pool = null) {
         inputs.forEach(input => request.input(input.name, input.type, input.value));
 
         await executeWithRetry(() => request.query(query));
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to update user', { userId, error: error.message });
+        throw error;
     }
 }
 
-// ====================== LAST LOGIN (updated) ======================
+// ====================== LAST LOGIN ======================
 async function getLastLogin(userId, pool = null) {
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
     try {
@@ -179,8 +216,9 @@ async function getLastLogin(userId, pool = null) {
         );
 
         return result.recordset.length > 0 ? result.recordset[0] : null;
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to get last login', { userId, error: error.message });
+        throw error;
     }
 }
 
@@ -198,12 +236,13 @@ async function setLastLogin(userId, IP, pool = null) {
                     VALUES (@eventtype, @source, @IP, @timestamp)
                 `)
         );
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to set last login', { userId, error: error.message });
+        throw error;
     }
 }
 
-// ====================== ORIGIN CODE (unchanged - no DB) ======================
+// ====================== ORIGIN CODE ======================
 async function originCode(event) {
     const axios = require('axios');
     const origin = event.headers.origin;
@@ -216,7 +255,7 @@ async function originCode(event) {
     return response.data.affiliateCode;
 }
 
-// ====================== TRAFFIC AVAILABILITY (updated) ======================
+// ====================== TRAFFIC AVAILABILITY ======================
 async function getTrafficAv(userId, pool = null) {
     const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
     try {
@@ -227,8 +266,78 @@ async function getTrafficAv(userId, pool = null) {
         );
         const available = result.recordset[0]?.available_licenses || 0;
         return { success: available > 0 };
-    } finally {
-        if (!pool) await usePool.close();
+    } catch (error) {
+        logger.error('Failed to get traffic availability', { userId, error: error.message });
+        throw error;
+    }
+}
+
+// ====================== BUILD SET TOKEN URL ======================
+function buildSetTokenUrl(signupUrl, token, userId, contactName, workflow, isSandbox = false, lastLoginMessage = null) {
+    const origin = new URL(signupUrl).origin;
+    const workflowParam = workflow === 'login' ? 'dashboard' : 'signup';
+    const params = new URLSearchParams();
+    params.append(workflowParam, '');
+    params.append('authToken', token);
+    params.append('user_id', userId);
+    params.append('contact_name', contactName);
+    if (lastLoginMessage) {
+        params.append('lastlogin', lastLoginMessage);
+    }
+    if (isSandbox) {
+        params.append('sandbox', 'true');
+    }
+    return `${origin}/set-token.html?${params.toString()}`;
+}
+
+async function confirmOnboarding(merchantId, resellerId, event) {
+    const origin = event.headers.origin;
+    if (!origin) {
+        logger.error('No origin header found');
+        throw new Error('No origin header found');
+    }
+
+    const indexUrl = `${origin}/index.json`;
+    let sandbox;
+
+    try {
+        const response = await axios.get(indexUrl);
+        if (response.status !== 200) {
+            logger.error('Failed to fetch index.json', { url: indexUrl, status: response.status });
+            throw new Error(`Failed to fetch ${indexUrl}: ${response.status}`);
+        }
+        const data = response.data;
+        sandbox = data.sandbox === true;
+        logger.debug(sandbox ? 'Using sandbox mode' : 'Using live mode', { url: indexUrl });
+    } catch (error) {
+        logger.error('Error fetching index.json for sandbox determination', { url: indexUrl, error: error.message });
+        throw error;
+    }
+
+    const payload = {
+        action: "confirmOnboarding",
+        merchantId,
+        resellerId,
+        sandbox
+    };
+
+    const command = new InvokeCommand({
+        FunctionName: "madeira-stripe",
+        Payload: JSON.stringify(payload)
+    });
+
+    try {
+        const response = await lambdaClient.send(command);
+        const responseBody = JSON.parse(new TextDecoder().decode(response.Payload));
+
+        if (response.FunctionError) {
+            throw new Error(`Lambda invocation error: ${responseBody.errorMessage}`);
+        }
+
+        return responseBody;
+    } catch (error) {
+        logger.error('Error invoking Stripe Lambda', { error: error.message });
+        throw error;
     }
 }
 
@@ -238,6 +347,8 @@ module.exports = {
     isValidPhone,
     isValidEmail,
     isValidPassword,
+    generateUserId,
+    isUserIdUnique,
     getUserById,
     getUserByEmail,
     createUser,
@@ -246,5 +357,7 @@ module.exports = {
     setLastLogin,
     originCode,
     getTrafficAv,
-    parseBody
+    parseBody,
+    buildSetTokenUrl,
+    confirmOnboarding          // ← add this line
 };

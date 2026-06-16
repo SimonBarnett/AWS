@@ -1,7 +1,7 @@
 // ====================== index.js ======================
 // Single /{proxy+} API Gateway Orchestrator
 // madeira-api-gateway
-// Last updated: 13 June 2026
+// Last updated: 15 June 2026
 
 const { logger } = require('/opt/nodejs/helpers');
 const { verifyJWT } = require('/opt/nodejs/jwt');
@@ -13,6 +13,9 @@ const amazoncardRoutes = require('./routes/amazoncard');
 const rdsqueryRoutes  = require('./routes/rdsquery');
 const winstonRoutes   = require('./routes/winston');
 
+// Specific route handler
+const onboardingRoute = require('./routes/token/onboarding');
+
 // ====================== CORS HEADERS ======================
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -21,23 +24,12 @@ const corsHeaders = {
     'Access-Control-Allow-Credentials': 'true'
 };
 
-// Routes that do NOT require JWT authentication
-const PUBLIC_ROUTES = [
-    '/token',
-    '/login',
-    '/onboarding',
-    '/complete-signup',
-    '/amazoncard',      // Claim only (Topup moved to separate Lambda)
-    '/winston',
-    '/query',
-    '/rds'
-];
-
 module.exports.handler = async (event) => {
     const path = event.path || '/';
     const method = event.httpMethod;
 
-    logger.debug('Incoming request', { path, method });
+    // === SUPER EARLY LOG ===
+    console.log('REQUEST RECEIVED', { path, method, fullPath: event.path, query: event.queryStringParameters });
 
     if (method === 'OPTIONS') {
         return {
@@ -48,54 +40,58 @@ module.exports.handler = async (event) => {
     }
 
     try {
-        // /login/delegate requires authentication (the logged-in user is delegating)
-        // /login/acceptdelegation remains public (new user accepting delegation)
-        const isPublicRoute =
-            PUBLIC_ROUTES.some(route => path.startsWith(route)) &&
-            !path.startsWith('/login/delegate');
-
-        if (!isPublicRoute) {
-            // Extract Bearer token from Authorization header
-            const authHeader = event.headers?.Authorization || event.headers?.authorization || '';
-            const token = authHeader.startsWith('Bearer ')
-                ? authHeader.substring(7).trim()
-                : authHeader.trim();
-
-            if (!token) {
-                throw new Error('Unauthorized - No token provided');
-            }
-
-            const decoded = await verifyJWT(token);
-            event.decoded = decoded;
-
-            logger.info('Routing protected request', { path, method, userId: decoded.user_id });
-        } else {
-            logger.info('Routing public request', { path, method });
-        }
-
         let response;
 
-        if (path.startsWith('/ui')) {
-            response = await uiRoutes(event);
+        // =====================================================
+        // SPECIFIC ROUTES (checked FIRST) — ultra tolerant
+        // =====================================================
 
-        } else if (
+        if (method === 'GET' && 
+            path.toLowerCase().includes('onboarding') && 
+            !path.includes('validate-onboarding-token')) {
+            
+            console.log('>>> ONBOARDING COMPLETE ROUTE HIT SUCCESSFULLY', { path, method });
+            return await onboardingRoute(event, { action: 'complete', pool: null, sandbox: null });
+        }
+
+        else if (method === 'PUT' && path.includes('validate-onboarding-token')) {
+            return await tokenRoutes(event);
+        }
+
+        else if (method === 'POST' && path.includes('complete-signup')) {
+            return await tokenRoutes(event);
+        }
+
+        // =====================================================
+        // BROAD CATCH-ALL ROUTES
+        // =====================================================
+
+        else if (
             path.startsWith('/token') ||
             path.startsWith('/login') ||
             path.startsWith('/onboarding') ||
             path.startsWith('/complete-signup')
         ) {
             response = await tokenRoutes(event);
+        }
 
-        } else if (path.startsWith('/amazoncard')) {
+        else if (path.startsWith('/ui')) {
+            response = await uiRoutes(event);
+        }
+
+        else if (path.startsWith('/amazoncard')) {
             response = await amazoncardRoutes(event);
+        }
 
-        } else if (path.startsWith('/query') || path.startsWith('/rds')) {
+        else if (path.startsWith('/query') || path.startsWith('/rds')) {
             response = await rdsqueryRoutes(event);
+        }
 
-        } else if (path.startsWith('/winston')) {
+        else if (path.startsWith('/winston')) {
             response = await winstonRoutes(event);
+        }
 
-        } else {
+        else {
             return {
                 statusCode: 404,
                 headers: corsHeaders,
@@ -120,7 +116,7 @@ module.exports.handler = async (event) => {
         const statusCode =
             error.message.includes('Unauthorized') || error.message.includes('JWT')
                 ? 401
-            : 500;
+                : 500;
 
         return {
             statusCode,
