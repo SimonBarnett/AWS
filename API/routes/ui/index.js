@@ -15,22 +15,20 @@ const categoryHandler = require('./category');
 const resetHandler = require('./reset');
 const deleteHandler = require('./delete');
 const addRoleHandler = require('./addRole');
+const inviteHandler = require('./invite').handler;
 
 module.exports = async (event) => {
-    // Normalize path for both direct calls and /{proxy+} under /ui
+    // Normalize path (remove /ui prefix if present)
     let path = event.path || '/';
 
-    // Remove /ui prefix if present (for requests coming through the proxy)
     if (path.startsWith('/ui')) {
         path = path.replace(/^\/ui/, '');
     }
 
-    // Ensure path always starts with a forward slash
     if (!path.startsWith('/')) {
         path = '/' + path;
     }
 
-    // Update event.path so downstream handlers see the normalized path
     event.path = path;
 
     const method = event.httpMethod;
@@ -46,35 +44,40 @@ module.exports = async (event) => {
     const sandbox = process.env.SANDBOX === 'true';
 
     try {
+        // === Routes with sub-paths (use startsWith) ===
         if (path.startsWith('/cms-providers')) {
             return await cmsProvidersHandler(event, { pool, sandbox });
 
         } else if (path.startsWith('/api-keys')) {
             return await apiKeysHandler(event, { pool, sandbox });
 
-        } else if (path === '/metrics' && method === 'GET') {
+        } else if (path.startsWith('/delete')) {
+            return await deleteHandler(event, { pool, sandbox });
+
+        // === Leaf routes (use endsWith for robustness) ===
+        } else if (path.endsWith('/metrics') && method === 'GET') {
             return await metricsHandler(event, { pool, sandbox });
 
-        } else if (path === '/chart-data' && method === 'GET') {
+        } else if (path.endsWith('/chart-data') && method === 'GET') {
             return await chartDataHandler(event, { pool, sandbox });
 
-        } else if (path === '/merchant-parts' && method === 'GET') {
+        } else if (path.endsWith('/merchant-parts') && method === 'GET') {
             return await merchantPartsHandler(event, { pool, sandbox });
 
-        } else if (path === '/category' && (method === 'GET' || method === 'POST')) {
+        } else if (path.endsWith('/category') && (method === 'GET' || method === 'POST')) {
             const body = event.body ? JSON.parse(event.body) : {};
             const result = await categoryHandler(decoded.user_id, body, method, { pool, sandbox });
             return { statusCode: 200, body: result };
 
-        } else if (path === '/category/reset' && method === 'POST') {
+        } else if (path.endsWith('/category/reset') && method === 'POST') {
             const result = await resetHandler(decoded.user_id, { pool, sandbox });
             return { statusCode: 200, body: result };
 
-        } else if (path.startsWith('/delete')) {
-            return await deleteHandler(event, { pool, sandbox });
-
-        } else if (path === '/add-role' && method === 'POST') {
+        } else if (path.endsWith('/add-role') && method === 'POST') {
             return await addRoleHandler(event, { pool, sandbox });
+
+        } else if (path.endsWith('/invite') && method === 'POST') {
+            return await inviteHandler(event, { pool, sandbox });
 
         } else {
             logger.warn('UI route not found', { path, method });
@@ -90,5 +93,5 @@ module.exports = async (event) => {
             body: { message: error.message || 'Internal Server Error' }
         };
     }
-    // Pool is intentionally NOT closed here (passed from main orchestrator)
+    // Pool is intentionally NOT closed here
 };

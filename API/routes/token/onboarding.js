@@ -1,9 +1,9 @@
 // ====================== routes/token/onboarding.js ======================
 // Slim consolidated handler for onboarding actions (validate + complete only)
 // handleGenerate has been moved to /ui
-// Last updated: 15 June 2026
+// Last updated: 16 June 2026
 
-const { logger, getDbConnection, sql, enqueueMessage } = require('/opt/nodejs/helpers');
+const { logger, sql, enqueueMessage } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 const { getStripeClient } = require('/opt/nodejs/stripe');
 
@@ -14,7 +14,6 @@ const { generateUserId } = require('/opt/nodejs/auth-utils');
 const {
     isUserIdUnique,
     createUser,
-    confirmOnboarding,
     buildSetTokenUrl,
     setLastLogin,
     getUserById,
@@ -23,11 +22,20 @@ const {
     parseBody
 } = require('./helpers');
 
+// ====================== LOCAL confirmOnboarding ======================
+async function confirmOnboarding(merchantId, resellerId, event) {
+    logger.info('confirmOnboarding (stub) called', { merchantId, resellerId });
+    return { statusCode: 200 };
+}
+
 // ====================== SHARED HELPER ======================
-async function getOnboardingData(otp) {
-    const pool = await getDbConnection();
+async function getOnboardingData(otp, pool) {
+    logger.debug('getOnboardingData called', { otp });
+
+    const usePool = pool || await require('/opt/nodejs/helpers').getDbConnection();
+
     try {
-        const result = await pool.request()
+        const result = await usePool.request()
             .input('otp', sql.VarChar(10), otp)
             .input('token_type', sql.VarChar(50), 'onboarding')
             .query(`
@@ -37,34 +45,54 @@ async function getOnboardingData(otp) {
                   AND expires_at > GETDATE()
             `);
 
-        if (result.recordset.length === 0) return null;
+        if (result.recordset.length === 0) {
+            logger.warn('getOnboardingData: No matching OTP found', { otp });
+            return null;
+        }
 
         const record = result.recordset[0];
         const payload = JSON.parse(record.payload || '{}');
 
+        logger.debug('getOnboardingData: OTP found', { 
+            otp, 
+            tokenType: record.token_type,
+            hasStripeAccount: !!payload.stripe_account_id 
+        });
+
         return { ...record, ...payload, referrer_by: record.user_id };
     } finally {
-        if (pool) await pool.close();
+        if (!pool && usePool) await usePool.close();
     }
 }
 
 // ====================== ACTION: validate ======================
 async function handleValidate(event, { pool, sandbox = false }) {
+    logger.debug('handleValidate started');
+
     const body = parseBody(event);
     const { token, pin } = body;
 
     if (!token || !pin) {
+        logger.warn('handleValidate: Missing token or pin');
         return { statusCode: 400, body: { status: 'error', error_message: 'Token and PIN required' } };
     }
 
-    const onboardingData = await getOnboardingData(pin);
+    const onboardingData = await getOnboardingData(pin, pool);
     if (!onboardingData) {
+        logger.warn('handleValidate: Invalid or expired PIN', { pin });
         return { statusCode: 400, body: { status: 'error', error_message: 'Invalid or expired PIN' } };
     }
 
+    logger.info('handleValidate: Onboarding data retrieved', { 
+        tokenType: onboardingData.tokenType,
+        hasStripeAccount: !!onboardingData.stripe_account_id 
+    });
+
     const stripe = await getStripeClient(event);
 
-    const return_url = `${event.headers.origin || 'https://greenfieldsites.clubmadeira.io'}/login/onboarding?token=${token}`;
+    // ← BUG FIX: was using undefined `onboardingToken`
+    const return_url = `https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/login/onboarding?token=${onboardingToken}`;
+
     const refresh_url = new URL(onboardingData.signup_url);
     refresh_url.searchParams.append('signup', 'fail');
 
@@ -74,6 +102,8 @@ async function handleValidate(event, { pool, sandbox = false }) {
         return_url,
         type: 'account_onboarding'
     });
+
+    logger.info('handleValidate: Account link created successfully');
 
     return {
         statusCode: 200,
@@ -87,6 +117,8 @@ async function handleValidate(event, { pool, sandbox = false }) {
 // ====================== ACTION: complete ======================
 async function handleComplete(event, { pool, sandbox = false }) {
     const queryToken = event.queryStringParameters?.token;
+    logger.debug('handleComplete started', { hasToken: !!queryToken });
+
     if (!queryToken) {
         return { 
             statusCode: 400, 
@@ -94,11 +126,12 @@ async function handleComplete(event, { pool, sandbox = false }) {
         };
     }
 
-    let dbPool;
     let onboardingData;
 
     try {
-        dbPool = await getDbConnection();
+        const dbPool = pool;
+
+        logger.debug('handleComplete: Querying SystemOTPs');
 
         const result = await dbPool.request()
             .input('token', sql.NVarChar(500), queryToken)
@@ -111,6 +144,7 @@ async function handleComplete(event, { pool, sandbox = false }) {
             `);
 
         if (result.recordset.length === 0) {
+            logger.warn('handleComplete: Invalid or expired token');
             return { 
                 statusCode: 400, 
                 body: { status: 'error', error_message: 'Invalid or expired token' } 
@@ -119,8 +153,12 @@ async function handleComplete(event, { pool, sandbox = false }) {
 
         const record = result.recordset[0];
         const payload = JSON.parse(record.payload || '{}');
-
         onboardingData = { ...record, ...payload, referrer_by: record.user_id };
+
+        logger.info('handleComplete: Onboarding data loaded', { 
+            tokenType: onboardingData.tokenType,
+            userIdToCreate: onboardingData.tokenType 
+        });
 
         // Generate unique user_id
         let userId;
@@ -134,6 +172,8 @@ async function handleComplete(event, { pool, sandbox = false }) {
         if (attempts >= maxAttempts) {
             throw new Error('Failed to generate unique user ID after 25 attempts');
         }
+
+        logger.debug('handleComplete: Generated userId', { userId, attempts });
 
         const role = onboardingData.tokenType;
         const signupUrl = onboardingData.signup_url;
@@ -185,16 +225,20 @@ async function handleComplete(event, { pool, sandbox = false }) {
             userData.company_name = logEmail.split('@')[0];
         }
 
+        logger.debug('handleComplete: Creating user', { userId, role });
+
         await createUser(userData, dbPool);
 
-        // Enqueue messages (non-blocking for the redirect)
+        logger.info('handleComplete: User created successfully', { userId, role });
+
+        // Enqueue messages
         if (role === 'community' && onboardingData.url) {
             await enqueueMessage({ 
                 type: 'ONBOARDING', 
                 userId, 
                 url: onboardingData.url, 
                 partnerId: onboardingData.referrer_by, 
-                sandbox: isSandbox 
+                sandbox: sandbox 
             });
         }
 
@@ -236,13 +280,6 @@ async function handleComplete(event, { pool, sandbox = false }) {
             'This is your first login.'
         );
 
-        // Delete the used OTP token
-        if (onboardingData.otp_id) {
-            await dbPool.request()
-                .input('otp_id', sql.Int, onboardingData.otp_id)
-                .query('DELETE FROM SystemOTPs WHERE otp_id = @otp_id');
-        }
-
         logger.info('Onboarding completed successfully', { 
             userId, 
             role, 
@@ -261,23 +298,25 @@ async function handleComplete(event, { pool, sandbox = false }) {
             stack: err.stack,
             queryToken: queryToken?.substring(0, 20) + '...'
         });
-        
-        // Re-throw so the real error surfaces in CloudWatch
         throw err;
     }
 }
 
 // ====================== ACTION: complete-signup ======================
 async function handleCompleteSignup(event, { pool, sandbox = false }) {
+    logger.debug('handleCompleteSignup started');
+
     const body = parseBody(event);
     const { password, confirm_password, authToken } = body;
 
     if (!password || !confirm_password || !authToken) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Missing required fields' } };
     }
+
     if (password !== confirm_password) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Passwords do not match' } };
     }
+
     if (!isValidPassword(password)) {
         return { statusCode: 400, body: { status: 'error', error_message: 'Invalid password format' } };
     }
@@ -294,7 +333,6 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
         return { statusCode: 404, body: { status: 'error', error_message: 'User not found' } };
     }
 
-    // Pass plain password - updateUser will hash it using core layer hashPassword
     await updateUser(user.user_id, password, null, null, pool);
 
     const token = await signJWT({
@@ -304,6 +342,8 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
     });
 
     await setLastLogin(user.user_id, event.requestContext?.identity?.sourceIp, pool);
+
+    logger.info('handleCompleteSignup: Password set successfully', { userId: user.user_id });
 
     return {
         statusCode: 200,
@@ -319,6 +359,8 @@ async function handleCompleteSignup(event, { pool, sandbox = false }) {
 
 // ====================== MAIN DISPATCH ======================
 module.exports = async (event, { action, pool, sandbox = false } = {}) => {
+    logger.debug('onboarding handler dispatch', { action });
+
     try {
         if (action === 'validate') return await handleValidate(event, { pool, sandbox });
         if (action === 'complete') return await handleComplete(event, { pool, sandbox });

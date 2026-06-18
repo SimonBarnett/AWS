@@ -113,7 +113,8 @@ async function handle(event) {
         logger.info('✅ Clubscan notification step completed', { url, sandbox });
 
     }, {
-        startStatus: 'sending_emails'
+        startStatus: 'sending_emails',        
+        successStatus: 'completed'
     });
 }
 

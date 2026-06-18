@@ -5,8 +5,13 @@
 const CATEGORY_SCHEMA = {
     type: "object",
     additionalProperties: false,
-    required: ["categories"],
+    required: ["categories","exclude", "dialog"],
     properties: {
+        dialog : { type: "string" },
+        exclude: {
+            type: "array",
+            items: { type: "string" }
+        },
         categories: {
             type: "object",
             additionalProperties: false,

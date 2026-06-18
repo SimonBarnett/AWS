@@ -1,10 +1,9 @@
 // ====================== SQS/madeira-sqs-catalogue/emails.js ======================
 // Merged email module - Full unabridged implementations
 
-// Clubscan success/failure emails + Onboarding/Delegation/Merchant emails
-
 const { sendMail } = require('/opt/nodejs/mailer');
 const { logger, getS3Client, GetObjectCommand } = require('/opt/nodejs/helpers');
+const { sendSmsTextmagic } = require('/opt/nodejs/sms');   // ← Added
 const QRCode = require('qrcode');
 
 // ====================== SHARED HELPERS ======================
@@ -36,28 +35,76 @@ async function sendSuccessEmail(toEmails, clubId, url) {
         return { success: false };
     }
 
-    const widgetCode = `<div id="madeira-container"></div><script data-affiliate="${clubId}" data-css="madeira-widget.css" src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-widget.js?v=1.0"></script>`;
-    const escapedWidgetCode = widgetCode.replace(/</g, '<').replace(/>/g, '>');
+    const widgetCode = `<div id="madeira-container"></div>
+<script 
+    data-affiliate="${clubId}" 
+    src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-widget.js?v=1.0">
+</script>`;
+
+    const escapedWidgetCode = widgetCode
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
     const mailOptions = {
         from: 'support@clubmadeira.uk',
         to: recipients,
-        subject: `${url} Widget Code`,
-        text: `Onboarding of ${url} is now complete.\n\nHere is the widget code for the community site:\n\n${widgetCode}\n\nBest regards,\nThe Club Madeira Team`,
+        subject: `✅ ${url} has completed onboarding – Please add widget to their website`,
+        text: `Hi,
+
+Great news! The club you invited (${url}) has just completed their onboarding.
+
+Please add the following widget code to their club website:
+
+${widgetCode}
+
+Just paste it on any page where you want the Club Madeira catalogue to appear (usually the main shop or members area).
+
+You already have full partner access, so you can log in and make the change whenever you’re ready.
+
+If you need any help placing it or want me to check the page after you add it, just reply – I’m here to help.
+
+Thank you for bringing them on board!
+
+Best regards,
+Club Madeira Integration Team`,
         html: `
-            <p>Onboarding of <strong>${url}</strong> is now complete.</p>
-            <p>Here is the widget code for the community site:</p>
-            <pre style="background:#f4f4f4;padding:15px;border-radius:6px;">${escapedWidgetCode}</pre>
-            <p>Best regards,<br>The Club Madeira Team</p>
+            <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #28a745;">✅ ${url} has completed onboarding</h2>
+                
+                <p>Hi Partner,</p>
+                
+                <p>The club you invited (<strong>${url}</strong>) has just finished onboarding.</p>
+                
+                <h3>Please insert this widget code on their club website:</h3>
+                <pre style="background:#f8f9fa; padding: 18px; border: 2px dashed #28a745; border-radius: 8px; white-space: pre-wrap; font-family: monospace; overflow-x: auto; font-size: 15px;">${escapedWidgetCode}</pre>
+                
+                <p><strong>Instructions for you:</strong></p>
+                <ul>
+                    <li>Paste the code anywhere on the club’s website where you want the catalogue to appear</li>
+                    <li>Usually best placed in the main shop or members area</li>
+                    <li>No other changes needed</li>
+                </ul>
+
+                <p>You already have full partner login access to make the change.</p>
+
+                <p>If you need any help placing the widget or want me to review the page after you add it, just reply to this email — I’m happy to assist right away.</p>
+
+                <p style="margin-top: 30px; color: #555;">
+                    Thank you for bringing another club onboard!<br>
+                    <strong>Club Madeira Integration Team</strong><br>
+                    support@clubmadeira.uk
+                </p>
+            </div>
         `
     };
 
     try {
         const result = await sendMail(mailOptions);
-        logger.debug('✅ Success email sent', { recipients, url });
+        logger.info('✅ Partner success email sent (club widget instructions)', { recipients, club: url });
         return result;
     } catch (error) {
-        logger.error('Failed to send success email', { recipients, url, error: error.message });
+        logger.error('Failed to send partner success email', { recipients, club: url, error: error.message });
         return { success: false, reason: error.message };
     }
 }
@@ -116,7 +163,7 @@ async function handleSendEmail(payload) {
     }
 }
 
-async function sendEmail({ email, token, phone, signup_url, tokenType, url }) {
+async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin }) {
     if (!email || !token || !phone || !signup_url || !tokenType) {
         return { success: false, reason: 'missing_required_fields' };
     }
@@ -210,6 +257,15 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url }) {
     try {
         await sendMail(mailOptions);
         logger.info('Onboarding email sent successfully', { email, tokenType });
+
+        // ====================== SEND PIN VIA SMS ======================
+        if (pin) {
+            const smsMessage = `Your onboarding PIN is ${pin}. It expires in 48 hours.`;
+            await sendSmsTextmagic(phone, smsMessage);
+            logger.info('PIN SMS sent successfully', { email, phone: phone.slice(-4) });
+        }
+        // ============================================================
+
         return { success: true };
     } catch (error) {
         logger.error('Failed to send onboarding email', { email, error: error.message });
@@ -305,7 +361,6 @@ async function sendMerchantBuyUrlEmail({ merchantEmail, url, jsonResult, pdfBase
 }
 
 async function sendCPOnboardedEmail({ partnerEmail, url, partnerId }) {
-    // Placeholder - implement full version when needed
     logger.info('Partner onboarded email (placeholder)', { partnerEmail });
     return { success: true };
 }
@@ -313,10 +368,7 @@ async function sendCPOnboardedEmail({ partnerEmail, url, partnerId }) {
 // ====================== EXPORTS ======================
 
 module.exports = {
-    // Clubscan emails
     sendSuccessEmail,
     sendFailureEmail,
-
-    // New unified email system
     handleSendEmail
 };

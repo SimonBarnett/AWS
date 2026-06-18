@@ -169,7 +169,7 @@ async function handle(event) {
 
     }, {
         startStatus: 'building_catalog',
-        successStatus: enqueueNotify === true ? 'catalog_complete' : 'complete'
+        successStatus: enqueueNotify === true ? 'catalog_complete' : 'completed'
     });
 }
 
