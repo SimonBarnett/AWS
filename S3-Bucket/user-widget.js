@@ -1,20 +1,22 @@
 // user-widget.js
 // Self-contained JavaScript widget for user delegation and account deletion with international dial code support
 // Hosted on S3 and included via <script> tag on delegate.html
-// Interacts with:
-// /prod/login/delegate
-// /prod/login/acceptdelegation
-// /prod/login/delete
-// /prod/login/deleteconfirm endpoints
-// Log storage for debugging
+// Interacts with the latest routes:
+// /prod/ui/delegate
+// /prod/acceptdelegation
+// /prod/ui/delete
+// /prod/ui/deleteconfirm
+// /prod/ui/stripe (Reconnect Stripe)
+
 const logs = [];
-// Utility function to add logs for debugging
+
 function addLog(message, data = {}) {
     const logEntry = `[UserWidget] ${new Date().toISOString()} - ${message} ${JSON.stringify(data, null, 2)}`;
     logs.push(logEntry);
-    if (logs.length > 100) logs.shift(); // Limit to 100 logs
+    if (logs.length > 100) logs.shift();
     console.log(logEntry);
 }
+
 // Load FontAwesome if not already loaded
 if (!document.querySelector('link[href*="font-awesome"]')) {
     const faLink = document.createElement('link');
@@ -23,67 +25,47 @@ if (!document.querySelector('link[href*="font-awesome"]')) {
     document.head.appendChild(faLink);
     addLog('FontAwesome loaded');
 }
-// Load intl-tel-input script if not already loaded
+
+// Load intl-tel-input resources
 function loadIntlTelInputScript() {
-    if (window.intlTelInput) {
-        return Promise.resolve();
-    }
+    if (window.intlTelInput) return Promise.resolve();
     if (document.querySelector('script[src*="intl-tel-input"]')) {
         return new Promise((resolve) => {
-            const existingScript = document.querySelector('script[src*="intl-tel-input"]');
-            existingScript.addEventListener('load', resolve);
+            document.querySelector('script[src*="intl-tel-input"]').addEventListener('load', resolve);
         });
     }
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intlTelInput.min.js';
-        script.onload = () => {
-            addLog('intl-tel-input script loaded successfully');
-            resolve();
-        };
-        script.onerror = (error) => {
-            addLog('Error loading intl-tel-input script', { error: error.message });
-            reject(error);
-        };
+        script.onload = () => resolve();
+        script.onerror = reject;
         document.head.appendChild(script);
     });
 }
-// Load intl-tel-input CSS if not already loaded
+
 function loadIntlTelInputCSS() {
-    if (document.querySelector('link[href*="intl-tel-input"]')) {
-        return Promise.resolve();
-    }
+    if (document.querySelector('link[href*="intl-tel-input"]')) return Promise.resolve();
     return new Promise((resolve) => {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/css/intlTelInput.css';
-        link.onload = () => {
-            addLog('intl-tel-input CSS loaded successfully');
-            resolve();
-        };
+        link.onload = resolve;
         document.head.appendChild(link);
     });
 }
-// Load utils script for intl-tel-input
+
 function loadIntlTelInputUtils() {
-    if (window.intlTelInputUtils) {
-        return Promise.resolve();
-    }
+    if (window.intlTelInputUtils) return Promise.resolve();
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js';
-        script.onload = () => {
-            addLog('intl-tel-input utils loaded successfully');
-            resolve();
-        };
-        script.onerror = (error) => {
-            addLog('Error loading intl-tel-input utils', { error: error.message });
-            reject(error);
-        };
+        script.onload = resolve();
+        script.onerror = reject;
         document.head.appendChild(script);
     });
 }
-// Utility Functions
+
+// Utility functions
 function decodeToken(token) {
     try {
         const payload = token.split('.')[1];
@@ -94,39 +76,39 @@ function decodeToken(token) {
         return null;
     }
 }
+
 function isTokenValid(token) {
-    if (!token) {
-        addLog('No token provided for validation');
-        return false;
-    }
+    if (!token) return false;
     const decoded = decodeToken(token);
-    if (!decoded || !decoded.exp) {
-        addLog('Invalid token or no expiration', { decoded });
-        return false;
-    }
-    const currentTime = Math.floor(Date.now() / 1000);
-    const isValid = decoded.exp > currentTime;
-    addLog('Token validity check', { isValid, expiresAt: decoded.exp, currentTime });
-    return isValid;
+    if (!decoded || !decoded.exp) return false;
+    return decoded.exp > Math.floor(Date.now() / 1000);
 }
+
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
-// Main widget class
+
 class UserWidget {
     constructor(element) {
         this.element = element;
-        this.apiEndpoint = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com';
+        // ====================== UPDATED BASE URL ======================
+        this.apiEndpoint = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod';
         this.token = localStorage.getItem('authToken');
         this.loggedIn = false;
-        this.iti = null; // To store the intlTelInput instance
-        this.deleting = false; // Track if in delete confirmation mode
+        this.iti = null;
+        this.deleting = false;
         this.init();
     }
+
     async init() {
         addLog('Initializing UserWidget');
-        await Promise.all([loadIntlTelInputScript(), loadIntlTelInputCSS(), loadIntlTelInputUtils()]);
+        await Promise.all([
+            loadIntlTelInputScript(),
+            loadIntlTelInputCSS(),
+            loadIntlTelInputUtils()
+        ]);
+
         if (this.token && isTokenValid(this.token)) {
             this.loggedIn = true;
             addLog('User is logged in');
@@ -135,6 +117,7 @@ class UserWidget {
         }
         this.render();
     }
+
     render() {
         this.element.innerHTML = `
             <div style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; max-width: 400px; margin: auto; background: #f9f9f9; position: relative;">
@@ -171,12 +154,27 @@ class UserWidget {
             </div>
         `;
         const content = this.element.querySelector('#content');
+
+        // Check for Stripe return status on render
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('stripe')) {
+            const status = urlParams.get('stripe');
+            if (status === 'success') {
+                alert('Stripe reconnection successful! Your account is now linked.');
+            } else if (status === 'fail') {
+                alert('Stripe reconnection failed or was cancelled. Please try again.');
+            }
+            // Clean URL after showing message
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         if (this.loggedIn) {
             this.renderDelegationForm(content);
         } else {
             this.renderAcceptDelegationForm(content);
         }
     }
+
     renderDelegationForm(content) {
         let deleteSection = '';
         if (!this.deleting) {
@@ -198,6 +196,7 @@ class UserWidget {
                 </div>
             `;
         }
+
         content.innerHTML = `
             <h3 style="font-size: 1.5em; margin-bottom: 10px;">Delegate Account</h3>
             <p style="margin-bottom: 15px;">Use this form to delegate control of your account. Provide the details below to delegate.</p>
@@ -220,10 +219,23 @@ class UserWidget {
                 <button type="submit" id="delegateButton" disabled style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;"><i class="fas fa-user-plus fa-icon"></i>Delegate</button>
             </form>
             <div id="delegateMessage" style="margin-top: 10px; text-align: center;"></div>
+
+            <hr style="margin: 20px 0;">
+
+            <!-- ====================== RECONNECT STRIPE SECTION (SAME STYLING AS DELEGATE BUTTON) ====================== -->
+            <h3 style="font-size: 1.5em; margin-bottom: 10px;">Reconnect Stripe</h3>
+            <p style="margin-bottom: 15px;">Reconnect or update your Stripe account for payments and payouts.</p>
+            <button id="reconnectStripeButton" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">
+                <i class="fas fa-link fa-icon"></i> Reconnect Stripe
+            </button>
+            <div id="stripeMessage" style="margin-top: 10px; text-align: center;"></div>
+            <!-- ===================================================================== -->
+
             <hr style="margin: 20px 0;">
             ${deleteSection}
             <div id="deleteMessage" style="margin-top: 10px; text-align: center;"></div>
         `;
+
         const phoneInput = content.querySelector('#phone');
         if (phoneInput) {
             this.iti = window.intlTelInput(phoneInput, {
@@ -233,11 +245,14 @@ class UserWidget {
             phoneInput.style.paddingLeft = '60px';
             addLog('intl-tel-input initialized for delegation');
         }
+
         const form = content.querySelector('#delegateForm');
         form.addEventListener('submit', this.handleDelegate.bind(this));
+
         const firstNameInput = form.querySelector('#first_name');
         const emailInput = form.querySelector('#email');
         const delegateButton = form.querySelector('#delegateButton');
+
         const validateForm = () => {
             const firstName = firstNameInput.value.trim();
             const email = emailInput.value.trim();
@@ -247,14 +262,23 @@ class UserWidget {
             }
             const isValid = firstName && isValidEmail(email) && isPhoneValid;
             delegateButton.disabled = !isValid;
+
             content.querySelector('#first_name-error').style.display = firstName ? 'none' : 'block';
             content.querySelector('#email-error').style.display = isValidEmail(email) ? 'none' : 'block';
             content.querySelector('#phone-error').style.display = isPhoneValid ? 'none' : 'block';
         };
+
         firstNameInput.addEventListener('input', validateForm);
         emailInput.addEventListener('input', validateForm);
         phoneInput.addEventListener('input', validateForm);
         phoneInput.addEventListener('countrychange', validateForm);
+
+        // Reconnect Stripe button (same style as Delegate button)
+        const reconnectBtn = content.querySelector('#reconnectStripeButton');
+        if (reconnectBtn) {
+            reconnectBtn.addEventListener('click', this.handleReconnectStripe.bind(this));
+        }
+
         if (!this.deleting) {
             const deleteButton = content.querySelector('#deleteButton');
             if (deleteButton) {
@@ -281,6 +305,38 @@ class UserWidget {
             }
         }
     }
+
+    // ====================== NEW: RECONNECT STRIPE ======================
+    async handleReconnectStripe() {
+        const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
+        loadingOverlay.style.display = 'flex';
+
+        try {
+            const response = await fetch(`${this.apiEndpoint}/ui/stripe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success' && data.onboarding_url) {
+                // Redirect directly to Stripe onboarding
+                window.location.href = data.onboarding_url;
+            } else {
+                this.showMessage('stripeMessage', data.error_message || 'Failed to start Stripe reconnection', 'error');
+            }
+        } catch (error) {
+            this.showMessage('stripeMessage', 'An error occurred. Please try again.', 'error');
+            addLog('Error reconnecting Stripe', { error: error.message });
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    // ====================== UPDATED FETCH URLs ======================
     async handleDelegate(event) {
         event.preventDefault();
         const form = event.target;
@@ -292,18 +348,26 @@ class UserWidget {
         } else {
             phone = form.querySelector('#phone').value.trim();
         }
+
         const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
         loadingOverlay.style.display = 'flex';
+
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/delegate`, {
+            const response = await fetch(`${this.apiEndpoint}/ui/delegate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.token}`
                 },
-                body: JSON.stringify({ first_name: firstName, phone_number: phone, email_address: email })
+                body: JSON.stringify({
+                    first_name: firstName,
+                    phone_number: phone,
+                    email_address: email
+                })
             });
+
             const data = await response.json();
+
             if (data.status === 'success') {
                 this.showMessage('delegateMessage', 'Delegation initiated successfully', 'success');
                 form.reset();
@@ -318,18 +382,22 @@ class UserWidget {
             loadingOverlay.style.display = 'none';
         }
     }
+
     async handleInitiateDelete() {
         const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
         loadingOverlay.style.display = 'flex';
+
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/delete`, {
+            const response = await fetch(`${this.apiEndpoint}/ui/delete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.token}`
                 }
             });
+
             const data = await response.json();
+
             if (data.status === 'success') {
                 this.deleting = true;
                 this.render();
@@ -343,12 +411,14 @@ class UserWidget {
             loadingOverlay.style.display = 'none';
         }
     }
+
     async handleConfirmDelete() {
         const otp = this.element.querySelector('#otp').value.trim();
         const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
         loadingOverlay.style.display = 'flex';
+
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/deleteconfirm`, {
+            const response = await fetch(`${this.apiEndpoint}/ui/deleteconfirm`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -356,7 +426,9 @@ class UserWidget {
                 },
                 body: JSON.stringify({ otp })
             });
+
             const data = await response.json();
+
             if (data.status === 'success') {
                 localStorage.removeItem('authToken');
                 this.token = null;
@@ -374,13 +446,16 @@ class UserWidget {
             loadingOverlay.style.display = 'none';
         }
     }
+
     renderAcceptDelegationForm(content) {
         const urlParams = new URLSearchParams(window.location.search);
         const delegationToken = urlParams.get('token');
+
         if (!delegationToken) {
             content.innerHTML = `<p style="text-align: center; color: red;">No delegation token provided. Please check your invitation link.</p>`;
             return;
         }
+
         content.innerHTML = `
             <h3 style="font-size: 1.5em; margin-bottom: 10px;">Accept Delegation</h3>
             <form id="acceptForm">
@@ -412,8 +487,10 @@ class UserWidget {
             </form>
             <div id="acceptMessage" style="margin-top: 10px; text-align: center;"></div>
         `;
+
         const form = content.querySelector('#acceptForm');
         form.addEventListener('submit', this.handleAcceptDelegation.bind(this));
+
         content.querySelectorAll('.toggle-password').forEach(icon => {
             icon.addEventListener('click', (e) => {
                 const input = e.target.previousElementSibling;
@@ -428,16 +505,19 @@ class UserWidget {
                 }
             });
         });
+
         const otpInput = content.querySelector('#otp');
         const newPassword = content.querySelector('#newpassword');
         const confirmNewPassword = content.querySelector('#confirmNewPassword');
         const acceptButton = content.querySelector('#acceptButton');
+
         const validateForm = () => {
             const otp = otpInput.value.trim();
             const password = newPassword.value.trim();
             const confirmPassword = confirmNewPassword.value.trim();
             const isValid = otp.length === 6 && /^\d{6}$/.test(otp) && password && (password === confirmPassword);
             acceptButton.disabled = !isValid;
+
             const messageElement = content.querySelector('#acceptMessage');
             if (password !== confirmPassword && password && confirmPassword) {
                 messageElement.textContent = 'Passwords do not match';
@@ -446,34 +526,41 @@ class UserWidget {
                 messageElement.textContent = '';
             }
         };
+
         otpInput.addEventListener('input', validateForm);
         newPassword.addEventListener('input', validateForm);
         confirmNewPassword.addEventListener('input', validateForm);
     }
+
     async handleAcceptDelegation(event) {
         event.preventDefault();
         const form = event.target;
         const token = form.querySelector('#token').value.trim();
         const otp = form.querySelector('#otp').value.trim();
         const newpassword = form.querySelector('#newpassword').value.trim();
+
         const loadingOverlay = this.element.querySelector('#widgetLoadingOverlay');
         loadingOverlay.style.display = 'flex';
+
         try {
-            const response = await fetch(`${this.apiEndpoint}/prod/login/acceptdelegation`, {
+            const response = await fetch(`${this.apiEndpoint}/acceptdelegation`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ token, otp, newpassword })
             });
+
             const data = await response.json();
+
             if (data.status === 'success') {
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('user_id', data.user_id);
                 localStorage.setItem('contact_name', data.contact_name);
                 if (data.lastlogin) {
-                    localStorage.setItem('lastlogin', data.lastlogin); // Store lastlogin
+                    localStorage.setItem('lastlogin', data.lastlogin);
                 }
+
                 addLog('Delegation accepted, session variables set', {
                     token: data.token,
                     user_id: data.user_id,
@@ -481,6 +568,7 @@ class UserWidget {
                     lastlogin: data.lastlogin,
                     workflow: data.workflow
                 });
+
                 this.token = data.token;
                 this.loggedIn = true;
                 this.showMessage('acceptMessage', 'Delegation accepted successfully', 'success');
@@ -495,6 +583,7 @@ class UserWidget {
             loadingOverlay.style.display = 'none';
         }
     }
+
     showMessage(elementId, message, type) {
         const messageElement = this.element.querySelector(`#${elementId}`);
         if (messageElement) {
@@ -503,7 +592,8 @@ class UserWidget {
         }
     }
 }
-// Initialize widget on DOMContentLoaded
+
+// Initialize widget
 document.addEventListener('DOMContentLoaded', () => {
     const widgetElement = document.querySelector('[data-user-widget]');
     if (widgetElement) {

@@ -8,10 +8,10 @@
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
+    "openai": "^6.44.0",
     "qrcode": "^1.5.3",
     "uuid": "^9.0.1"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=20"
   },

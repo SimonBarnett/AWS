@@ -3,7 +3,7 @@
 // handleGenerate has been moved to /ui
 // Last updated: 16 June 2026
 
-const { logger, sql, enqueueMessage } = require('/opt/nodejs/helpers');
+const { logger, sql, enqueueMessage , parseBody} = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 const { getStripeClient } = require('/opt/nodejs/stripe');
 
@@ -18,8 +18,7 @@ const {
     setLastLogin,
     getUserById,
     isValidPassword,
-    updateUser,
-    parseBody
+    updateUser    
 } = require('./helpers');
 
 // ====================== LOCAL confirmOnboarding ======================

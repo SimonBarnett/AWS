@@ -19,6 +19,58 @@ const { callGrokStructured } = require('/opt/nodejs/grok');
 const { CATEGORY_SCHEMA } = require('../grok_schema');
 const { withStatusHandling } = require('./helpers');
 
+// ====================== TIMING HELPER ======================
+function logTiming(label, startTime) {
+    const durationMs = Date.now() - startTime;
+    logger.info(`⏱️  ${label}`, { durationMs });
+    return durationMs;
+}
+
+// ====================== SAFE PARSING HELPERS ======================
+function safeParse(jsonString, defaultValue = null) {
+    if (!jsonString) return defaultValue;
+    if (typeof jsonString !== 'string') return jsonString;
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return defaultValue;
+    }
+}
+
+function extractUserInstruction(jsonChat) {
+    if (!Array.isArray(jsonChat) || jsonChat.length === 0) return null;
+    const lastEntry = jsonChat[jsonChat.length - 1];
+    return (lastEntry && typeof lastEntry === 'object' && typeof lastEntry.prompt === 'string')
+        ? lastEntry.prompt
+        : null;
+}
+
+function extractChatHistory(jsonChat) {
+    if (!Array.isArray(jsonChat) || jsonChat.length <= 2) return [];
+    return jsonChat
+        .slice(1, -1)
+        .filter(entry => entry && typeof entry === 'object');
+}
+
+function buildContext(clubRecord) {
+    let parsed = {};
+    if (clubRecord.JsonResult) {
+        try { parsed = JSON.parse(clubRecord.JsonResult); } catch (e) {}
+    }
+    return {
+        clubName: parsed.name || 'Unknown Club',
+        url: clubRecord.Url,
+        location: parsed.location || '',
+        sector: parsed.sector || '',
+        audience: parsed.audience || '',
+        review: parsed.review || '',
+        marketSegments: (parsed.marketSegments || []).map(m => ({
+            segmentName: m.segmentName,
+            description: m.description
+        }))
+    };
+}
+
 // ====================== HANDLER ======================
 async function handle(event) {
     const { sandbox } = event;
@@ -229,39 +281,28 @@ function buildUserMessage({ isOnboarding, jsonCategories, context, userInstructi
     }
 }
 
-// ====================== GENERATE CATEGORIES ======================
+// ====================== GENERATE CATEGORIES (WITH FULL TIMING + PROMPT LOGGING) ======================
 async function generateCategories(clubRecord, isOnboarding) {
-    let jsonCategories = clubRecord.json_categories;
-    let jsonExclude    = clubRecord.json_exclude;
-    let jsonChat       = clubRecord.json_chat;
-
+    const overallStart = Date.now();
     logger.info('=== generateCategories ENTERED ===', {
-        url: clubRecord.Url
+        url: clubRecord.Url,
+        isOnboarding
     });
 
-    if (typeof jsonCategories === 'string') {
-        try { jsonCategories = JSON.parse(jsonCategories); } catch (e) { jsonCategories = null; }
-    }
-    if (typeof jsonCategories !== 'object' || jsonCategories === null) jsonCategories = null;
-
-    if (typeof jsonExclude === 'string') {
-        try { jsonExclude = JSON.parse(jsonExclude); } catch (e) { jsonExclude = []; }
-    }
-    if (!Array.isArray(jsonExclude)) jsonExclude = [];
-
-    if (typeof jsonChat === 'string') {
-        try { jsonChat = JSON.parse(jsonChat); } catch (e) { jsonChat = []; }
-    }
-    if (!Array.isArray(jsonChat)) jsonChat = [];
+    // --- Step 1: Parse JSON fields ---
+    const parseStart = Date.now();
+    let jsonCategories = safeParse(clubRecord.json_categories);
+    let jsonExclude    = safeParse(clubRecord.json_exclude, []);
+    let jsonChat       = safeParse(clubRecord.json_chat, []);
+    logTiming('Parse JSON fields (categories, exclude, chat)', parseStart);
 
     logger.info('jsonChat after parse', {
         chatLength: jsonChat.length,
         rawChat: JSON.stringify(jsonChat)
     });
 
-    // =====================================================
-    // LOGGING + SAFE ACCESS AROUND THE SUSPECTED LINE
-    // =====================================================
+    // --- Step 2: Extract user instruction + chat history ---
+    const extractStart = Date.now();
     let userInstruction = null;
 
     if (Array.isArray(jsonChat) && jsonChat.length > 0) {
@@ -282,33 +323,16 @@ async function generateCategories(clubRecord, isOnboarding) {
         }
     }
 
-    // Safe chat history
-    let chatHistory = [];
-    if (Array.isArray(jsonChat) && jsonChat.length > 2) {
-        chatHistory = jsonChat
-            .slice(1, -1)
-            .filter(entry => entry && typeof entry === 'object');
-    }
+    const chatHistory = extractChatHistory(jsonChat);
+    logTiming('Extract user instruction & chat history', extractStart);
 
-    // Build context
-    let parsed = {};
-    if (clubRecord.JsonResult) {
-        try { parsed = JSON.parse(clubRecord.JsonResult); } catch (e) {}
-    }
+    // --- Step 3: Build context ---
+    const contextStart = Date.now();
+    const context = buildContext(clubRecord);
+    logTiming('Build context object', contextStart);
 
-    const context = {
-        clubName: parsed.name || 'Unknown Club',
-        url: clubRecord.Url,
-        location: parsed.location || '',
-        sector: parsed.sector || '',
-        audience: parsed.audience || '',
-        review: parsed.review || '',
-        marketSegments: (parsed.marketSegments || []).map(m => ({
-            segmentName: m.segmentName,
-            description: m.description
-        }))
-    };
-
+    // --- Step 4: Build prompts ---
+    const promptStart = Date.now();
     const systemPrompt = buildSystemPrompt({
         isOnboarding,
         jsonExclude,
@@ -327,11 +351,32 @@ async function generateCategories(clubRecord, isOnboarding) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
     ];
+    logTiming('Build systemPrompt + userMessage', promptStart);
+
+    // =====================================================
+    // 🔴 FULL MESSAGES LOGGED HERE (Critical for debugging slowness)
+    // =====================================================
+    logger.info('📤 FULL MESSAGES SENT TO GROK', {
+        messageCount: messages.length,
+        systemPromptLength: systemPrompt.length,
+        userMessageLength: userMessage.length,
+        totalPromptCharacters: systemPrompt.length + userMessage.length,
+        messages: messages
+    });
+
+    // --- Step 5: Call Grok ---
+    const grokStart = Date.now();
+    logger.info('🚀 Calling callGrokStructured...');
 
     const result = await callGrokStructured(messages, CATEGORY_SCHEMA, {
         temperature: 0.3,
         max_tokens: 8000
     });
+
+    logTiming('Grok API call (callGrokStructured)', grokStart);
+
+    // --- Step 6: Validate and process result ---
+    const processStart = Date.now();
 
     if (!result?.categories || Object.keys(result.categories).length < 6) {
         throw new Error('Grok returned insufficient categories');
@@ -341,6 +386,9 @@ async function generateCategories(clubRecord, isOnboarding) {
     if (result.exclude && Array.isArray(result.exclude)) {
         finalExclusions = [...new Set([...jsonExclude, ...result.exclude])];
     }
+
+    logTiming('Process Grok result + exclusions', processStart);
+    logTiming('TOTAL generateCategories execution time', overallStart);
 
     return {
         categories: result.categories,

@@ -602,7 +602,7 @@
                 if (!tosAgreeCheckbox.checked) return;
                 const token = localStorage.getItem('authToken');
                 try {
-                    const response = await handleFetch(`${BASE_API_URL}/login/add-role`, {
+                    const response = await handleFetch(`${BASE_API_URL}/ui/add-role`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ role: 'merchant', agreedToTos: true })

@@ -16,6 +16,8 @@ const resetHandler = require('./reset');
 const deleteHandler = require('./delete');
 const addRoleHandler = require('./addRole');
 const inviteHandler = require('./invite').handler;
+const delegateRoute = require('../../delegate');
+const stripeRoute = require('./stripe');
 
 module.exports = async (event) => {
     // Normalize path (remove /ui prefix if present)
@@ -78,6 +80,12 @@ module.exports = async (event) => {
 
         } else if (path.endsWith('/invite') && method === 'POST') {
             return await inviteHandler(event, { pool, sandbox });
+
+        } else if (path.endsWith('/delegate') && method === 'POST') {
+            return await delegateRoute(event, { action: 'initiate', pool, sandbox });
+
+        } else if (path.endsWith('/stripe') && method === 'POST') {
+            return await stripeRoute(event, { pool, sandbox });
 
         } else {
             logger.warn('UI route not found', { path, method });

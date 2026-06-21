@@ -149,6 +149,8 @@ async function handleSendEmail(payload) {
     switch (emailType) {
         case 'onboarding':
             return await sendEmail(data);
+        case 'reset_password_otp':
+            return await sendResetPasswordOtp(data);
         case 'delegation':
             return await sendDelegationEmail(data);
         case 'delegation_accepted':
@@ -157,6 +159,8 @@ async function handleSendEmail(payload) {
             return await sendMerchantBuyUrlEmail(data);
         case 'partner_onboarded':
             return await sendCPOnboardedEmail(data);
+        case 'deletion_otp':
+            return await sendDeletionOtp(data);
         default:
             logger.warn('Unknown emailType in SEND_EMAIL', { emailType });
             return { success: false, reason: 'unknown_email_type' };
@@ -197,7 +201,7 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin 
             <p>Or scan this QR code:</p>
             <img src="cid:qrcode" alt="Signup QR Code" style="width:200px;height:200px;" />
         `;
-    } 
+    }
     else if (tokenType === 'merchant') {
         imageKey = 'merchant.png';
         cid = 'merchantLogo';
@@ -211,7 +215,7 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin 
             <p>Or scan this QR code:</p>
             <img src="cid:qrcode" alt="Signup QR Code" style="width:200px;height:200px;" />
         `;
-    } 
+    }
     else if (tokenType === 'partner') {
         imageKey = 'partner.png';
         cid = 'partnerLogo';
@@ -225,7 +229,7 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin 
             <p>Or scan this QR code:</p>
             <img src="cid:qrcode" alt="Signup QR Code" style="width:200px;height:200px;" />
         `;
-    } 
+    }
     else {
         return { success: false, reason: 'invalid_token_type' };
     }
@@ -273,10 +277,29 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin 
     }
 }
 
-async function sendDelegationEmail({ email, token, phone, signup_url, url }) {
+// New function at the bottom
+async function sendResetPasswordOtp({ phone, otp }) {
+    if (!phone || !otp) {
+        logger.warn('Missing phone or otp for reset_password_otp');
+        return { success: false, reason: 'missing_phone_or_otp' };
+    }
+
+    const smsMessage = `Club Madeira reset OTP: ${otp} (expires in 15 min)`;
+
+    try {
+        await sendSmsTextmagic(phone, smsMessage);
+        logger.info('Reset password OTP SMS sent successfully via SQS', { phone: phone.slice(-4) });
+        return { success: true };
+    } catch (error) {
+        logger.error('Failed to send reset password OTP SMS', { error: error.message });
+        return { success: false, reason: error.message };
+    }
+}
+
+async function sendDelegationEmail({ email, token, phone, signup_url, url, otp }) {
     logger.debug('Sending delegation email', { email });
 
-    const lastFourDigits = phone.slice(-4);
+    const lastFourDigits = phone ? phone.slice(-4) : '****';
     const signupUrlWithPage = new URL(`${signup_url}/delegate.html`);
     signupUrlWithPage.searchParams.append('token', token);
     const signupUrlWithTokenString = signupUrlWithPage.toString();
@@ -287,12 +310,12 @@ async function sendDelegationEmail({ email, token, phone, signup_url, url }) {
     const mailOptions = {
         from: 'support@clubmadeira.uk',
         to: email,
-        subject: `Transfer of control for ${url}`,
-        text: `You have been invited to take control of the catalogue on ${url}.`,
+        subject: `Transfer of control for ${url || 'your account'}`,
+        text: `You have been invited to take control of the catalogue on ${url || 'your account'}.`,
         html: `
             <img src="cid:communityLogo" alt="Community Logo" />
-            <p>You have been invited to take control of the catalogue on ${url}.</p>
-            <p>You will receive a separate PIN to the mobile number ending ${lastFourDigits}.</p>
+            <p>You have been invited to take control of the catalogue on <strong>${url || 'your account'}</strong>.</p>
+            <p>You will receive a separate PIN to the mobile number ending <strong>${lastFourDigits}</strong>.</p>
             <p><a href="${signupUrlWithTokenString}">Complete transfer</a></p>
             <img src="cid:qrcode" alt="QR Code" style="width:200px;height:200px;" />
         `,
@@ -304,8 +327,21 @@ async function sendDelegationEmail({ email, token, phone, signup_url, url }) {
 
     try {
         await sendMail(mailOptions);
+        logger.info('Delegation email sent successfully', { email });
+
+        // ====================== SEND SMS (now works because otp is passed) ======================
+        if (otp && phone) {
+            const smsMessage = `Your delegation OTP is ${otp}. It expires in 48 hours.`;
+            await sendSmsTextmagic(phone, smsMessage);
+            logger.info('Delegate OTP SMS sent via SQS', { phone: phone.slice(-4) });
+        } else {
+            logger.warn('Skipping SMS - missing otp or phone', { phone: !!phone, otp: !!otp });
+        }
+        // ========================================================================================
+
         return { success: true };
     } catch (error) {
+        logger.error('Failed to send delegation email or SMS', { email, error: error.message });
         return { success: false, reason: error.message };
     }
 }
@@ -363,6 +399,21 @@ async function sendMerchantBuyUrlEmail({ merchantEmail, url, jsonResult, pdfBase
 async function sendCPOnboardedEmail({ partnerEmail, url, partnerId }) {
     logger.info('Partner onboarded email (placeholder)', { partnerEmail });
     return { success: true };
+}
+
+async function sendDeletionOtp({ phone, otp }) {
+    if (!phone || !otp) return { success: false, reason: 'missing_phone_or_otp' };
+
+    const smsMessage = `⚠️ Club Madeira PERMANENT DELETION OTP: ${otp} (expires in 15 min). Reply STOP to cancel.`;
+    
+    try {
+        await sendSmsTextmagic(phone, smsMessage);
+        logger.info('Deletion OTP SMS sent via SQS', { phone: phone.slice(-4) });
+        return { success: true };
+    } catch (error) {
+        logger.error('Failed to send deletion OTP SMS', { error: error.message });
+        return { success: false, reason: error.message };
+    }
 }
 
 // ====================== EXPORTS ======================

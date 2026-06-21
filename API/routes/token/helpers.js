@@ -1,7 +1,8 @@
 // ====================== routes/token/helpers.js ======================
 // Local helpers specific to token routes
 // Pools are managed by the caller (no closing inside helpers)
-
+// Add this line near the top of routes/token/helpers.js (right after the other require statements)
+const { parseBody } = require('/opt/nodejs/helpers');   // ← THIS ELIMINATES THE ReferenceError
 const crypto = require('crypto');
 const { executeWithRetry, sql, logger } = require('/opt/nodejs/helpers');
 
@@ -52,22 +53,6 @@ async function isUserIdUnique(userId, pool = null) {
         throw error;
     }
     // No pool.close() here
-}
-
-// ====================== SHARED BODY PARSER ======================
-function parseBody(event) {
-    if (!event.body) return {};
-
-    try {
-        const rawBody = event.isBase64Encoded
-            ? Buffer.from(event.body, 'base64').toString('utf8')
-            : event.body;
-
-        return JSON.parse(rawBody);
-    } catch (err) {
-        logger.error('Failed to parse request body', { error: err.message });
-        return {};
-    }
 }
 
 // ====================== GET USER BY ID ======================

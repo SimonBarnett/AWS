@@ -7,7 +7,7 @@ const loginRoute = require('./login');
 const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
 const tosRoute = require('./tos');
-const delegateRoute = require('./delegate');
+const delegateRoute = require('../../delegate');
 
 module.exports = async (event, { sandbox = false } = {}) => {
     const path = event.path || '/';
@@ -39,9 +39,6 @@ module.exports = async (event, { sandbox = false } = {}) => {
 
         } else if (path.endsWith('/tos') && method === 'GET') {
             return await tosRoute(event, { pool, sandbox });
-
-        } else if (path.endsWith('/delegate') && method === 'POST') {
-            return await delegateRoute(event, { action: 'initiate', pool, sandbox });
 
         } else if (path.endsWith('/acceptdelegation') && method === 'POST') {
             return await delegateRoute(event, { action: 'accept', pool, sandbox });

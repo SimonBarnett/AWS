@@ -2,10 +2,10 @@
 // CLEAN VERSION - Matches original production login exactly
 // Only email + password required. No extra fields.
 
-const { logger, comparePassword } = require('/opt/nodejs/helpers');
+const { parseBody , logger, comparePassword } = require('/opt/nodejs/helpers');
 const { signJWT } = require('/opt/nodejs/jwt');
 
-const { parseBody, getUserByEmail, getLastLogin, setLastLogin, originCode } = require('./helpers');
+const { getUserByEmail, getLastLogin, setLastLogin, originCode } = require('./helpers');
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
     const requestId = event.requestContext?.requestId || 'unknown';

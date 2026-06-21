@@ -138,6 +138,39 @@ async function comparePassword(password, hash) {
     return bcrypt.compare(password, hash);
 }
 
+// ====================== BODY PARSING HELPER ======================
+function parseBody(event) {
+    if (!event || !event.body) {
+        return {};
+    }
+
+    try {
+        // Handle base64 encoded body (common with API Gateway)
+        if (event.isBase64Encoded) {
+            const decoded = Buffer.from(event.body, 'base64').toString('utf8');
+            return JSON.parse(decoded);
+        }
+
+        // If body is already an object (shouldn't normally happen, but defensive)
+        if (typeof event.body === 'object') {
+            return event.body;
+        }
+
+        // Normal string body
+        return JSON.parse(event.body);
+    } catch (err) {
+        logger.warn('Failed to parse request body', {
+            error: err.message,
+            isBase64Encoded: event.isBase64Encoded,
+            bodyType: typeof event.body,
+            bodyPreview: typeof event.body === 'string' 
+                ? event.body.substring(0, 300) 
+                : '[non-string body]'
+        });
+        return {}; // Return empty object so destructuring doesn't crash
+    }
+}
+
 // SQS
 const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL;
 
@@ -190,7 +223,8 @@ module.exports = {
     enqueueMessage,
     hashPassword,
     comparePassword,
-    createPlaceholderIfMissing
+    createPlaceholderIfMissing,
+    parseBody
 };
 
 // ====================== IMPORT CONFIG MODULES (AFTER MAIN EXPORTS) ======================
