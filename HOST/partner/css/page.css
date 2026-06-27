@@ -6,14 +6,14 @@
 
 /* Basic styles */
 * {
-    box-sizing: border-box; /* Ensure padding/margins don’t inflate elements */
+    box-sizing: border-box;
 }
 
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    line-height: 1.5; /* Default line-height for consistency */
+    line-height: 1.5;
 }
 
 /* Header styles */
@@ -23,13 +23,13 @@ header {
     left: 0;
     right: 0;
     z-index: 1000;
-    background-color: #333; /* Dark background */
+    background-color: #333;
     color: white;
-    padding: 0.5rem 1rem; /* Minimal padding */
+    padding: 0.5rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 60px; /* Fixed height for header */
+    height: 60px;
 }
 
 /* Navigation container */
@@ -51,22 +51,22 @@ nav {
 .logo i {
     font-size: 2em;
     margin-right: 10px;
-    color: white; /* White to match dark background */
+    color: white;
 }
 
 .logo-text {
     display: inline-block;
-    color: white; /* White to match dark background */
+    color: white;
 }
 
 /* Menu group */
 .menu-group {
     display: flex;
     align-items: center;
-    justify-content: flex-end; /* Right-align menu items */
+    justify-content: flex-end;
 }
 
-/* Menu list */
+/* Menu list - cleaned up to not fight with the widget */
 .menu-list {
     list-style: none;
     display: flex;
@@ -74,24 +74,24 @@ nav {
     padding: 0;
 }
 
-/* Menu items */
+/* Menu items - removed conflicting margin */
 .menu-item {
-    margin-left: 20px;
+    /* margin-left removed so the widget can control spacing via gap */
 }
 
 .menu-link {
-    color: white; /* White to match dark background */
+    color: white;
     text-decoration: none;
     display: flex;
     align-items: center;
 }
 
 .menu-link:hover {
-    color: #66b3ff; /* Light blue on hover for consistency with selected state */
+    color: #66b3ff;
 }
 
 .menu-link:hover .menu-icon {
-    transform: scale(1.1); /* 10% size increase on hover */
+    transform: scale(1.1);
     transition: transform 0.2s ease-in-out;
 }
 
@@ -109,11 +109,11 @@ nav {
     display: none;
     font-size: 2em;
     cursor: pointer;
-    color: white; /* White to match dark background */
+    color: white;
 }
 
 .hamburger:hover {
-    color: #66b3ff; /* Match menu-link hover color */
+    color: #66b3ff;
 }
 
 /* Hint styling */
@@ -126,8 +126,8 @@ nav {
     padding: 5px 10px;
     border-radius: 3px;
     visibility: hidden;
-    top: 100%; /* Position below the menu item */
-    z-index: 1001; /* Above other elements */
+    top: 100%;
+    z-index: 1001;
 }
 
 .menu-hint.visible {
@@ -137,7 +137,7 @@ nav {
 .menu-hint .click-icon {
     margin-right: 5px;
     order: -1;
-    font-size: 1.2em; /* Adjust size if needed */
+    font-size: 1.2em;
 }
 
 .menu-hint .menu-name {
@@ -146,7 +146,7 @@ nav {
 
 /* Styling for selected menu item */
 .menu-item.selected .menu-link {
-    color: #66b3ff; /* Quite a bit lighter than #007bff */
+    color: #66b3ff;
 }
 
 /* Responsive design for smaller screens */
@@ -159,41 +159,38 @@ nav {
         right: 0;
         width: 200px;
         background-color: #333;
-        padding-right: 10px; /* Ensures content is inset 10px from screen's right edge */
+        padding-right: 10px;
     }
     .menu-list.show {
         display: flex;
     }
     .menu-item {
-        margin: 5px 0; /* Reduced from 10px to 5px to decrease vertical gap by 50% */
+        margin: 5px 0;
     }
     .menu-link {
         justify-content: flex-end;
         width: 100%;
-        color: white; /* White for visibility on dark background */
-        padding: 10px; /* Updated for larger touch area */
+        color: white;
+        padding: 10px;
     }
     .menu-text {
         display: inline;
-        color: white; /* White for visibility */
-        font-size: 1.25em; /* Increased by 0.25em for fat fingers */
+        color: white;
+        font-size: 1.25em;
     }
     .menu-icon {
-        font-size: 1.75em; /* Increased by 0.25em from 1.5em for fat fingers */
+        font-size: 1.75em;
         margin-left: 10px;
-        margin-right: 10px; /* Added to create a 10px gap from the right edge */
+        margin-right: 10px;
     }
     .hamburger {
         display: block;
         margin-left: 10px;
-        margin-right: 10px; /* 10px margin to the right */
+        margin-right: 10px;
     }
 }
 
 @media (min-width: 769px) {
-    .menu-list {
-        margin-right: 20px;
-    }
     .hamburger {
         display: none;
         margin-left: 0;
@@ -201,7 +198,7 @@ nav {
     }
 }
 
-/* Welcome section styles for image and text wrapping */
+/* Welcome section styles */
 .welcome {
     max-width: 800px;
     margin: 0 auto;
@@ -218,7 +215,7 @@ nav {
     width: 192px;
     height: 192px;
     margin: 0 20px 20px 0;
-    border-radius: 8px; /* Optional: softens image corners */
+    border-radius: 8px;
 }
 
 .welcome p {
@@ -226,14 +223,12 @@ nav {
     margin-bottom: 1em;
 }
 
-/* Clearfix to prevent layout issues from floating image */
 .welcome::after {
     content: "";
     display: table;
     clear: both;
 }
 
-/* Responsive adjustment for welcome section */
 @media (max-width: 600px) {
     .welcome img {
         float: none;
@@ -247,52 +242,51 @@ nav {
 /* Additional styles */
 main {
     padding: 0rem;
-    padding-bottom: 100px; /* Ensures content isn’t hidden by the fixed footer */
-    margin-top: 60px; /* Keeps space for the fixed header */
+    padding-bottom: 100px;
+    margin-top: 60px;
 }
 
 footer {
     background-color: #333;
     color: white;
-    text-align: left; /* Align content to the left edge */
-    padding: 0.25rem 0; /* Vertical padding only, no horizontal padding */
+    text-align: left;
+    padding: 0.25rem 0;
     position: fixed;
     bottom: 0;
     width: 100%;
-    font-size: 0.75rem; /* ~12px for text and icon sizing */
-    line-height: 1.2; /* Tight line-height to minimize height */
+    font-size: 0.75rem;
+    line-height: 1.2;
 }
 
 footer p {
-    margin: 0; /* Remove default paragraph margins */
+    margin: 0;
     display: flex;
     align-items: center;
-    gap: 0.5rem; /* Space between links */
-    padding-left: 1rem; /* Optional: slight indent for content, adjust as needed */
+    gap: 0.5rem;
+    padding-left: 1rem;
 }
 
 footer a {
-    color: white; /* Ensure links are white */
-    text-decoration: none; /* Remove underline */
+    color: white;
+    text-decoration: none;
 }
 
 footer a:hover {
-    color: #66b3ff; /* Match header’s hover/selected color */
+    color: #66b3ff;
 }
 
 footer i, footer img.custom-icon {
-    width: 1em; /* ~12px based on footer’s font-size */
+    width: 1em;
     height: 1em;
-    vertical-align: middle; /* Align with text */
-    max-width: 1em; /* Prevent scaling beyond 12px */
+    vertical-align: middle;
+    max-width: 1em;
     max-height: 1em;
-    object-fit: contain; /* Ensure SVG fits within bounds */
-    display: inline-block; /* Ensure proper inline behavior */
+    object-fit: contain;
+    display: inline-block;
 }
 
-/* Ensure no external styles affect images */
 footer img.custom-icon {
-    image-rendering: auto; /* Prevent pixelation */
+    image-rendering: auto;
 }
 
 /* Styles for provider icons in the API keys widget */
@@ -334,7 +328,7 @@ footer img.custom-icon {
     color: #007bff;
 }
 
-/* Custom icon adjustments (if needed) */
+/* Custom icon adjustments */
 .custom-icon {
     display: inline-block;
     width: 1em;
@@ -348,7 +342,6 @@ footer img.custom-icon {
     fill: currentColor;
 }
 
-/* Ensure custom icons in footer are styled correctly */
 footer .custom-icon {
     width: 1em;
     height: 1em;

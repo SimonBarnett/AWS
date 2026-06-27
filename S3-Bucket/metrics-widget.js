@@ -1,6 +1,6 @@
 (function() {
     document.addEventListener('DOMContentLoaded', () => {
-        // Define CSS styles for the widget and server-provided classes
+        // ====================== STYLES ======================
         const styles = `
             #metrics-widget {
                 position: relative;
@@ -20,36 +20,34 @@
             .metric-card {
                 flex: 0 0 auto;
                 width: 250px;
-                padding: 10px; /* Reduced from 20px to halve height */
+                padding: 10px;
                 background: #f9f9f9;
                 border: 1px solid #ddd;
                 border-radius: 8px;
                 text-align: center;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             }
-            /* Background colors cycling through 61cfff, ff61ff, fe6f61, 6bff61 */
             .metric-card:nth-child(4n+1) { background-color: #61cfff; }
             .metric-card:nth-child(4n+2) { background-color: #ff61ff; }
             .metric-card:nth-child(4n+3) { background-color: #fe6f61; }
             .metric-card:nth-child(4n+4) { background-color: #6bff61; }
             .metric-card i {
-                font-size: 1.5em; /* Reduced from 2em for half height */
-                margin-bottom: 5px; /* Reduced from 10px */
-                /* Adjust icon color for visibility */
-                color: #fff; /* White icons for contrast against colored backgrounds */
+                font-size: 1.5em;
+                margin-bottom: 5px;
+                color: #fff;
             }
             .metric-card h3 {
-                font-size: 0.9em; /* Reduced from 1.2em */
-                margin: 5px 0; /* Reduced from 10px */
-                color: #333; /* Dark text for readability */
+                font-size: 0.9em;
+                margin: 5px 0;
+                color: #333;
             }
             .metric-card p {
-                font-size: 1em; /* Reduced from 1.5em */
+                font-size: 1em;
                 font-weight: bold;
-                color: #333; /* Dark text for readability */
+                color: #333;
             }
             .metric-card .warning {
-                color: #ff4500; /* Adjusted warning color for visibility */
+                color: #ff4500;
             }
             .error-message {
                 text-align: center;
@@ -57,7 +55,6 @@
                 font-size: 1.2em;
                 margin-top: 20px;
             }
-            /* Loading Overlay Styles */
             .loading-overlay {
                 display: none;
                 position: absolute;
@@ -72,45 +69,45 @@
             }
             .loading-overlay .spinner-container {
                 position: relative;
-                width: 100px; /* Reduced from 200px */
-                height: 100px; /* Reduced from 200px */
+                width: 100px;
+                height: 100px;
             }
             .loading-overlay .spinner {
                 position: absolute;
                 border-radius: 50%;
-                border: 4px solid transparent; /* Reduced from 8px */
+                border: 4px solid transparent;
                 animation: spin 1.5s linear infinite;
             }
             .loading-overlay .spinner-1 {
-                width: 40px; /* Reduced from 80px */
-                height: 40px; /* Reduced from 80px */
+                width: 40px;
+                height: 40px;
                 border-top-color: #ff6f61;
-                top: 30px; /* Reduced from 60px */
-                left: 30px; /* Reduced from 60px */
+                top: 30px;
+                left: 30px;
                 animation-delay: 0s;
             }
             .loading-overlay .spinner-2 {
-                width: 30px; /* Reduced from 60px */
-                height: 30px; /* Reduced from 60px */
+                width: 30px;
+                height: 30px;
                 border-top-color: #6bff61;
-                top: 35px; /* Reduced from 70px */
-                left: 35px; /* Reduced from 70px */
+                top: 35px;
+                left: 35px;
                 animation-delay: 0.3s;
             }
             .loading-overlay .spinner-3 {
-                width: 20px; /* Reduced from 40px */
-                height: 20px; /* Reduced from 40px */
+                width: 20px;
+                height: 20px;
                 border-top-color: #61cfff;
-                top: 40px; /* Reduced from 80px */
-                left: 40px; /* Reduced from 80px */
+                top: 40px;
+                left: 40px;
                 animation-delay: 0.6s;
             }
             .loading-overlay .spinner-4 {
-                width: 10px; /* Reduced from 20px */
-                height: 10px; /* Reduced from 20px */
+                width: 10px;
+                height: 10px;
                 border-top-color: #ff61ff;
-                top: 45px; /* Reduced from 90px */
-                left: 45px; /* Reduced from 90px */
+                top: 45px;
+                left: 45px;
                 animation-delay: 0.9s;
             }
             @keyframes spin {
@@ -119,12 +116,12 @@
             }
         `;
 
-        // Inject styles into the document head
+        // Inject styles
         const styleElement = document.createElement('style');
         styleElement.innerHTML = styles;
         document.head.appendChild(styleElement);
 
-        // Load Font Awesome if not already present
+        // Load Font Awesome
         if (!document.querySelector('link[href*="font-awesome"]')) {
             const faLink = document.createElement('link');
             faLink.rel = 'stylesheet';
@@ -132,7 +129,7 @@
             document.head.appendChild(faLink);
         }
 
-        // Use existing #metrics-widget if available, else create a new one
+        // Get or create the widget container
         let widget = document.getElementById('metrics-widget');
         if (!widget) {
             widget = document.createElement('div');
@@ -153,50 +150,67 @@
         `;
         widget.appendChild(loadingOverlay);
 
-        // Function to fetch metrics HTML from the endpoint with token
+        // ====================== LOAD AUDIOTOUR ======================
+        function loadAudioTourScript() {
+            return new Promise((resolve, reject) => {
+                if (window.initAudioTour) {
+                    resolve();
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load audiotour.js'));
+                document.head.appendChild(script);
+            });
+        }
+
+        // ====================== FETCH METRICS ======================
         async function fetchMetricsHtml() {
-            loadingOverlay.style.display = 'flex'; // Show loading overlay
+            loadingOverlay.style.display = 'flex';
 
             try {
-                // Prepare headers object
-                let headers = {};
-
-                // Retrieve the token from localStorage
+                const headers = {};
                 const token = localStorage.getItem('authToken');
-
-                // If token exists, include it in the Authorization header
                 if (token) {
                     headers['Authorization'] = `Bearer ${token}`;
                 }
 
-                // Fetch data from the endpoint with headers
                 const response = await fetch('https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/ui/metrics', {
                     headers: headers
                 });
 
-                // Check if the response is successful
                 if (!response.ok) {
                     throw new Error('Failed to fetch metrics');
                 }
 
-                // Parse the JSON response
                 const data = await response.json();
 
-                // Check if HTML content is present and update the widget
                 if (data.html) {
-                    widget.innerHTML = data.html; // Replace content, including loading overlay
+                    widget.innerHTML = data.html;
+
+                    // Load and initialize Audio Tour after content is loaded
+                    try {
+                        await loadAudioTourScript();
+                        if (window.initAudioTour) {
+                            window.initAudioTour('metrics-widget', './metrics-widget-audiotour.json');
+                            console.log('[MetricsWidget] Audio Tour initialized');
+                        }
+                    } catch (audioError) {
+                        console.warn('[MetricsWidget] Could not load Audio Tour:', audioError);
+                    }
                 } else {
                     throw new Error('No HTML content in response');
                 }
             } catch (error) {
-                // Display error message in the widget
                 widget.innerHTML = `<div class="error-message">${error.message}</div>`;
             } finally {
-                loadingOverlay.style.display = 'none'; // Hide loading overlay
+                loadingOverlay.style.display = 'none';
             }
         }
 
-        // Initialize the widget by fetching and setting the metrics HTML
+        // Start everything
         fetchMetricsHtml();
     });
 })();

@@ -88,6 +88,13 @@
             document.head.appendChild(link);
         }
 
+        // **Inject Marked.js for ToS Markdown rendering (exact same fix as api-widget)**
+        if (!document.querySelector('script[src*="marked"]')) {
+            const markedScript = document.createElement('script');
+            markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+            document.head.appendChild(markedScript);
+        }
+
         // Helpers
         const getParam = name => new URLSearchParams(location.search).get(name);
         const isValidPassword = pw => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&=])[A-Za-z\d@$!%*?&=]{8,}$/.test(pw);
@@ -328,7 +335,7 @@
             wrapper.innerHTML = `
                 <style>
                     #tos-box { text-align:left; }
-                    #tos-scroll { max-height:320px; overflow-y:auto; border:1px solid #ddd; padding:1rem; margin:1rem 0; font-size:0.94rem; line-height:1.5; white-space:pre-wrap; }
+                    #tos-scroll { max-height:320px; overflow-y:auto; border:1px solid #ddd; padding:1rem; margin:1rem 0; font-size:0.94rem; line-height:1.5; }
                     #agree-row { display:flex; align-items:center; gap:10px; margin:1rem 0; }
                     #agree-row input:disabled { cursor:not-allowed; }
                     .btn { padding:0.8rem 1.6rem; background:#1976d2; color:white; border:none; border-radius:6px; cursor:pointer; transition:background 0.2s; }
@@ -338,7 +345,7 @@
                 </style>
                 <div id="tos-box">
                     <h2 style="text-align:center;">Terms of Service</h2>
-                    <div id="tos-scroll">${tosText}</div>
+                    <div id="tos-scroll">${typeof marked !== 'undefined' ? marked.parse(tosText) : tosText}</div>
                     <div id="agree-row">
                         <input type="checkbox" id="agree" disabled>
                         <label for="agree">I agree to the Terms of Service</label>

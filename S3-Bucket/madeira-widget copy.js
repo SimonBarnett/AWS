@@ -1,7 +1,7 @@
 (function() {
 
-    // XAI — YOU MUST INCREMENT THE VERSION NUMBER WITH EVERY ITERATION (0.9 → 1.0, 1.1 etc.)
-    const Version = '2.1';
+    // XAI, increment the version with each iteration
+    const Version = '0.9';
     console.log(`Madeira Widget Version: ${Version}`);
     
     // Configuration
@@ -85,7 +85,7 @@
     `;
     console.log('Widget HTML structure set');
 
-    // Declare ALL variables ONCE at top level
+    // Add no-records div inside parts-container
     const partsContainer = document.getElementById('parts-container');
     partsContainer.style.flex = '1 1 auto';
     partsContainer.style.overflowY = 'auto';
@@ -97,6 +97,7 @@
     noRecordsDiv.textContent = 'No products found in this category.';
     partsContainer.appendChild(noRecordsDiv);
 
+    // Add controls (category select and icons for mobile, dropdowns for desktop) to controls-container
     const controlsContainer = document.getElementById('controls-container');
     controlsContainer.innerHTML = `
         <div id="mobile-controls" class="mobile-controls">
@@ -181,14 +182,6 @@
     document.head.appendChild(cssLink);
     console.log('Theme CSS added:', cssPath);
 
-    // Load FingerprintJS CDN
-    const fpScript = document.createElement('script');
-    fpScript.src = 'https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js';
-    fpScript.async = true;
-    fpScript.as = 'script';
-    document.head.appendChild(fpScript);
-    console.log('FingerprintJS CDN added');
-
     // Load PostHog JS SDK
     const posthogScript = document.createElement('script');
     posthogScript.src = 'https://app.posthog.com/static/array.js';
@@ -213,63 +206,6 @@
         showError('Failed to load analytics script. Click tracking may not work.');
     };
     console.log('PostHog script added');
-
-    // ==================== STABLE FINGERPRINT (userid included for different clubs) ====================
-    // ADDED: global cache + sessionStorage so fingerprint is generated ONCE per page load and reused for ALL calls
-    let cachedFingerprint = null;
-    const fpReadyPromise = new Promise(resolve => {
-        if (typeof FingerprintJS !== 'undefined') { resolve(); return; }
-        fpScript.onload = () => { resolve(); console.log('FingerprintJS fully loaded'); };
-        setTimeout(() => { resolve(); console.log('FingerprintJS timeout safety → stable fallback used'); }, 1200);
-    });
-
-    async function getFullFingerprint() {
-        if (cachedFingerprint) {
-            console.log('✅ Fingerprint cache hit — same ID for entire page load');
-            return cachedFingerprint;
-        }
-        await fpReadyPromise;
-        try {
-            let visitorId, clientHash;
-            if (typeof FingerprintJS === 'undefined') {
-                console.warn('FingerprintJS not loaded → using stable IP+UA+userId fallback');
-                const ip = 'client-ip-unknown';
-                const ua = navigator.userAgent;
-                const stableHash = btoa(ip + ua + currentUserId);
-                visitorId = stableHash.substring(0, 32);
-                clientHash = stableHash;
-            } else {
-                const fp = await FingerprintJS.load({ monitoring: false });
-                const result = await fp.get({ extendedResult: true });
-                const customSignals = {
-                    userAgent: navigator.userAgent,
-                    screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    language: navigator.language,
-                    canvasHash: result.components.canvas?.value || '',
-                    webglHash: result.components.webgl || '',
-                    audioHash: result.components.audio || '',
-                    fonts: result.components.fonts?.value?.join(',') || '',
-                    hardware: `${navigator.hardwareConcurrency || 'unk'}c_${navigator.deviceMemory || 'unk'}g`,
-                    userId: currentUserId
-                };
-                clientHash = btoa(JSON.stringify(customSignals));
-                visitorId = result.visitorId + '-' + currentUserId.substring(0,4);
-                console.log('✅ FingerprintJS SUCCESS →', visitorId);
-            }
-            cachedFingerprint = { visitorId, clientHash };
-            // persist for any future reloads in same session
-            try { sessionStorage.setItem('madeiraFingerprint', JSON.stringify(cachedFingerprint)); } catch(e) {}
-            return cachedFingerprint;
-        } catch (e) {
-            console.warn('Fingerprint generation failed → stable fallback');
-            const ip = 'client-ip-unknown';
-            const ua = navigator.userAgent;
-            const stableHash = btoa(ip + ua + currentUserId);
-            cachedFingerprint = { visitorId: stableHash.substring(0, 32), clientHash: stableHash };
-            return cachedFingerprint;
-        }
-    }
 
     // Set up IntersectionObserver for infinite scrolling
     const observer = new IntersectionObserver(entries => {
@@ -319,19 +255,13 @@
     }
 
     async function fetchData(query, retries = 3) {
-        const fp = await getFullFingerprint();
-        console.log('Fetching data with query:', query, 'fingerprint:', fp.visitorId, 'userId:', currentUserId);
+        console.log('Fetching data with query:', query);
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        query, 
-                        fingerprint: fp.visitorId,
-                        userId: currentUserId,
-                        clientHash: fp.clientHash 
-                    })
+                    body: JSON.stringify({ query })
                 });
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
@@ -592,12 +522,6 @@
                         <i class="fab fa-amazon"></i>
                     </div>
                 `;
-            } else if (sourceLower === 'awin') {
-                iconHtml = `
-                    <div class="source-icon" style="display: block; opacity: 1; visibility: visible;">
-                        <img src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/awin.svg" style="width:24px; height:24px;" alt="Awin">
-                    </div>
-                `;
             } else if (isValidAffiliateKey(part.Source)) {
                 iconHtml = `
                     <div class="sponsor-icon" style="display: block; opacity: 1; visibility: visible; font-size: 24px;">
@@ -647,21 +571,7 @@
                 }
             });
 
-            partDiv.addEventListener('click', async () => {
-                // ==================== FIRE-AND-FORGET CLICK RECORDING (NO QUERY) ====================
-                const fp = await getFullFingerprint();
-                const clickData = {
-                    userId: currentUserId,
-                    productId: part.ID,
-                    fingerprint: fp.visitorId
-                };
-                fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(clickData),
-                    keepalive: true   // fire-and-forget
-                }).catch(() => {});   // ignore errors
-
+            partDiv.addEventListener('click', () => {
                 if (part.AffiliateUrl && part.AffiliateUrl !== 'null' && !part.AffiliateUrl.includes('/html/null')) {
                     if (window.posthog && isValidAffiliateKey(part.Source)) {
                         window.posthog.capture('click', {
@@ -698,8 +608,6 @@
                 loadingDiv.style.display = 'flex';
                 loadingDiv.style.opacity = 1;
                 loadingDiv.style.visibility = 'visible';
-                // Removed grey background - spinner only
-                loadingDiv.style.backgroundColor = 'transparent';
             } else {
                 loadingDiv.style.opacity = 0;
                 loadingDiv.style.visibility = 'hidden';

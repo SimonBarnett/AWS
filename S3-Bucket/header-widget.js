@@ -155,22 +155,200 @@ class HeaderWidget {
         this.init();
     }
 
-    injectStyles() {
-        if (!document.getElementById('header-widget-styles')) {
-            const style = document.createElement('style');
-            style.id = 'header-widget-styles';
-            style.innerHTML = `
-/* Define spin animation for overlay */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-            `;
-            document.head.appendChild(style);
-            console.log('Header widget styles injected');
+    // ==================== AUDIO MUTE FUNCTIONALITY ====================
+    isAudioMuted() {
+        return localStorage.getItem('audioMuted') === 'true';
+    }
+
+    setAudioMuted(muted) {
+        localStorage.setItem('audioMuted', muted ? 'true' : 'false');
+    }
+
+    toggleAudioMute() {
+        const newState = !this.isAudioMuted();
+        this.setAudioMuted(newState);
+        this.updateMuteButton();
+    }
+
+    updateMuteButton() {
+        const muteBtn = this.element.querySelector('.mute-button');
+        if (!muteBtn) return;
+
+        const isMuted = this.isAudioMuted();
+
+        if (isMuted) {
+            muteBtn.classList.remove('fa-volume-up');
+            muteBtn.classList.add('fa-volume-mute');
+            muteBtn.style.color = '#ff5252';
         } else {
-            console.log('Header widget styles already exist');
+            muteBtn.classList.remove('fa-volume-mute');
+            muteBtn.classList.add('fa-volume-up');
+            muteBtn.style.color = '#4caf50';
         }
+    }
+
+    // ==================== PWA DETECTION ====================
+    isRunningAsPWA() {
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            return true;
+        }
+        if (window.navigator.standalone === true) {
+            return true;
+        }
+        return false;
+    }
+
+    injectStyles() {
+        if (document.getElementById('header-widget-styles')) {
+            console.log('Header widget styles already exist');
+            return;
+        }
+    
+        const style = document.createElement('style');
+        style.id = 'header-widget-styles';
+        style.innerHTML = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+    
+            header nav {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: relative;
+            }
+    
+            .menu-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                position: relative;
+            }
+    
+            .menu-list {
+                display: flex;
+                align-items: center;
+                gap: 8px;                    /* Same gap as between Logout and Mute */
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                flex-wrap: nowrap;
+            }
+    
+            .hamburger {
+                font-size: 1.7rem;
+                cursor: pointer;
+                padding: 8px 12px;
+                color: inherit;
+                display: none !important;
+            }
+    
+            @media (min-width: 1200px) {
+                .hamburger {
+                    display: none !important;
+                }
+                .menu-list {
+                    display: flex !important;
+                }
+    
+                .menu-link {
+                    white-space: nowrap;
+                    padding: 8px 6px;
+                }
+    
+                .menu-item.selected .menu-link {
+                    color: #ffffff !important;
+                    font-weight: 600;
+                }
+    
+                .menu-item.selected .menu-icon {
+                    color: #61cfff !important;
+                }
+            }
+    
+            @media (max-width: 1199px) {
+                .hamburger {
+                    display: block !important;
+                }
+    
+                .menu-list {
+                    display: none;
+                    flex-direction: column;
+                    position: absolute;
+                    top: calc(100% + 10px);
+                    right: 0;
+                    background: #333333;
+                    border: 1px solid #555555;
+                    border-radius: 10px;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                    padding: 6px 0;
+                    min-width: 260px;
+                    z-index: 9999;
+                }
+    
+                .menu-list.show {
+                    display: flex !important;
+                }
+    
+                .menu-item {
+                    width: 100%;
+                }
+    
+                .menu-link {
+                    color: #ffffff !important;
+                    text-decoration: none;
+                    padding: 14px 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    width: 100%;
+                    white-space: nowrap;
+                }
+    
+                .menu-link:hover {
+                    background-color: #444444;
+                }
+    
+                .menu-icon {
+                    color: #ffffff;
+                }
+    
+                .menu-item.selected .menu-link {
+                    color: #ffffff !important;
+                    font-weight: 600;
+                }
+    
+                .menu-item.selected .menu-icon {
+                    color: #61cfff !important;
+                }
+            }
+    
+            /* Mute button with circular background */
+            .mute-button-wrapper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                background-color: #666666;
+                border-radius: 50%;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+                flex-shrink: 0;
+                margin-right: 8px;
+            }
+    
+            .mute-button-wrapper:hover {
+                background-color: #777777;
+            }
+    
+            .mute-button {
+                font-size: 1.1rem;
+            }
+        `;
+        document.head.appendChild(style);
+        console.log('Header widget styles injected');
     }
 
     addPwaMetaTags() {
@@ -284,6 +462,9 @@ class HeaderWidget {
 
         this.injectSvgSprite();
 
+        this.isPWA = this.isRunningAsPWA();
+        console.log('Running as PWA:', this.isPWA);
+
         let config = {
             loginUrl: '/login.html',
             affiliateCode: ''
@@ -311,7 +492,6 @@ class HeaderWidget {
         if (token && isTokenValid(token)) {
             this.isAuthenticated = true;
 
-            // ✅ Claims fix: Read permissions directly from JWT instead of calling removed /login/claims endpoint
             try {
                 const decoded = decodeToken(token);
                 this.userRoles = decoded?.permissions || [];
@@ -350,6 +530,7 @@ class HeaderWidget {
     render() {
         console.log('Rendering header');
         const currentPath = window.location.pathname;
+
         const menuHTML = this.menuItems
             .filter(item => {
                 if (item.roles.length === 0) return true;
@@ -358,6 +539,10 @@ class HeaderWidget {
                 return this.isAuthenticated && item.roles.some(role => this.userRoles.includes(role));
             })
             .map(item => {
+                if (item.action === 'install' && this.isPWA) {
+                    return '';
+                }
+
                 if (item.action === 'install') {
                     return `<li class="menu-item install-item"><a href="#" class="menu-link" data-name="${item.name}"><span class="menu-text">${item.name}</span><i class="${item.icon} menu-icon"></i></a></li>`;
                 }
@@ -376,6 +561,12 @@ class HeaderWidget {
                         </div>
                         <div class="menu-group">
                             <ul class="menu-list">${menuHTML}</ul>
+                            
+                            <!-- Mute button with circular background -->
+                            <div class="mute-button-wrapper" style="margin-right: 8px;">
+                                <i class="fas fa-volume-up mute-button"></i>
+                            </div>
+                            
                             <i class="fas fa-bars hamburger"></i>
                         </div>
                         <div class="menu-hint">
@@ -396,38 +587,60 @@ class HeaderWidget {
         const hamburger = this.element.querySelector('.hamburger');
         const menuList = this.element.querySelector('.menu-list');
         const nav = this.element.querySelector('nav');
+        const muteBtn = this.element.querySelector('.mute-button');
 
         if (!nav) {
             console.error('Nav element not found');
             return;
         }
 
+        // Hamburger toggle
         hamburger.addEventListener('click', () => {
             menuList.classList.toggle('show');
         });
 
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!menuList.contains(e.target) && !hamburger.contains(e.target)) {
+                menuList.classList.remove('show');
+            }
+        });
+
+        // Mute button + tooltip
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                this.toggleAudioMute();
+            });
+
+            muteBtn.parentElement.addEventListener('mouseenter', () => {
+                const isMuted = this.isAudioMuted();
+                menuHint.querySelector('.menu-name').textContent = isMuted ? 'Unmute Audio' : 'Mute Audio';
+                menuHint.classList.add('visible');
+            });
+
+            muteBtn.parentElement.addEventListener('mouseleave', () => {
+                menuHint.classList.remove('visible');
+            });
+        }
+
+        this.updateMuteButton();
+
+        // Menu item handlers
         menuItems.forEach(item => {
             const link = item.querySelector('.menu-link');
+            if (!link) return;
+
             const name = link.dataset.name;
 
             if (name === 'Install App') {
                 link.addEventListener('click', (event) => {
                     event.preventDefault();
-                    console.log('Install App clicked, installPromptEvent:', this.installPromptEvent);
                     if (this.installPromptEvent) {
-                        console.log('Triggering install prompt');
                         this.installPromptEvent.prompt();
-                        this.installPromptEvent.userChoice.then((choiceResult) => {
-                            console.log('User choice:', choiceResult.outcome);
-                            if (choiceResult.outcome === 'accepted') {
-                                console.log('User accepted the install prompt');
-                            } else {
-                                console.log('User dismissed the install prompt');
-                            }
+                        this.installPromptEvent.userChoice.then(() => {
                             this.installPromptEvent = null;
                         });
                     } else {
-                        console.log('Install prompt not available');
                         if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
                             alert('To install this app, tap the Share icon in your browser and select "Add to Home Screen".');
                         } else {
@@ -438,7 +651,7 @@ class HeaderWidget {
             } else if (link.href && link.href !== '#') {
                 link.addEventListener('click', (event) => {
                     event.preventDefault();
-                    console.log(`Navigating to ${link.href}`);
+                    menuList.classList.remove('show');
                     overlay.style.display = 'flex';
                     requestAnimationFrame(() => {
                         window.location.href = link.href;
@@ -468,19 +681,19 @@ class HeaderWidget {
             });
 
             link.addEventListener('mouseleave', () => {
-                menuHint.querySelector('.menu-name').textContent = '';
                 menuHint.classList.remove('visible');
             });
         });
 
+        // Logout
         const logoutLink = this.element.querySelector('a[data-name="Logout"]');
         if (logoutLink) {
             logoutLink.addEventListener('click', (event) => {
                 event.preventDefault();
-                console.log('Logout clicked');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user_id');
                 localStorage.removeItem('contact_name');
+                menuList.classList.remove('show');
                 overlay.style.display = 'flex';
                 requestAnimationFrame(() => {
                     window.location.href = this.loginUrl;

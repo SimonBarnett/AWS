@@ -19,6 +19,13 @@
         console.log('API Keys Widget: FontAwesome CSS already present');
     }
 
+    // **Inject Marked.js for #tos-content rendering (only change allowed)**
+    if (!document.querySelector('script[src*="marked"]')) {
+        const markedScript = document.createElement('script');
+        markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        document.head.appendChild(markedScript);
+    }
+
     // **Inject Widget HTML with Loading Overlay Visible**
     container.innerHTML = `
         <div id="api-keys-wrapper">
@@ -64,7 +71,7 @@
             <div id="tos-dialog" class="tos-dialog">
                 <div class="dialog-content">
                     <h2>Merchant Terms of Service</h2>
-                    <div id="tos-content" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap;"></div>
+                    <div id="tos-content" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; font-size: 14px; line-height: 1.5;"></div>
                     <div class="tos-agree-container">
                         <div class="checkbox-wrapper">
                             <input type="checkbox" id="tos-agree" disabled>
@@ -383,6 +390,8 @@
         #provider-icon svg {
             fill: currentColor;
         }
+        /* ONLY CHANGE: #tos-content now supports rendered HTML */
+        #tos-content { white-space: normal; }
     `;
     document.head.appendChild(style);
 
@@ -584,7 +593,8 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load Terms of Service');
-            tosContent.textContent = await response.text();
+            // MARKDOWN FIX ONLY: innerHTML + marked.parse on exact response from original endpoint
+            tosContent.innerHTML = marked.parse(await response.text());
             tosDialog.classList.add('show');
             tosAgreeCheckbox.disabled = true;
             tosAgreeCheckbox.checked = false;

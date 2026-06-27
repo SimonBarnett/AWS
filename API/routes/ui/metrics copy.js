@@ -1,5 +1,5 @@
 // ====================== routes/ui/metrics.js ======================
-// Full original logic restored + adapted to pool + executeWithRetry + ALL THREE METRICS (Categories, Parts, Top 3) updated exactly as requested
+// Full original logic restored + adapted to pool + executeWithRetry
 
 const { logger, executeWithRetry, sql } = require('/opt/nodejs/helpers');
 
@@ -63,63 +63,29 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
 async function fetchCommunityMetrics(pool, userId) {
     const metrics = [];
 
-    // Categories metric — exact layout you requested
     const catResult = await executeQuery(pool,
-        'select count(*) as count from Catalog where UserId = @userId',
+        'SELECT COUNT(DISTINCT MainCategory) as count FROM Catalog WHERE UserId = @userId',
         { userId });
-    const catCount = catResult[0].count || 0;
+    metrics.push({ title: 'Number of Categories', value: catResult[0].count, icon: 'fa-list-alt' });
 
-    const catViewsResult = await executeQuery(pool, `
-        select count(*) as views 
-        from UserFingerprints fp
-        join FingerprintCatalogAccess ca on fp.id = ca.fingerprint_id
-        where user_id = @userId
-        and ProductID is null
-        and ca.timestamp > dateadd(day,-30,getdate())`, { userId });
-    const catViews = catViewsResult[0].views || 0;
-
-    metrics.push({ 
-        title: 'Catalog Overview', 
-        value: `Categories : ${catCount}<br>views : ${catViews}`, 
-        icon: 'fa-list-alt' 
-    });
-
-    // Parts metric — exact layout you requested
     const partsResult = await executeQuery(pool,
         'SELECT COUNT(*) as count FROM Products WHERE UserId = @userId',
         { userId });
-    const partsCount = partsResult[0].count || 0;
+    metrics.push({ title: 'Number of Parts', value: partsResult[0].count, icon: 'fa-boxes' });
 
-    const partsClicksResult = await executeQuery(pool, `
-        select count(*) as clicks 
-        from UserFingerprints fp
-        join FingerprintCatalogAccess ca on fp.id = ca.fingerprint_id
-        where user_id = @userId
-        and ProductID is not null
-        and ca.timestamp > dateadd(day,-30,getdate())`, { userId });
-    const partsClicks = partsClicksResult[0].clicks || 0;
+    const popularResult = await executeQuery(pool, `
+        SELECT TOP 3 SubCategory, COUNT(*) as Clicks 
+        FROM DatabaseCallLog 
+        WHERE UserId = @userId 
+          AND Timestamp >= DATEADD(day, -7, GETDATE()) 
+          AND SubCategory IS NOT NULL
+        GROUP BY SubCategory 
+        ORDER BY Clicks DESC`, { userId });
 
-    metrics.push({ 
-        title: 'Parts Overview', 
-        value: `Parts : ${partsCount}<br>Clicks : ${partsClicks}`, 
-        icon: 'fa-boxes' 
-    });
-
-    // Top 3 Categories — exact query and layout you requested (no "Last 7 Days" text)
-    const topResult = await executeQuery(pool, `
-        select distinct top 3 c.MainCategory , count(*) AS Clicks
-        from UserFingerprints fp
-        join FingerprintCatalogAccess ca on fp.id = ca.fingerprint_id
-        join [dbo].[Catalog] c on c.ID = ca.catalog_id
-        where user_id = @userId
-        and ProductID is not null
-        and ca.timestamp > dateadd(day,-30,getdate())
-        group by MainCategory`, { userId });
-
-    const list = topResult.length
-        ? topResult.map(r => `<li>${r.MainCategory} (${r.Clicks})</li>`).join('')
+    const list = popularResult.length
+        ? popularResult.map(r => `<li>${r.SubCategory} (${r.Clicks})</li>`).join('')
         : '<li>No data available</li>';
-    metrics.push({ title: 'Top 3 Categories', value: `<ul>${list}</ul>`, icon: 'fa-list-ul' });
+    metrics.push({ title: 'Top 3 Popular Subcategories (Last 7 Days)', value: `<ul>${list}</ul>`, icon: 'fa-list-ul' });
 
     return metrics;
 }
