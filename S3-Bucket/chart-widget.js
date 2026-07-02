@@ -10,6 +10,9 @@
 // - Period, Role and Report groups on a SINGLE LINE
 // - Audio Tour icon placed to the RIGHT of the Report radio group
 // - Every major feature from original preserved + improved
+// - Audio Tour loads completely asynchronously — does NOT block chart loading
+// - Help button only appears after Audio Tour data has finished loading (handled inside audiotour.js)
+// - FIXED: Report selection now reliably triggers chart update on first click
 
 (function () {
     // ====================== LOAD DEPENDENCIES ======================
@@ -364,7 +367,7 @@
             });
         }
 
-        // ====================== BUILD REPORT RADIOS ======================
+        // ====================== BUILD REPORT RADIOS (FIXED) ======================
         function buildReportRadios(reports) {
             reportSelector.innerHTML = '';
 
@@ -393,11 +396,16 @@
                     </div>
                 `;
 
+                const radioInput = label.querySelector('input[type="radio"]');
+
+                // FIXED: Ensure radio is checked immediately + pass value directly
                 label.addEventListener('click', () => {
+                    radioInput.checked = true;
+
                     reportSelector.querySelectorAll('.report-option').forEach(el => el.classList.remove('selected'));
                     label.classList.add('selected');
 
-                    fetchChartDataForCurrentSelection();
+                    fetchChartData(reportName);
                 });
 
                 reportSelector.appendChild(label);
@@ -609,19 +617,38 @@
             }
         });
 
-        // ====================== AUDIO TOUR INTEGRATION ======================
-        function loadAudioTour() {
+        // ====================== AUDIO TOUR - NON-BLOCKING ASYNC LOAD ======================
+        function loadAudioTourAsync() {
+            // If already loaded globally, just initialize
+            if (window.initAudioTour) {
+                try {
+                    window.initAudioTour('madeira-charts', 'madeira-charts-audiotour.json?v=1.3');
+                } catch (e) {
+                    console.warn('[ChartWidget] Audio Tour init error:', e);
+                }
+                return;
+            }
+
             const script = document.createElement('script');
             script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
-            
+            script.async = true;
+
             script.onload = () => {
                 if (window.initAudioTour) {
-                    window.initAudioTour('madeira-charts', 'madeira-charts-audiotour.json');
+                    window.initAudioTour('madeira-charts', 'madeira-charts-audiotour.json?v=1.3');
                 }
             };
+
+            script.onerror = () => {
+                console.warn('[ChartWidget] Failed to load audiotour.js (non-blocking)');
+            };
+
             document.head.appendChild(script);
         }
 
-        setTimeout(loadAudioTour, 1500);
+        // Load Audio Tour completely asynchronously — does NOT block chart functionality
+        // The audiotour.js itself will only show the help button after its data has finished loading
+        setTimeout(loadAudioTourAsync, 1200);
+
     };
 })();

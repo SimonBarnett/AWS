@@ -1,9 +1,8 @@
 // ====================== reset-catalogue.js ======================
 // Self-contained Reset Catalogue Widget
+// Updated to use the unified /ui/reset route (action=initiate + action=confirm)
 // Follows the same pattern as gdpr-delete.js
-// FULL AND UNABRIDGED — Every single original line from your paste preserved verbatim
-// + Updated warning message exactly as requested
-// + Audio tour placement kept + debug safety added for completeness
+// FULL AND UNABRIDGED — Structure and logic preserved + updated for new backend
 
 (function () {
     if (!document.querySelector('link[href*="font-awesome"]')) {
@@ -41,7 +40,7 @@
                     </button>
 
                     <div id="resetSection" style="display:none; margin-top:20px;">
-                        <label>Enter the OTP sent to your email</label>
+                        <label>Enter the OTP sent to your phone</label>
                         <input type="text" id="otp" maxlength="6" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; margin:10px 0;">
                         
                         <div style="display:flex; gap:10px; margin-top:10px;">
@@ -65,12 +64,13 @@
         async initiateReset() {
             const overlay = this.showLoading();
             try {
-                const res = await fetch(`${this.apiEndpoint}/ui/reset-catalogue`, {
+                const res = await fetch(`${this.apiEndpoint}/ui/reset`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${this.token}`
-                    }
+                    },
+                    body: JSON.stringify({ action: 'initiate' })
                 });
                 const data = await res.json();
 
@@ -100,13 +100,16 @@
         async confirmReset(otp) {
             const overlay = this.showLoading();
             try {
-                const res = await fetch(`${this.apiEndpoint}/ui/reset-catalogue-confirm`, {
+                const res = await fetch(`${this.apiEndpoint}/ui/reset`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${this.token}`
                     },
-                    body: JSON.stringify({ otp })
+                    body: JSON.stringify({ 
+                        action: 'confirm', 
+                        otp: otp 
+                    })
                 });
                 const data = await res.json();
 
@@ -147,10 +150,9 @@
                 script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
                 script.onload = () => {
                     if (window.initAudioTour) {
-                        if (!this.element.id) {
-                            this.element.id = 'reset-catalogue-' + Date.now();
-                        }
-                        window.initAudioTour(this.element.id, 'reset-catalogue-audiotour.json');
+                        // Use stable, non-dynamic name so audiotour.js can correctly load from S3
+                        this.element.id = 'reset-catalogue';
+                        window.initAudioTour('reset-catalogue', 'reset-catalogue-audiotour.json');
                     }
                 };
                 document.head.appendChild(script);

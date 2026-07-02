@@ -3,5 +3,7 @@
     "sandbox": true,
     "loginUrl": "/login.html",
     "signupLinkUrl": "/signup.html",
-    "dashboardLinkUrl":"/dashboard.html"
+    "dashboardLinkUrl":"/dashboard.html",    
+    "tts-voice": "leo",
+    "tts-language": "en"
 }

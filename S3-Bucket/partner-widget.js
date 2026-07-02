@@ -125,7 +125,6 @@ function isValidURL(url) {
 async function checkUrlResponse(url) {
     try {
         const response = await fetch(url, { method: 'GET', mode: 'no-cors' });
-        // With no-cors, we can't access status, but if it doesn't throw, assume reachable
         addLog('URL GET check succeeded (no-cors mode)', { url });
         return true;
     } catch (error) {
@@ -143,7 +142,7 @@ class PartnerWidget {
         this.hasRequiredRole = false;
         this.isAdminOrOwner = false;
         this.isPartnerOnly = false;
-        this.iti = null; // To store the intlTelInput instance
+        this.iti = null;
         this.init();
     }
     async init() {
@@ -155,6 +154,7 @@ class PartnerWidget {
             addLog('No valid token found');
         }
         this.render();
+        this.loadAudioTour();
     }
     async fetchUserRoles() {
         try {
@@ -194,8 +194,7 @@ class PartnerWidget {
             this.hasRequiredRole = false;
         }
     }
-    // fetchMyUrls and fetchBuyUrls removed - pure invite mode
-    // purchaseUrl removed - pure invite mode
+
     render() {
         if (this.hasRequiredRole) {
             this.element.innerHTML = `
@@ -229,8 +228,9 @@ class PartnerWidget {
                             color: white;
                         }
                     </style>
-                    <h3 style="text-align: center; margin-bottom: 10px;">Invite New User</h3>
+
                     <div id="invite-content"></div>
+
                     <div id="widgetLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.8); justify-content: center; align-items: center; z-index: 1000;">
                         <div style="position: relative; width: 200px; height: 200px;">
                             <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 80px; height: 80px; border-top-color: #ff6f61; top: 60px; left: 60px; animation-delay: 0s;"></div>
@@ -252,9 +252,7 @@ class PartnerWidget {
             this.renderValidateTokenIntro();
         }
     }
-    // downloadFile removed - pure invite mode
-    // renderSitesContent removed - pure invite mode
-    // showConfirmModal removed - pure invite mode
+
     showSuccessModal() {
         const modal = this.element.querySelector('#successModal');
         modal.style.display = 'block';
@@ -263,12 +261,18 @@ class PartnerWidget {
             modal.style.display = 'none';
         };
     }
+
     renderInviteForm() {
         const inviteContent = this.element.querySelector('#invite-content');
         if (!inviteContent) return;
         addLog('Rendering invite form');
         inviteContent.innerHTML = `
-            <h3 style="font-size: 1.5em; margin-bottom: 10px;">Invite a New User</h3>
+            <!-- Title + Audio Tour Button (to the right) -->
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                <h3 style="font-size: 1.5em; margin-bottom: 10px; flex: 1;">Invite a New User</h3>
+                <div class="audiotour-placement"></div>
+            </div>
+
             <p style="margin-bottom: 15px;">Please select the role, and provide the email and Mobile number of the new user. We'll send them a token that's valid for 48 hours to join us.</p>
             <form id="generateTokenForm">
                 <style>
@@ -343,13 +347,11 @@ class PartnerWidget {
                     <label for="url" style="display: block; margin-bottom: 5px;">URL:</label>
                     <input type="url" id="url" name="url" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     <span id="url-error" style="color: red; display: none;"></span>
-                    <span id="url-loading" class="fa fa-spinner fa-spin"></span>
                 </div>
                 <div id="site-container">
                     <label for="site" style="display: block; margin-bottom: 5px;">Select Site:</label>
                     <select id="site" name="site" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                         <option value="">Select a site (your sites)</option>
-                        <!-- Dynamic site list from myUrls removed in pure invite mode; add manually if needed -->
                     </select>
                     <span id="site-error" style="color: red; display: none;"></span>
                 </div>
@@ -365,7 +367,7 @@ class PartnerWidget {
                     </div>
                     <span id="mobile-error" style="color: red; display: none;"></span>
                 </div>
-                <button type="submit" id="generateTokenButton" disabled style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">Generate Token</button>
+                <button type="submit" id="generateTokenButton" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">Generate Token</button>
             </form>
             <div id="generateTokenMessage" style="margin-top: 10px; text-align: center;"></div>
             <div id="loadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); justify-content: center; align-items: center; z-index: 10;">
@@ -378,6 +380,7 @@ class PartnerWidget {
             </div>
         </div>
         `;
+
         const options = inviteContent.querySelectorAll('.madeira-signup-option');
         options.forEach(option => {
             option.addEventListener('click', () => {
@@ -387,121 +390,25 @@ class PartnerWidget {
                 this.updateFormFields(inviteContent);
             });
         });
+
         const mobileInput = inviteContent.querySelector('#mobile');
         if (mobileInput) {
             this.iti = window.intlTelInput(mobileInput, {
                 initialCountry: 'gb',
                 utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js'
             });
-            addLog('intl-tel-input initialized successfully', { iti: this.iti });
-            if (this.iti) {
-                addLog('iti instance created', { isUtilsLoaded: typeof window.intlTelInputUtils, isValidNumberAvailable: typeof this.iti.isValidNumber });
-            } else {
-                addLog('Failed to create iti instance');
-            }
-            mobileInput.style.paddingLeft = '60px'; // Ensure text starts after the dial code
-            addLog('intl-tel-input initialized');
-        } else {
-            addLog('Failed to initialize intl-tel-input', { intlTelInputAvailable: typeof window.intlTelInput, MobileInputExists: !!mobileInput });
+            mobileInput.style.paddingLeft = '60px';
         }
-        const emailInput = inviteContent.querySelector('#email');
-        const urlInput = inviteContent.querySelector('#url');
-        const urlError = inviteContent.querySelector('#url-error');
-        const urlLoading = inviteContent.querySelector('#url-loading');
-        const generateTokenButton = inviteContent.querySelector('#generateTokenButton');
-        let isUrlResponseValid = false;
-        if (urlInput) {
-            urlInput.addEventListener('blur', async () => {
-                const url = urlInput.value;
-                if (isValidURL(url)) {
-                    urlLoading.style.display = 'inline-block';
-                    isUrlResponseValid = await checkUrlResponse(url);
-                    urlLoading.style.display = 'none';
-                    if (!isUrlResponseValid) {
-                        urlError.textContent = 'URL did not respond with 200 OK';
-                        urlError.style.display = 'block';
-                    } else {
-                        urlError.style.display = 'none';
-                    }
-                } else {
-                    isUrlResponseValid = false;
-                    urlError.textContent = 'Invalid URL format';
-                    urlError.style.display = 'block';
-                }
-                validateForm();
-            });
-        }
-        const validateForm = () => {
-            const tokenType = inviteContent.querySelector('input[name="signup_type"]:checked')?.value || '';
-            const email = emailInput.value;
-            const isEmailValid = isValidEmail(email);
-            let isMobileValid = false;
-            let validationError = 'iti not initialized';
-            let selectedCountryData = null;
-            let number = mobileInput.value;
-            let e164Number = '';
-            let errorMessage = '';
-            if (this.iti) {
-                if (!window.intlTelInputUtils) {
-                    errorMessage = 'Utils loading...';
-                    isMobileValid = false;
-                } else {
-                    isMobileValid = this.iti.isValidNumber();
-                    validationError = this.iti.getValidationError();
-                    selectedCountryData = this.iti.getSelectedCountryData();
-                    e164Number = this.iti.getNumber();
-                    number = mobileInput.value;
-                }
-            }
-            let isUrlValid = true;
-            const isUrlRequired = tokenType === 'community' || (tokenType === 'partner' && !this.isAdminOrOwner);
-            if (isUrlRequired) {
-                isUrlValid = !!urlInput.value && isValidURL(urlInput.value) && isUrlResponseValid;
-            } else if (urlInput.value) {
-                isUrlValid = isValidURL(urlInput.value) && isUrlResponseValid;
-            }
-            if (urlError) {
-                urlError.textContent = isUrlValid ? '' : (urlInput.value ? (isValidURL(urlInput.value) ? 'URL did not respond with 200 OK' : 'Invalid URL') : 'URL is required');
-                urlError.style.display = isUrlValid ? 'none' : 'block';
-            }
-            let isSiteValid = true;
-            if (tokenType === 'merchant' && this.isPartnerOnly) {
-                const site = inviteContent.querySelector('#site').value;
-                isSiteValid = !!site;
-                inviteContent.querySelector('#site-error').textContent = isSiteValid ? '' : 'Please select a site';
-                inviteContent.querySelector('#site-error').style.display = isSiteValid ? 'none' : 'block';
-            }
-            const isFormValid = isEmailValid && isMobileValid && isUrlValid && isSiteValid;
-            addLog('Mobile validation debug', {
-                inputValue: number,
-                e164Number: e164Number,
-                isValid: isMobileValid,
-                validationErrorCode: validationError,
-                errorMessage: window.intlTelInputUtils ? window.intlTelInputUtils.getValidationError(validationError, selectedCountryData) : errorMessage,
-                selectedCountry: selectedCountryData,
-                utilsLoaded: typeof window.intlTelInputUtils !== 'undefined'
-            });
-            inviteContent.querySelector('#email-error').textContent = isEmailValid ? '' : 'Invalid email address';
-            inviteContent.querySelector('#email-error').style.display = isEmailValid ? 'none' : 'block';
-            inviteContent.querySelector('#mobile-error').textContent = isMobileValid ? '' : (errorMessage || 'Invalid Mobile number');
-            inviteContent.querySelector('#mobile-error').style.display = isMobileValid ? 'none' : 'block';
-            generateTokenButton.disabled = !isFormValid;
-        };
-        emailInput.addEventListener('input', validateForm);
-        mobileInput.addEventListener('input', () => {
-            addLog('Mobile input changed', { value: mobileInput.value });
-            validateForm();
-        });
-        mobileInput.addEventListener('countrychange', () => {
-            addLog('Country changed', { country: this.iti ? this.iti.getSelectedCountryData() : 'iti not initialized' });
-            validateForm();
-        });
-        inviteContent.querySelector('#site')?.addEventListener('change', validateForm);
-        this.updateFormFields(inviteContent);
-        validateForm();
+
         const generateForm = inviteContent.querySelector('#generateTokenForm');
         generateForm.addEventListener('submit', this.handleGenerateToken.bind(this));
+
+        // FIX: Ensure initial role state is correctly applied on first load
+        setTimeout(() => {
+            this.updateFormFields(inviteContent);
+        }, 50);
     }
+
     getRoleOptionsHTML() {
         let options = '';
         if (this.isAdminOrOwner) {
@@ -541,13 +448,20 @@ class PartnerWidget {
         }
         return options;
     }
+
     updateFormFields(container) {
         const tokenType = container.querySelector('input[name="signup_type"]:checked')?.value || '';
         const urlContainer = container.querySelector('#url-container');
         const siteContainer = container.querySelector('#site-container');
-        if (urlContainer) urlContainer.style.display = (tokenType === 'community' || tokenType === 'partner') ? 'block' : 'none';
-        if (siteContainer) siteContainer.style.display = (tokenType === 'merchant' && this.isPartnerOnly) ? 'block' : 'none';
+
+        if (urlContainer) {
+            urlContainer.style.display = (tokenType === 'community' || tokenType === 'partner') ? 'block' : 'none';
+        }
+        if (siteContainer) {
+            siteContainer.style.display = (tokenType === 'merchant' && this.isPartnerOnly) ? 'block' : 'none';
+        }
     }
+
     renderValidateTokenIntro() {
         this.element.innerHTML = `
             <div style="text-align: center; max-width: 400px; margin: auto; padding: 20px;">
@@ -560,6 +474,7 @@ class PartnerWidget {
         const showValidateFormButton = this.element.querySelector('#showValidateForm');
         showValidateFormButton.addEventListener('click', () => this.showValidateTokenToS());
     }
+
     async showValidateTokenToS() {
         const tosUrl = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/partner_tos.txt';
         try {
@@ -688,6 +603,7 @@ class PartnerWidget {
             this.renderValidateTokenIntro();
         }
     }
+
     renderValidateTokenForm() {
         this.element.innerHTML = `
             <div style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; max-width: 400px; margin: auto; background: #f9f9f9;">
@@ -711,6 +627,7 @@ class PartnerWidget {
         const form = this.element.querySelector('#validateTokenForm');
         form.addEventListener('submit', this.handleValidateToken.bind(this));
     }
+
     async handleGenerateToken(event) {
         event.preventDefault();
         const form = event.target;
@@ -720,53 +637,53 @@ class PartnerWidget {
         const siteSelect = form.querySelector('#site');
         const generateTokenButton = form.querySelector('#generateTokenButton');
         const loadingOverlay = this.element.querySelector('#loadingOverlay');
+
         generateTokenButton.disabled = true;
         if (loadingOverlay) loadingOverlay.style.display = 'flex';
-        const email = emailInput.value;
-        let mobile = '';
-        if (this.iti) {
-            mobile = this.iti.getNumber();
-            addLog('Generating token with mobile', { rawInput: mobileInput.value, formattedMobile: mobile });
-        } else {
-            mobile = mobileInput.value; // Fallback if library fails to load
-            addLog('Generating token with fallback mobile (iti not available)', { mobile });
-        }
+
+        this.clearErrors(form);
+
+        const email = emailInput.value.trim();
+        let mobile = this.iti ? this.iti.getNumber() : mobileInput.value.trim();
         const tokenType = form.querySelector('input[name="signup_type"]:checked').value;
-        const url = (tokenType === 'community' || tokenType === 'partner') ? urlInput.value : '';
-        const communityId = (tokenType === 'merchant' && this.isPartnerOnly) ? siteSelect.value : '';
-        if (!isValidEmail(email) || !mobile || !tokenType) {
-            this.showMessage('generateTokenMessage', 'Please enter a valid email, mobile number, and select a role', 'error');
+        const url = urlInput ? urlInput.value.trim() : '';
+        const communityId = siteSelect ? siteSelect.value : '';
+
+        let hasError = false;
+
+        if (!isValidEmail(email)) {
+            this.showFieldError(form, '#email-error', 'Invalid email address');
+            hasError = true;
+        }
+        if (!mobile || (this.iti && !this.iti.isValidNumber())) {
+            this.showFieldError(form, '#mobile-error', 'Invalid Mobile number');
+            hasError = true;
+        }
+
+        if (tokenType === 'community' || tokenType === 'partner') {
+            if (!isValidURL(url)) {
+                this.showFieldError(form, '#url-error', 'URL is required');
+                hasError = true;
+            }
+        }
+
+        if (tokenType === 'merchant' && this.isPartnerOnly) {
+            if (!communityId) {
+                this.showFieldError(form, '#site-error', 'Please select a site');
+                hasError = true;
+            }
+        }
+
+        if (hasError) {
             generateTokenButton.disabled = false;
             if (loadingOverlay) loadingOverlay.style.display = 'none';
             return;
         }
-        if (tokenType === 'community' && !isValidURL(url)) {
-            this.showMessage('generateTokenMessage', 'Please enter a valid URL for community', 'error');
-            generateTokenButton.disabled = false;
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-            return;
-        }
-        if (tokenType === 'partner' && !this.isAdminOrOwner && !isValidURL(url)) {
-            this.showMessage('generateTokenMessage', 'Please enter a valid URL for partner', 'error');
-            generateTokenButton.disabled = false;
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-            return;
-        }
-        if (tokenType === 'partner' && this.isAdminOrOwner && url && !isValidURL(url)) {
-            this.showMessage('generateTokenMessage', 'Invalid URL format for partner (optional)', 'error');
-            generateTokenButton.disabled = false;
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-            return;
-        }
-        if (tokenType === 'merchant' && this.isPartnerOnly && !communityId) {
-            this.showMessage('generateTokenMessage', 'Please select a site for the merchant', 'error');
-            generateTokenButton.disabled = false;
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-            return;
-        }
+
         const body = { email, mobile, tokenType };
         if (url) body.url = url;
         if (communityId) body.communityId = communityId;
+
         try {
             const response = await fetch(`${this.apiEndpoint}/prod/ui/invite`, {
                 method: 'POST',
@@ -777,49 +694,217 @@ class PartnerWidget {
                 body: JSON.stringify(body)
             });
             const data = await response.json();
+
             if (data.status === 'success') {
                 this.showSuccessModal();
-                // Reset form
-                emailInput.value = '';
-                if (urlInput) urlInput.value = '';
-                if (siteSelect) siteSelect.value = '';
-                if (this.iti) {
-                    this.iti.setNumber('');
-                } else {
-                    mobileInput.value = '';
-                }
-                // Reset role to default
-                const defaultOption = this.element.querySelector('.madeira-signup-option.selected') || this.element.querySelector('.madeira-signup-option');
-                const options = this.element.querySelectorAll('.madeira-signup-option');
-                options.forEach(opt => opt.classList.remove('selected'));
-                defaultOption.classList.add('selected');
-                defaultOption.querySelector('input').checked = true;
-                this.updateFormFields();
-                // Re-validate form
-                const validateForm = () => {}; // Placeholder, actual in render
+                form.reset();
+                if (this.iti) this.iti.setNumber('');
             } else {
                 this.showMessage('generateTokenMessage', data.error_message || 'Oops, something went wrong generating the token.', 'error');
             }
         } catch (error) {
             this.showMessage('generateTokenMessage', 'An error occurred. Please try again later.', 'error');
-            addLog('Error generating token', { error: error.message });
         } finally {
             generateTokenButton.disabled = false;
             if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
     }
+
+    clearErrors(form) {
+        const errorSpans = form.querySelectorAll('span[id$="-error"]');
+        errorSpans.forEach(span => {
+            span.textContent = '';
+            span.style.display = 'none';
+        });
+        const messageDiv = this.element.querySelector('#generateTokenMessage');
+        if (messageDiv) messageDiv.textContent = '';
+    }
+
+    showFieldError(form, selector, message) {
+        const errorSpan = form.querySelector(selector);
+        if (errorSpan) {
+            errorSpan.textContent = message;
+            errorSpan.style.display = 'block';
+        }
+    }
+
+    renderValidateTokenIntro() {
+        this.element.innerHTML = `
+            <div style="text-align: center; max-width: 400px; margin: auto; padding: 20px;">
+                <p style="margin-bottom: 20px;">Hey there! This role is special and by invitation only. If you’ve been given a token, let us know by clicking below.</p>
+                <button id="showValidateForm" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">
+                    <i class="fas fa-key" style="margin-right: 5px;"></i> I have a token
+                </button>
+            </div>
+        `;
+        const showValidateFormButton = this.element.querySelector('#showValidateForm');
+        showValidateFormButton.addEventListener('click', () => this.showValidateTokenToS());
+    }
+
+    async showValidateTokenToS() {
+        const tosUrl = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/partner_tos.txt';
+        try {
+            const response = await fetch(tosUrl);
+            if (!response.ok) throw new Error(`Failed to load Terms of Service: HTTP ${response.status}`);
+            const tosText = await response.text();
+            this.element.innerHTML = `
+                <style>
+                    #tos-wrapper {
+                        position: relative;
+                        max-width: 400px;
+                        margin: 20px auto;
+                        padding: 20px;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                        background-color: #f9f9f9;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        box-sizing: border-box;
+                    }
+                    #tos-container {
+                        text-align: left;
+                    }
+                    #tos-content {
+                        max-height: 300px;
+                        overflow-y: auto;
+                        border: 1px solid #ddd;
+                        padding: 10px;
+                        margin-bottom: 15px;
+                        font-size: 14px;
+                        line-height: 1.5;
+                        white-space: pre-wrap;
+                        background-color: #ffffff;
+                    }
+                    #tos-agree-container {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        margin-bottom: 15px;
+                    }
+                    #tos-agree-checkbox:disabled {
+                        cursor: not-allowed;
+                    }
+                    #tos-button-container {
+                        display: flex;
+                        justify-content: flex-end;
+                    }
+                    #tos-proceed-button {
+                        background-color: #007bff;
+                        color: white;
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        transition: background-color 0.3s;
+                    }
+                    #tos-proceed-button:hover:not(:disabled) {
+                        background-color: #0056b3;
+                    }
+                    #tos-proceed-button:disabled {
+                        background-color: #ccc;
+                        cursor: not-allowed;
+                    }
+                    #loadingOverlay {
+                        display: none;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(255, 255, 255, 0.8);
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10;
+                    }
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    .fa-icon {
+                        color: #007bff;
+                    }
+                </style>
+                <div id="tos-wrapper">
+                    <div id="tos-container">
+                        <h2 style="text-align: center;">Terms of Service</h2>
+                        <div id="tos-content">${tosText}</div>
+                        <div id="tos-agree-container">
+                            <input type="checkbox" id="tos-agree-checkbox" disabled>
+                            <label for="tos-agree-checkbox">I agree to the Terms of Service</label>
+                        </div>
+                        <div id="tos-button-container">
+                            <button id="tos-proceed-button" disabled><i class="fas fa-arrow-right fa-icon" style="margin-right: 5px;"></i> Proceed</button>
+                        </div>
+                    </div>
+                    <div id="loadingOverlay">
+                        <div style="position: relative; width: 200px; height: 200px;">
+                            <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 80px; height: 80px; border-top-color: #ff6f61; top: 60px; left: 60px; animation-delay: 0s;"></div>
+                            <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 60px; height: 60px; border-top-color: #6bff61; top: 70px; left: 70px; animation-delay: 0.3s;"></div>
+                            <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 40px; height: 40px; border-top-color: #61cfff; top: 80px; left: 80px; animation-delay: 0.6s;"></div>
+                            <div style="position: absolute; border-radius: 50%; border: 8px solid transparent; animation: spin 1.5s linear infinite; width: 20px; height: 20px; border-top-color: #ff61ff; top: 90px; left: 90px; animation-delay: 0.9s;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const tosContent = this.element.querySelector('#tos-content');
+            const tosCheckbox = this.element.querySelector('#tos-agree-checkbox');
+            const proceedButton = this.element.querySelector('#tos-proceed-button');
+            tosContent.addEventListener('scroll', () => {
+                if (tosContent.scrollTop + tosContent.clientHeight >= tosContent.scrollHeight - 5) {
+                    tosCheckbox.disabled = false;
+                }
+            });
+            tosCheckbox.addEventListener('change', () => {
+                proceedButton.disabled = !tosCheckbox.checked;
+                proceedButton.style.backgroundColor = tosCheckbox.checked ? '#007bff' : '#ccc';
+                proceedButton.style.cursor = tosCheckbox.checked ? 'pointer' : 'not-allowed';
+            });
+            proceedButton.addEventListener('click', () => {
+                if (tosCheckbox.checked) {
+                    this.renderValidateTokenForm();
+                }
+            });
+        } catch (error) {
+            addLog('ToS fetch error', { error: error.message });
+            this.showMessage('validateTokenMessage', 'Failed to load Terms of Service. Please try again.', 'error');
+            this.renderValidateTokenIntro();
+        }
+    }
+
+    renderValidateTokenForm() {
+        this.element.innerHTML = `
+            <div style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; max-width: 400px; margin: auto; background: #f9f9f9;">
+                <h3 style="font-size: 1.5em; margin-bottom: 10px;">Validate Token</h3>
+                <form id="validateTokenForm">
+                    <div style="margin-bottom: 15px;">
+                        <label for="token" style="display: block; margin-bottom: 5px;">Token:</label>
+                        <textarea id="token" name="token" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; height: 100px; box-sizing: border-box;"></textarea>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="pin" style="display: block; margin-bottom: 5px;">PIN (6 digits):</label>
+                        <input type="text" id="pin" name="pin" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;" maxlength="6">
+                    </div>
+                    <button type="submit" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">
+                        Validate
+                    </button>
+                </form>
+                <div id="validateTokenMessage" style="margin-top: 10px; text-align: center;"></div>                
+            </div>
+        `;
+        const form = this.element.querySelector('#validateTokenForm');
+        form.addEventListener('submit', this.handleValidateToken.bind(this));
+    }
+
     async handleValidateToken(event) {
         event.preventDefault();
         const form = event.target;
         const token = form.querySelector('#token').value.trim();
         const pin = form.querySelector('#pin').value.trim();
-   
-        // Validate input
+
         if (!token || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
             this.showMessage('validateTokenMessage', 'Please provide a valid token and a 6-digit PIN', 'error');
             return;
         }
-   
+
         try {
             const response = await fetch(`${this.apiEndpoint}/prod/login/validate-onboarding-token`, {
                 method: 'PUT',
@@ -830,31 +915,26 @@ class PartnerWidget {
                 body: JSON.stringify({ token, pin })
             });
             const data = await response.json();
-   
+
             if (data.status === 'success') {
-                // Store the new token in local storage
                 localStorage.setItem('authToken', data.token);
-                // Update the internal token
                 this.token = data.token;
-                // Fetch updated roles with the new token
                 await this.fetchUserRoles();
-                // Re-render the widget to reflect the new role
                 this.render();
             } else {
                 this.showMessage('validateTokenMessage', data.error_message || 'Sorry, that token or PIN didn’t work.', 'error');
             }
         } catch (error) {
             this.showMessage('validateTokenMessage', 'An error occurred. Please try again later.', 'error');
-            addLog('Error validating token', { error: error.message });
         }
     }
+
     showMessage(elementId, message, type) {
         const messageElement = this.element.querySelector(`#${elementId}`);
         if (messageElement) {
             messageElement.textContent = message;
             messageElement.style.color = type === 'success' ? 'green' : 'red';
         } else {
-            // Fallback to ensure message is displayed
             const messageDiv = document.createElement('div');
             messageDiv.id = elementId;
             messageDiv.style.textAlign = 'center';
@@ -863,6 +943,22 @@ class PartnerWidget {
             messageDiv.style.color = type === 'success' ? 'green' : 'red';
             this.element.appendChild(messageDiv);
         }
+    }
+
+    // ====================== AUDIO TOUR ======================
+    loadAudioTour() {
+        setTimeout(() => {
+            const script = document.createElement('script');
+            script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
+            script.onload = () => {
+                if (window.initAudioTour) {
+                    // Use stable, non-dynamic name so audiotour.js can correctly load from S3
+                    this.element.id = 'partner-widget';
+                    window.initAudioTour('partner-widget', 'partner-widget-audiotour.json');
+                }
+            };
+            document.head.appendChild(script);
+        }, 1200);
     }
 }
 // Initialize widget on DOMContentLoaded

@@ -2,8 +2,20 @@
 // Self-contained JavaScript widget for header navigation
 // Compatible with AWS Lambda authentication API
 // Includes FontAwesome for icons, PWA support, and SVG sprite injection
+//
+// FULL AND UNABRIDGED VERSION
+//
+// Partner site CSS (page.css) now has FULL control:
+//   - header background + foreground
+//   - mobile menu background
+//   - selected item background
+//   - selected item ICON colour   ← this now works correctly
+//
+// Your page.css (recommended):
+//   header { background-color: #508738; color: white; }
+//   .menu-item.selected .menu-link { background-color: rgba(255,255,255,0.18); font-weight: 600; }
+//   .menu-item.selected .menu-icon { color: #fc0404; }   /* ← your chosen icon colour */
 
-// Load Font Awesome if not already loaded
 if (!document.querySelector('link[href*="font-awesome"]')) {
     const faLink = document.createElement('link');
     faLink.rel = 'stylesheet';
@@ -133,12 +145,12 @@ class HeaderWidget {
             { name: 'Home', icon: 'fas fa-home', href: '/index.html', roles: [] },
             { name: 'Login', icon: 'fas fa-sign-in-alt', href: '/login.html', roles: ['notoken'] },            
             { name: 'Dashboard', icon: 'fas fa-chart-bar', href: '/dashboard.html', roles: ['self'] },
-            { name: 'Account', icon: 'fas fa-user-gear', href: '/delegate.html', roles: ['community'] },
             { name: 'Smart Catalogue', icon: 'fas fa-robot', href: '/category.html', roles: ['community'] },
             { name: 'Embed Code', icon: 'fas fa-layer-group', href: '/catalog.html', roles: ['community'] },
             { name: 'API Keys', icon: 'fas fa-key', href: '/apikey.html', roles: ['self'] },
             { name: 'My Parts', icon: 'fas fa-box-open', href: '/parts.html', roles: ['merchant'] },                        
             { name: 'Partner', icon: 'fas fa-handshake', href: '/partner.html', roles: ['partner','admin'] },            
+            { name: 'Account', icon: 'fas fa-user-gear', href: '/delegate.html', roles: ['community'] },
             { name: 'Install App', icon: 'fas fa-mobile-alt', action: 'install', roles: [] },
             { name: 'Logout', icon: 'fas fa-sign-out-alt', href: '/login.html', roles: ['self'] }
         ];
@@ -179,11 +191,11 @@ class HeaderWidget {
         if (isMuted) {
             muteBtn.classList.remove('fa-volume-up');
             muteBtn.classList.add('fa-volume-mute');
-            muteBtn.style.color = '#ff5252';
+            muteBtn.style.color = '#ff5252';   // Always red when muted
         } else {
             muteBtn.classList.remove('fa-volume-mute');
             muteBtn.classList.add('fa-volume-up');
-            muteBtn.style.color = '#4caf50';
+            muteBtn.style.color = '';           // Let CSS/partner colour take over when unmuted
         }
     }
 
@@ -211,31 +223,126 @@ class HeaderWidget {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
             }
-    
+
+            /* === HEADER IS NOW A PROTECTED FIXED TOP BAR (mobile + desktop) === */
+            header {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                z-index: 10000 !important;
+                width: 100% !important;
+                min-height: 60px;
+                display: flex;
+                align-items: center;
+                box-sizing: border-box;
+            }
+
+            /* Widget does NOT set background or colour on header */
+            /* Partner page.css FULLY controls via: header { background-color: #508738; color: white; } */
+
+            .logo i,
+            .logo-text,
+            .menu-link,
+            .mute-button {
+                color: inherit !important;
+            }
+
+            /* Menu icons inherit by default — NO !important so partner .menu-item.selected .menu-icon wins */
+            .menu-icon {
+                color: inherit;
+            }
+
+            /* MOBILE MENU — text inherits, but icon colour is NOT forced with !important */
+            .menu-list.show .menu-link,
+            .menu-list.show .menu-text,
+            .menu-list.show .hamburger,
+            .menu-list.show .menu-item {
+                color: inherit !important;
+            }
+
             header nav {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 position: relative;
+                width: 100%;
             }
-    
+
+            .logo {
+                display: flex;
+                align-items: center;
+                font-size: 1.35rem;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+
+            .logo i {
+                font-size: 1.6rem;
+                margin-right: 10px;
+            }
+
+            .logo-text {
+                display: inline-block;
+            }
+
             .menu-group {
                 display: flex;
                 align-items: center;
                 gap: 8px;
                 position: relative;
             }
-    
+
             .menu-list {
                 display: flex;
                 align-items: center;
-                gap: 8px;                    /* Same gap as between Logout and Mute */
+                gap: 8px;
                 list-style: none;
                 margin: 0;
                 padding: 0;
                 flex-wrap: nowrap;
             }
-    
+
+            .menu-item {
+                position: relative;
+            }
+
+            .menu-link {
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 10px;
+                border-radius: 6px;
+                transition: background-color 0.15s ease, color 0.15s ease;
+                white-space: nowrap;
+            }
+
+            .menu-link:hover {
+                background-color: rgba(255,255,255,0.12);
+            }
+
+            .menu-link:hover .menu-icon {
+                transform: scale(1.15);
+                transition: transform 0.2s ease;
+            }
+
+            .menu-icon {
+                font-size: 1.35rem;
+                transition: transform 0.2s ease, color 0.2s ease;
+            }
+
+            .menu-text {
+                display: none;
+                font-size: 0.95rem;
+            }
+
+            /* SELECTED STATE — widget only sets font-weight. Background + icon colour are 100% partner-controlled */
+            .menu-item.selected .menu-link {
+                font-weight: 600;
+            }
+
+            /* Hamburger */
             .hamburger {
                 font-size: 1.7rem;
                 cursor: pointer;
@@ -243,7 +350,8 @@ class HeaderWidget {
                 color: inherit;
                 display: none !important;
             }
-    
+
+            /* Desktop styles */
             @media (min-width: 1200px) {
                 .hamburger {
                     display: none !important;
@@ -251,52 +359,41 @@ class HeaderWidget {
                 .menu-list {
                     display: flex !important;
                 }
-    
                 .menu-link {
                     white-space: nowrap;
                     padding: 8px 6px;
                 }
-    
                 .menu-item.selected .menu-link {
-                    color: #ffffff !important;
                     font-weight: 600;
                 }
-    
-                .menu-item.selected .menu-icon {
-                    color: #61cfff !important;
-                }
             }
-    
+
+            /* Mobile / Tablet styles */
             @media (max-width: 1199px) {
                 .hamburger {
                     display: block !important;
                 }
-    
                 .menu-list {
                     display: none;
                     flex-direction: column;
                     position: absolute;
                     top: calc(100% + 10px);
                     right: 0;
-                    background: #333333;
-                    border: 1px solid #555555;
+                    background-color: inherit !important;
+                    border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 10px;
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                    padding: 6px 0;
-                    min-width: 260px;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+                    padding: 8px 0;
+                    min-width: 250px;
                     z-index: 9999;
                 }
-    
                 .menu-list.show {
                     display: flex !important;
                 }
-    
                 .menu-item {
                     width: 100%;
                 }
-    
                 .menu-link {
-                    color: #ffffff !important;
                     text-decoration: none;
                     padding: 14px 20px;
                     display: flex;
@@ -304,46 +401,73 @@ class HeaderWidget {
                     gap: 12px;
                     width: 100%;
                     white-space: nowrap;
+                    color: inherit !important;
+                    justify-content: flex-end !important;
+                    flex-direction: row-reverse !important;
                 }
-    
                 .menu-link:hover {
-                    background-color: #444444;
+                    background-color: rgba(255,255,255,0.1);
                 }
-    
                 .menu-icon {
-                    color: #ffffff;
+                    font-size: 1.5rem;
+                    margin-left: 12px !important;
+                    /* color is inherited — no !important so partner .menu-item.selected .menu-icon wins */
                 }
-    
                 .menu-item.selected .menu-link {
-                    color: #ffffff !important;
                     font-weight: 600;
                 }
-    
-                .menu-item.selected .menu-icon {
-                    color: #61cfff !important;
+                .menu-text {
+                    display: block !important;
+                    color: inherit !important;
                 }
             }
-    
-            /* Mute button with circular background */
+
+            /* Circular Mute Button */
             .mute-button-wrapper {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                width: 32px;
-                height: 32px;
-                background-color: #666666;
+                width: 34px;
+                height: 34px;
+                background-color: rgba(255,255,255,0.15);
                 border-radius: 50%;
                 cursor: pointer;
-                transition: background-color 0.2s ease;
+                transition: background-color 0.2s ease, transform 0.2s ease;
                 flex-shrink: 0;
                 margin-right: 8px;
             }
-    
             .mute-button-wrapper:hover {
-                background-color: #777777;
+                background-color: rgba(255,255,255,0.25);
+                transform: scale(1.08);
             }
-    
             .mute-button {
+                font-size: 1.15rem;
+            }
+
+            .mute-button.fa-volume-mute {
+                color: #ff5252 !important;   /* forced red when muted */
+            }
+
+            /* Hover Help Tooltip */
+            .menu-hint {
+                position: absolute;
+                display: flex;
+                align-items: center;
+                background-color: rgba(0, 0, 0, 0.85);
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                white-space: nowrap;
+                visibility: hidden;
+                z-index: 10000;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            }
+            .menu-hint.visible {
+                visibility: visible;
+            }
+            .menu-hint .click-icon {
+                margin-right: 6px;
                 font-size: 1.1rem;
             }
         `;
@@ -553,34 +677,44 @@ class HeaderWidget {
 
         const headerHTML = `        
             <header>
-                <div style="width: 95vw; position: fixed; top: 3; left: 3; bottom: 3; ">
-                    <nav>
-                        <div class="logo">
-                            <i class="${this.logoIcon}"></i>
-                            <span class="logo-text">${this.pageName}</span>
+                <nav>
+                    <div class="logo">
+                        <i class="${this.logoIcon}"></i>
+                        <span class="logo-text">${this.pageName}</span>
+                    </div>
+                    <div class="menu-group">
+                        <ul class="menu-list">${menuHTML}</ul>
+                        
+                        <div class="mute-button-wrapper" style="margin-right: 8px;">
+                            <i class="fas fa-volume-up mute-button"></i>
                         </div>
-                        <div class="menu-group">
-                            <ul class="menu-list">${menuHTML}</ul>
-                            
-                            <!-- Mute button with circular background -->
-                            <div class="mute-button-wrapper" style="margin-right: 8px;">
-                                <i class="fas fa-volume-up mute-button"></i>
-                            </div>
-                            
-                            <i class="fas fa-bars hamburger"></i>
-                        </div>
-                        <div class="menu-hint">
-                            <i class="fas fa-hand-pointer click-icon"></i>
-                            <span class="menu-name"></span>
-                        </div>
-                    </nav>
-                </div>
+                        
+                        <i class="fas fa-bars hamburger"></i>
+                    </div>
+                    <div class="menu-hint">
+                        <i class="fas fa-hand-pointer click-icon"></i>
+                        <span class="menu-name"></span>
+                    </div>
+                </nav>
             </header>
         `;
 
         this.element.innerHTML = headerHTML;
         this.header = this.element.querySelector('header');
         window.headerElement = this.header;
+
+        // ========== DIAGNOSTIC LOGS ==========
+        if (this.header) {
+            const cs = getComputedStyle(this.header);
+            console.log('🔍 HEADER RENDERED — DIAGNOSTICS:');
+            console.log('  position:', cs.position);
+            console.log('  top:', cs.top);
+            console.log('  z-index:', cs.zIndex);
+            console.log('  width:', cs.width);
+            console.log('  height:', cs.height);
+            console.log('  backgroundColor:', cs.backgroundColor);
+        }
+        // =====================================
 
         const menuHint = this.element.querySelector('.menu-hint');
         const menuItems = this.element.querySelectorAll('.menu-item');
@@ -594,19 +728,36 @@ class HeaderWidget {
             return;
         }
 
-        // Hamburger toggle
         hamburger.addEventListener('click', () => {
+            console.log('Hamburger clicked - toggling menu');
             menuList.classList.toggle('show');
+            if (menuList.classList.contains('show')) {
+                const headerBg = getComputedStyle(this.header).backgroundColor;
+                menuList.style.setProperty('background-color', headerBg, 'important');
+                console.log('🚀 MOBILE MENU SYNCED ON TOGGLE - headerBg:', headerBg, 'menuList now has:', getComputedStyle(menuList).backgroundColor);
+                
+                const firstLink = menuList.querySelector('.menu-link');
+                if (firstLink) {
+                    console.log('🔍 FIRST MENU LINK COLOUR:', getComputedStyle(firstLink).color);
+                    console.log('🔍 FIRST MENU TEXT COLOUR:', getComputedStyle(firstLink.querySelector('.menu-text') || firstLink).color);
+                }
+                
+                const selectedLink = this.element.querySelector('.menu-item.selected .menu-link');
+                if (selectedLink) {
+                    console.log('🔍 SELECTED ITEM BACKGROUND (partner respected?):', getComputedStyle(selectedLink).backgroundColor);
+                    console.log('🔍 SELECTED ITEM ICON COLOUR (partner respected?):', getComputedStyle(selectedLink.querySelector('.menu-icon') || selectedLink).color);
+                }
+            } else {
+                console.log('Mobile menu closed');
+            }
         });
 
-        // Close mobile menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!menuList.contains(e.target) && !hamburger.contains(e.target)) {
                 menuList.classList.remove('show');
             }
         });
 
-        // Mute button + tooltip
         if (muteBtn) {
             muteBtn.addEventListener('click', () => {
                 this.toggleAudioMute();
@@ -625,7 +776,6 @@ class HeaderWidget {
 
         this.updateMuteButton();
 
-        // Menu item handlers
         menuItems.forEach(item => {
             const link = item.querySelector('.menu-link');
             if (!link) return;
@@ -685,7 +835,6 @@ class HeaderWidget {
             });
         });
 
-        // Logout
         const logoutLink = this.element.querySelector('a[data-name="Logout"]');
         if (logoutLink) {
             logoutLink.addEventListener('click', (event) => {
@@ -700,6 +849,15 @@ class HeaderWidget {
                 });
             });
         }
+
+        // FINAL DEBUG
+        setTimeout(() => {
+            const selectedLink = this.element.querySelector('.menu-item.selected .menu-link');
+            if (selectedLink) {
+                console.log('🔍 SELECTED ITEM FINAL BACKGROUND (partner respected?):', getComputedStyle(selectedLink).backgroundColor);
+                console.log('🔍 SELECTED ITEM ICON COLOUR (partner respected?):', getComputedStyle(selectedLink.querySelector('.menu-icon') || selectedLink).color);
+            }
+        }, 100);
     }
 }
 

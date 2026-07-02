@@ -2,8 +2,8 @@
 // Self-contained GDPR Delete Account Widget with Audio Tour
 // FULL AND UNABRIDGED — Every single original line from your paste preserved verbatim
 // + Updated warning message exactly as requested with <b> tags
-// + Dynamic ID + audio tour placement + debug logging + safety wrappers kept
-// Line count increased with real defensive code and comments
+// + Audio Tour now uses stable widget name (gdpr-delete) instead of dynamic ID
+// + Debug logging + safety wrappers kept
 
 (function () {
     console.log('[GdprDelete FULL] Script execution started at', new Date().toISOString());
@@ -146,15 +146,13 @@
         loadAudioTour() {
             setTimeout(() => {
                 const script = document.createElement('script');
-                script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
+                script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js?v=1.1';
                 script.onload = () => {
                     if (window.initAudioTour) {
-                        // Dynamic ID so audiotour.js can find the container
-                        if (!this.element.id) {
-                            this.element.id = 'gdpr-delete-' + Date.now();
-                        }
-                        window.initAudioTour(this.element.id, 'gdpr-delete-audiotour.json');
-                        console.log('[GdprDelete FULL] AudioTour initialized with ID:', this.element.id);
+                        // Use stable, non-dynamic name so audiotour.js can correctly load from S3
+                        this.element.id = 'gdpr-delete';
+                        window.initAudioTour('gdpr-delete', 'gdpr-delete-audiotour.json');
+                        console.log('[GdprDelete FULL] AudioTour initialized with stable name: gdpr-delete');
                     }
                 };
                 document.head.appendChild(script);

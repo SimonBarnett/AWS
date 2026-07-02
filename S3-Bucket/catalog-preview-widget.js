@@ -3,7 +3,8 @@
     const MADEIRA_SCRIPT_URL = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-widget.js';
     const CMS_PROVIDER_URL = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/ui/cms-providers';
     const MARKED_CDN = 'https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js';
-    
+    const AUDIOTOUR_CDN = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
+
     // Stylesheet configurations
     const STYLESHEETS = [
         { name: 'Default', filename: 'madeira-widget.css' },
@@ -58,11 +59,23 @@
     markedScript.onerror = () => console.warn('Catalog Preview Widget: Failed to load marked.js');
     document.head.appendChild(markedScript);
 
+    // Load Audio Tour script
+    const audioTourScript = document.createElement('script');
+    audioTourScript.src = AUDIOTOUR_CDN;
+    audioTourScript.onload = () => console.log('Catalog Preview Widget: Loaded audiotour.js');
+    audioTourScript.onerror = () => console.warn('Catalog Preview Widget: Failed to load audiotour.js');
+    document.head.appendChild(audioTourScript);
+
     // Create widget HTML structure
     container.innerHTML = `
         <div class="preview-widget">
             <div class="config-section">
-                <h2>Catalog Widget Setup</h2>
+                <!-- Title + Audio Tour button directly after it -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">Catalogue Widget Setup</h2>
+                    <div class="audiotour-placement"></div>
+                </div>
+
                 <div class="step">
                     <h3>Step 1: Choose Style</h3>
                     <div class="style-select-container">
@@ -74,6 +87,7 @@
                         <iframe id="madeira-widget-iframe" class="madeira-preview"></iframe>
                     </div>
                 </div>
+
                 <div class="step">
                     <h3>Step 2: Copy HTML</h3>
                     <div class="script-container">
@@ -81,6 +95,7 @@
                         <button id="copy-button" title="Copy to clipboard"><i class="fas fa-copy"></i> Copy</button>
                     </div>
                 </div>
+
                 <div class="step">
                     <h3>Step 3: Choose Provider Instructions</h3>
                     <div id="provider-radio-group" class="provider-radio-group"></div>
@@ -116,14 +131,13 @@
             option.textContent = style.name;
             styleSelect.appendChild(option);
         });
-        updateScriptTag(STYLESHEETS[0].filename); // Set default style
-        updateIframe(STYLESHEETS[0].filename); // Set default iframe style
+        updateScriptTag(STYLESHEETS[0].filename);
+        updateIframe(STYLESHEETS[0].filename);
     }
 
     // Update script tag in textarea
     function updateScriptTag(cssFilename) {
         const scriptPath = MADEIRA_SCRIPT_URL.substring(0, MADEIRA_SCRIPT_URL.lastIndexOf('/') + 1);
-        const cssPath = `${scriptPath}${cssFilename}`;
         scriptTextarea.value = `<div id="madeira-container"></div><script data-affiliate="${affiliateId}" data-css="${cssFilename}" src="${MADEIRA_SCRIPT_URL}?v=1.0"></script>`;
     }
 
@@ -139,7 +153,6 @@
                 <style>
                     body { margin: 0; overflow: hidden; }
                     #madeira-container { width: 100%; height: 100%; }
-                    .madeira-preview { width: 100%; }
                 </style>
                 <link rel="stylesheet" href="${cssPath}">
             </head>
@@ -164,7 +177,7 @@
         try {
             const response = await fetch(url, options);
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-            return await response.text(); // Use text() for Markdown files
+            return await response.text();
         } catch (error) {
             console.error('Catalog Preview Widget: Fetch error:', error);
             throw error;
@@ -183,7 +196,7 @@
                     'Content-Type': 'application/json'
                 }
             });
-            cachedProviders = JSON.parse(cachedProviders); // Parse JSON response
+            cachedProviders = JSON.parse(cachedProviders);
             if (!Array.isArray(cachedProviders) || cachedProviders.length === 0) {
                 providerError.textContent = 'No providers available.';
                 providerError.style.display = 'block';
@@ -289,7 +302,6 @@
         const configSection = document.querySelector('.config-section');
         const previewSection = document.querySelector('.preview-section');
         const previewHeader = previewSection.querySelector('h2');
-        const instructionsContent = document.getElementById('instructions-content');
         if (!iframe || !configSection || !previewSection || !previewHeader) return;
 
         const windowHeight = window.innerHeight;
@@ -299,15 +311,15 @@
         const footerHeight = footer ? footer.offsetHeight : 0;
         const configHeight = configSection.offsetHeight;
         const previewHeaderHeight = previewHeader.offsetHeight;
-        const instructionsHeight = instructionsContent && instructionsContent.style.display !== 'none' ? instructionsContent.offsetHeight : 0;
+        const instructionsHeight = (instructionsContent && instructionsContent.style.display !== 'none') ? instructionsContent.offsetHeight : 0;
         const margins = 20;
 
         const availableHeight = windowHeight - headerHeight - footerHeight - configHeight - previewHeaderHeight - instructionsHeight - margins;
         iframe.style.height = `${Math.max(availableHeight, 300)}px`;
-        iframe.style.width = '100%'; // Ensure 100% width
+        iframe.style.width = '100%';
     }
 
-    // Add inline CSS for left-aligned style select, horizontal logos, and copy button
+    // Add inline CSS
     const style = document.createElement('style');
     style.innerHTML = `
         .style-select-container {
@@ -315,9 +327,6 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 10px;
-        }
-        .style-select-container label {
-            margin: 0;
         }
         .provider-radio-group {
             display: flex;
@@ -330,10 +339,10 @@
             padding: 5px;
         }
         .provider-logo i {
-            font-size: 48px; /* Tripled from ~16px base size */
+            font-size: 48px;
         }
         .provider-logo.active i {
-            color: #4a90e2; /* Blue color for active icon */
+            color: #4a90e2;
         }
         .preview-error, .error {
             color: #e0e0e0;
@@ -363,11 +372,27 @@
     `;
     document.head.appendChild(style);
 
+    // Initialize Audio Tour
+    function initAudioTourIfReady() {
+        if (window.initAudioTour) {
+            window.initAudioTour('catalog-preview-widget');
+            console.log('Catalog Preview Widget: Audio Tour initialized');
+        } else {
+            setTimeout(() => {
+                if (window.initAudioTour) {
+                    window.initAudioTour('catalog-preview-widget');
+                }
+            }, 800);
+        }
+    }
+
     // Run on load and resize
     window.addEventListener('load', () => {
         populateStyleSelect();
         adjustIframeHeight();
         fetchProviders();
+        initAudioTourIfReady();
     });
+
     window.addEventListener('resize', adjustIframeHeight);
 })();

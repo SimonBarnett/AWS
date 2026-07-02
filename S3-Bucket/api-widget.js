@@ -19,7 +19,7 @@
         console.log('API Keys Widget: FontAwesome CSS already present');
     }
 
-    // **Inject Marked.js for #tos-content rendering (only change allowed)**
+    // **Inject Marked.js for #tos-content rendering**
     if (!document.querySelector('script[src*="marked"]')) {
         const markedScript = document.createElement('script');
         markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
@@ -390,7 +390,6 @@
         #provider-icon svg {
             fill: currentColor;
         }
-        /* ONLY CHANGE: #tos-content now supports rendered HTML */
         #tos-content { white-space: normal; }
     `;
     document.head.appendChild(style);
@@ -437,16 +436,21 @@
         return div.innerHTML;
     }
 
+    // ====================== FIXED: CORS-safe SVG loading ======================
     async function fetchSvgContent(url) {
         if (customIconsCache[url]) return customIconsCache[url];
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-store'           // Prevents stale CORS failures
+            });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const svgContent = await response.text();
             customIconsCache[url] = svgContent;
             return svgContent;
         } catch (error) {
-            console.error('fetchSvgContent error:', error);
+            console.error('fetchSvgContent error for', url, error);
             return '<span>⚠️</span>';
         }
     }
@@ -554,7 +558,6 @@
         localStorage.setItem('authToken', token);
     }
 
-    // ====================== FIXED: Local JWT Decoding ======================
     async function fetchUserRoles() {
         if (!checkTokenAndRedirect()) {
             userRoles = ['notoken'];
@@ -581,8 +584,6 @@
         return userRoles.includes('merchant');
     }
 
-    // ====================== Rest of the widget (unchanged) ======================
-
     async function showTosAgreement() {
         if (!checkTokenAndRedirect()) return;
         const token = localStorage.getItem('authToken');
@@ -593,7 +594,6 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load Terms of Service');
-            // MARKDOWN FIX ONLY: innerHTML + marked.parse on exact response from original endpoint
             tosContent.innerHTML = marked.parse(await response.text());
             tosDialog.classList.add('show');
             tosAgreeCheckbox.disabled = true;

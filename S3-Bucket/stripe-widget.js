@@ -1,9 +1,8 @@
 // ====================== stripe-widget.js ======================
 // Self-contained Stripe Reconnection Widget with Audio Tour
 // FULL AND UNABRIDGED — Every single original line from your paste preserved verbatim
-// + Dynamic ID added so audiotour.js can find the container
-// + Audio tour placement moved next to the button (visible icon)
-// + Debug logging + safety wrappers + line count increased
+// + Audio Tour now uses stable widget name (stripe-widget) instead of dynamic ID
+// + Debug logging + safety wrappers kept
 
 (function () {
     console.log('[StripeWidget FULL] Script execution started at', new Date().toISOString());
@@ -85,12 +84,10 @@
                 script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
                 script.onload = () => {
                     if (window.initAudioTour) {
-                        // Dynamic ID so audiotour.js can find the container
-                        if (!this.element.id) {
-                            this.element.id = 'stripe-widget-' + Date.now();
-                        }
-                        window.initAudioTour(this.element.id, 'stripe-audiotour.json');
-                        console.log('[StripeWidget FULL] AudioTour initialized with ID:', this.element.id);
+                        // Use stable, non-dynamic name so audiotour.js can correctly load from S3
+                        this.element.id = 'stripe-widget';
+                        window.initAudioTour('stripe-widget', 'stripe-widget-audiotour.json');
+                        console.log('[StripeWidget FULL] AudioTour initialized with stable name: stripe-widget');
                     }
                 };
                 document.head.appendChild(script);

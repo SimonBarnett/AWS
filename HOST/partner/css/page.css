@@ -1,3 +1,42 @@
+/*
+================================================================================
+page.css — PARTNER BRANDING FILE (DARK THEME)
+================================================================================
+
+PURPOSE:
+This file controls only the visual branding of the header. 
+The header-widget.js now owns ALL layout, positioning, responsive behaviour, 
+hamburger menu, mobile dropdown, icon sizing, hover effects, and tooltips.
+
+WHAT YOU CAN CHANGE TO STYLE THE HEADER:
+────────────────────────────────────────────────────────
+1. header { 
+     background-color: #333;     ← Your dark brand colour 
+     color: white;                ← Text + icon colour 
+     padding: 0.5rem 1rem;        ← Adjust padding if needed 
+   }
+
+2. .menu-item.selected .menu-link {
+     background-color: rgba(102, 179, 255, 0.2);  - Subtle blue highlight 
+     font-weight: 600;
+   }
+
+3. .menu-item.selected .menu-icon {
+     color: #66b3ff;    ← Blue colour for the selected icon 
+   }
+
+DO NOT add or modify rules for:
+- .menu-list, .menu-link, .hamburger, .menu-icon, .menu-text, nav, .logo, 
+  .menu-group, .menu-hint, or any media queries targeting the header/menu.
+
+These are now fully controlled by header-widget.js.
+Adding them will cause visual conflicts.
+
+Footer and other site elements (welcome, API keys widget, index buttons) 
+can still be styled normally below.
+================================================================================
+*/
+
 /* Define spin animation for overlay */
 @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -16,187 +55,34 @@ body {
     line-height: 1.5;
 }
 
-/* Header styles */
+/* 
+ * PARTNER HEADER CONTROL — ONLY EDIT THIS SECTION FOR HEADER STYLING
+ */
 header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    background-color: #333;
-    color: white;
+    background-color: #333;     /* ← Dark brand background */
+    color: white;               /* ← White text & icons */
     padding: 0.5rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 60px;
-}
-
-/* Navigation container */
-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-}
-
-/* Logo styling */
-.logo {
-    display: flex;
-    align-items: center;
-    font-size: 1.5rem;
     margin: 0;
 }
 
-.logo i {
-    font-size: 2em;
-    margin-right: 10px;
-    color: white;
-}
-
-.logo-text {
-    display: inline-block;
-    color: white;
-}
-
-/* Menu group */
-.menu-group {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-}
-
-/* Menu list - cleaned up to not fight with the widget */
-.menu-list {
-    list-style: none;
-    display: flex;
-    margin: 0;
-    padding: 0;
-}
-
-/* Menu items - removed conflicting margin */
-.menu-item {
-    /* margin-left removed so the widget can control spacing via gap */
-}
-
-.menu-link {
-    color: white;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-}
-
-.menu-link:hover {
-    color: #66b3ff;
-}
-
-.menu-link:hover .menu-icon {
-    transform: scale(1.1);
-    transition: transform 0.2s ease-in-out;
-}
-
-.menu-icon {
-    font-size: 1.5em;
-    margin-left: 10px;
-}
-
-.menu-text {
-    display: none;
-}
-
-/* Hamburger */
-.hamburger {
-    display: none;
-    font-size: 2em;
-    cursor: pointer;
-    color: white;
-}
-
-.hamburger:hover {
-    color: #66b3ff;
-}
-
-/* Hint styling */
-.menu-hint {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 3px;
-    visibility: hidden;
-    top: 100%;
-    z-index: 1001;
-}
-
-.menu-hint.visible {
-    visibility: visible;
-}
-
-.menu-hint .click-icon {
-    margin-right: 5px;
-    order: -1;
-    font-size: 1.2em;
-}
-
-.menu-hint .menu-name {
-    white-space: nowrap;
-}
-
-/* Styling for selected menu item */
+/* Selected menu item background (subtle blue highlight for dark theme) */
 .menu-item.selected .menu-link {
+    background-color: rgba(102, 179, 255, 0.2);
+    font-weight: 600;
+}
+
+/* Selected menu item ICON colour — blue accent */
+.menu-item.selected .menu-icon {
     color: #66b3ff;
 }
 
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-    .menu-list {
-        display: none;
-        flex-direction: column;
-        position: absolute;
-        top: 100%;
-        right: 0;
-        width: 200px;
-        background-color: #333;
-        padding-right: 10px;
-    }
-    .menu-list.show {
-        display: flex;
-    }
-    .menu-item {
-        margin: 5px 0;
-    }
-    .menu-link {
-        justify-content: flex-end;
-        width: 100%;
-        color: white;
-        padding: 10px;
-    }
-    .menu-text {
-        display: inline;
-        color: white;
-        font-size: 1.25em;
-    }
-    .menu-icon {
-        font-size: 1.75em;
-        margin-left: 10px;
-        margin-right: 10px;
-    }
-    .hamburger {
-        display: block;
-        margin-left: 10px;
-        margin-right: 10px;
-    }
-}
-
-@media (min-width: 769px) {
-    .hamburger {
-        display: none;
-        margin-left: 0;
-        margin-right: 0;
-    }
-}
+/* 
+ * REMOVED: All old header/nav/menu/hamburger/.menu-* rules and media queries
+ * Reason: header-widget.js now fully owns fixed positioning, layout, 
+ * responsive hamburger, mobile menu, icon behaviour, and hover states.
+ * 
+ * These old rules have been removed to prevent conflicts with the widget.
+ */
 
 /* Welcome section styles */
 .welcome {
@@ -246,6 +132,7 @@ main {
     margin-top: 60px;
 }
 
+/* Footer styles (dark theme to match header) */
 footer {
     background-color: #333;
     color: white;
