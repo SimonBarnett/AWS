@@ -4,6 +4,6 @@
     "loginUrl": "/login.html",
     "signupLinkUrl": "/signup.html",
     "dashboardLinkUrl":"/dashboard.html",    
-    "tts-voice": "leo",
+    "tts-voice": "eve",
     "tts-language": "en"
 }

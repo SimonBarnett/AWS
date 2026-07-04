@@ -6,7 +6,7 @@
 // - Bypasses cache for common CDNs (fixes intl-tel-input, marked.js, etc.)
 // - Clean cache versioning + skipWaiting + clients.claim
 
-const CACHE_VERSION = '20240628-12';
+const CACHE_VERSION = '20240628-17';
 const CACHE_NAME = `madeira-pwa-cache-${CACHE_VERSION}`;
 
 const urlsToCache = [
