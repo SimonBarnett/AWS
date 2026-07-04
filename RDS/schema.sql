@@ -1,29 +1,54 @@
 USE [madeiradb]
 GO
-/****** Object:  User [madeira]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  User [madeira]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE USER [madeira] FOR LOGIN [madeira] WITH DEFAULT_SCHEMA=[dbo]
 GO
-/****** Object:  User [remote]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  User [remote]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE USER [remote] FOR LOGIN [remote] WITH DEFAULT_SCHEMA=[dbo]
 GO
-/****** Object:  User [sa]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  User [sa]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE USER [sa] FOR LOGIN [sa] WITH DEFAULT_SCHEMA=[dbo]
 GO
 ALTER ROLE [db_owner] ADD MEMBER [sa]
 GO
-/****** Object:  FullTextCatalog [DefaultFullTextCatalog]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  FullTextCatalog [DefaultFullTextCatalog]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE FULLTEXT CATALOG [DefaultFullTextCatalog] WITH ACCENT_SENSITIVITY = OFF
 GO
-/****** Object:  FullTextCatalog [ft_MerchantProducts]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  FullTextCatalog [ft_MerchantProducts]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE FULLTEXT CATALOG [ft_MerchantProducts] WITH ACCENT_SENSITIVITY = OFF
 GO
-/****** Object:  FullTextCatalog [FTC_MerchantProducts]    Script Date: 12/06/2026 10:52:46 ******/
+/****** Object:  FullTextCatalog [FTC_MerchantProducts]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE FULLTEXT CATALOG [FTC_MerchantProducts] WITH ACCENT_SENSITIVITY = OFF
 GO
-/****** Object:  FullTextCatalog [MerchantProducts_FTCatalog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  FullTextCatalog [MerchantProducts_FTCatalog]    Script Date: 04/07/2026 17:03:09 ******/
 CREATE FULLTEXT CATALOG [MerchantProducts_FTCatalog] WITH ACCENT_SENSITIVITY = ON
 GO
-/****** Object:  UserDefinedFunction [dbo].[traffic]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[fn_ClubScanIsActive]    Script Date: 04/07/2026 17:03:09 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+-- 1. CREATE SCALAR UDF (the logic you want)
+CREATE   FUNCTION [dbo].[fn_ClubScanIsActive] (@ClubScanId INT)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Active BIT = 0;
+    
+    SELECT @Active = CASE 
+        WHEN MAX(fpa.timestamp) > DATEADD(HOUR, -72, GETDATE()) THEN 1 
+        ELSE 0 
+    END
+    FROM [dbo].[clubscan] cs 
+    JOIN [dbo].[UserFingerprints] fp ON cs.ClubID = fp.user_id 
+    JOIN [dbo].[FingerprintCatalogAccess] fpa ON fpa.fingerprint_id = fp.id 
+    WHERE cs.Id = @ClubScanId;
+
+    RETURN @Active;
+END
+GO
+/****** Object:  UserDefinedFunction [dbo].[traffic]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -42,7 +67,7 @@ BEGIN
     RETURN @count;
 END;
 GO
-/****** Object:  UserDefinedFunction [dbo].[TrafficAv]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[TrafficAv]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -80,7 +105,7 @@ END;
 SELECT dbo.TrafficAv('L7WDZWC8')
 */
 GO
-/****** Object:  Table [dbo].[Catalog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[Catalog]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -112,7 +137,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  UserDefinedFunction [dbo].[Menu]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[Menu]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -151,7 +176,7 @@ RETURN
       AND @MainCategory IS NOT NULL
 );
 GO
-/****** Object:  Table [dbo].[MerchantCatalog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[MerchantCatalog]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -187,7 +212,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Products]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[Products]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -228,7 +253,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[MerchantProducts]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[MerchantProducts]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -262,7 +287,7 @@ CREATE TABLE [dbo].[MerchantProducts](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  UserDefinedFunction [dbo].[Part]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[Part]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -337,7 +362,117 @@ RETURN
         ID
 );
 GO
-/****** Object:  UserDefinedFunction [dbo].[Part2]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[clubscan]    Script Date: 04/07/2026 17:03:10 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[clubscan](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Url] [nvarchar](500) NOT NULL,
+	[Status] [nvarchar](50) NOT NULL,
+	[JsonResult] [nvarchar](max) NULL,
+	[CreatedAt] [datetime] NULL,
+	[UpdatedAt] [datetime] NULL,
+	[PartnerId] [varchar](8) NULL,
+	[ClubID] [varchar](8) NULL,
+	[LastError] [nvarchar](max) NULL,
+	[active]  AS ([dbo].[fn_ClubScanIsActive]([Id])),
+	[PartnerURL] [nvarchar](1000) NOT NULL,
+	[Screenshot] [nvarchar](1000) NULL,
+	[Comment] [nvarchar](max) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
+UNIQUE NONCLUSTERED 
+(
+	[Url] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Partner]    Script Date: 04/07/2026 17:03:10 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Partner](
+	[PartnerID] [char](8) NOT NULL,
+	[Name] [nvarchar](200) NOT NULL,
+	[Location] [nvarchar](200) NULL,
+	[Website] [nvarchar](500) NULL,
+	[Phone] [nvarchar](50) NULL,
+	[Logo] [nvarchar](500) NULL,
+	[Description] [nvarchar](max) NULL,
+	[Provides] [nvarchar](max) NULL,
+	[Approved] [bit] NOT NULL,
+	[CreatedAt] [datetime2](7) NOT NULL,
+	[UpdatedAt] [datetime2](7) NOT NULL,
+ CONSTRAINT [PK_Partner] PRIMARY KEY CLUSTERED 
+(
+	[PartnerID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  UserDefinedFunction [dbo].[clubs]    Script Date: 04/07/2026 17:03:10 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE FUNCTION [dbo].[clubs]
+(
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        c.ClubID,
+        JSON_VALUE(c.JsonResult, '$.name') AS Name,
+        JSON_VALUE(c.JsonResult, '$.location') AS Location,
+        c.Url,
+        JSON_VALUE(c.JsonResult, '$.sector') AS Sector,
+        JSON_VALUE(c.JsonResult, '$.review') AS Review,
+        c.PartnerId,
+
+        -- Partner Information (only populated if partner is Approved)
+        p.Name            AS PartnerName,
+        p.Logo            AS PartnerLogo,
+        p.Website         AS PartnerWebsite,
+        p.Description     AS PartnerDescription,
+        p.Approved        AS PartnerApproved,
+
+        c.Screenshot,
+        c.Comment,
+        JSON_VALUE(c.JsonResult, '$.audience') AS Audience,
+
+        -- Interests as JSON array
+        (
+            SELECT
+                ms.segmentName AS Interest,
+                ms.description AS Description
+            FROM OPENJSON(c.JsonResult, '$.marketSegments')
+                WITH (
+                    segmentName NVARCHAR(200) '$.segmentName',
+                    description NVARCHAR(MAX) '$.description'
+                ) ms
+            FOR JSON PATH
+        ) AS Interests
+
+    FROM [madeiradb].[dbo].[clubscan] c
+
+    -- LEFT OUTER JOIN with filter on Approved inside the JOIN
+    LEFT OUTER JOIN dbo.Partner p
+        ON p.PartnerID = c.PartnerId
+       AND p.Approved = 1
+
+    WHERE
+        c.JsonResult IS NOT NULL
+        AND JSON_VALUE(c.JsonResult, '$.name') IS NOT NULL
+);
+GO
+/****** Object:  UserDefinedFunction [dbo].[Part2]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -365,7 +500,6 @@ RETURN
             p.ID,
             p.Title,
             p.Price,
-            -- Parse Price for sorting (numeric value)
             CAST(
                 CASE
                     WHEN p.Price IS NULL OR p.Price = 'NULL' OR p.Price = '' THEN 0
@@ -377,7 +511,6 @@ RETURN
                 END AS DECIMAL(18,2)) AS SortPrice,
             p.Discount,
             p.WasPrice,
-            -- Affiliate URL logic (kept exactly as you had it)
             CASE
                 WHEN p.Source = 'paapi'
                     THEN REPLACE(p.AffiliateUrl, 'tag=mymodelflying-21', 'tag=mymodelflying-' + LOWER(@UserId) + '-21')
@@ -391,9 +524,9 @@ RETURN
             c.SubCategoryOrder,
             p.Created AS CreatedDate
         FROM dbo.Products p
-        INNER JOIN dbo.Catalog c 
-            ON c.UserId = @UserId 
-           AND c.MainCategory = @MainCategory 
+        INNER JOIN dbo.Catalog c
+            ON c.UserId = @UserId
+           AND c.MainCategory = @MainCategory
            AND c.SubCategory = p.SubCategory
         WHERE p.UserId = @UserId
           AND p.Category = @MainCategory
@@ -402,7 +535,7 @@ RETURN
     Numbered AS (
         SELECT *,
             ROW_NUMBER() OVER (
-                ORDER BY 
+                ORDER BY
                     CASE WHEN @SubCategory IS NOT NULL THEN SubCategoryOrder ELSE 0 END,
                     CASE WHEN @SubCategory IS NOT NULL THEN SubCategory ELSE '' END,
                     CASE WHEN @SortOrder = 'PriceDesc' THEN SortPrice ELSE NULL END DESC,
@@ -428,15 +561,11 @@ RETURN
         SubCategoryOrder,
         CreatedDate
     FROM Numbered
-    WHERE (@LastSubCategory IS NULL OR 
-           (SubCategory > @LastSubCategory) OR
-           (SubCategory = @LastSubCategory AND 
-            ((Source = @LastSource AND ID > @LastID) OR
-             (Source > @LastSource))))
+    WHERE (@LastID IS NULL OR ID > @LastID)   -- SIMPLIFIED: only need last ID + full sort order
     ORDER BY rn
 );
 GO
-/****** Object:  Table [dbo].[Users]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[Users]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -469,7 +598,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  UserDefinedFunction [dbo].[PartnerSites]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[PartnerSites]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -498,7 +627,7 @@ SELECT        communities, merchants, call_count , traffic
 FROM            dbo.PartnerSites('L7WDZWC8') AS PartnerSites_1
 */
 GO
-/****** Object:  Table [dbo].[CatalogAffiliateUpdates]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[CatalogAffiliateUpdates]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -523,7 +652,7 @@ CREATE TABLE [dbo].[CatalogAffiliateUpdates](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  UserDefinedFunction [dbo].[UserCatalog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[UserCatalog]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -546,7 +675,7 @@ RETURN
 	AND AffiliateKey = @Source
 )
 GO
-/****** Object:  View [dbo].[Searches]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  View [dbo].[Searches]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -559,7 +688,7 @@ FROM            dbo.CatalogAffiliateUpdates INNER JOIN
                          dbo.Catalog ON dbo.Catalog.ID = dbo.CatalogAffiliateUpdates.CatalogId
 WHERE        (dbo.CatalogAffiliateUpdates.S3File IS NOT NULL)
 GO
-/****** Object:  Table [dbo].[DatabaseCallLog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[DatabaseCallLog]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -577,32 +706,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[clubscan]    Script Date: 12/06/2026 10:52:47 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[clubscan](
-	[Id] [int] IDENTITY(1,1) NOT NULL,
-	[Url] [nvarchar](500) NOT NULL,
-	[Status] [nvarchar](50) NOT NULL,
-	[JsonResult] [nvarchar](max) NULL,
-	[CreatedAt] [datetime] NULL,
-	[UpdatedAt] [datetime] NULL,
-	[PartnerId] [varchar](8) NULL,
-	[ClubID] [varchar](8) NULL,
-	[LastError] [nvarchar](max) NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[Id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
-UNIQUE NONCLUSTERED 
-(
-	[Url] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  View [dbo].[vw_ActiveClubs_Last72Hours]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  View [dbo].[vw_ActiveClubs_Last72Hours]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -623,7 +727,7 @@ GROUP BY
     c.Url, 
     c.Status;
 GO
-/****** Object:  View [dbo].[Sum_Merchant_Parts]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  View [dbo].[Sum_Merchant_Parts]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -636,7 +740,7 @@ FROM            dbo.Users INNER JOIN
 GROUP BY dbo.Users.user_id, dbo.Users.website_url
 ORDER BY Parts DESC
 GO
-/****** Object:  UserDefinedFunction [dbo].[fn_GetTableIndexes]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  UserDefinedFunction [dbo].[fn_GetTableIndexes]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -670,7 +774,7 @@ RETURN
     WHERE i.object_id = OBJECT_ID(@TableName)
 )
 GO
-/****** Object:  Table [dbo].[amazon_cards]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[amazon_cards]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -698,7 +802,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ApiProvider]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[ApiProvider]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -715,7 +819,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AwinHighApprovalMerchants]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[AwinHighApprovalMerchants]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -746,13 +850,16 @@ CREATE TABLE [dbo].[AwinHighApprovalMerchants](
 	[ContactName] [nvarchar](255) NULL,
 	[AwinUserId] [nvarchar](20) NULL,
 	[PartnerID] [nvarchar](8) NULL,
+	[ClubID] [varchar](8) NULL,
+	[whyHtml] [nvarchar](max) NULL,
+	[joinHtml] [nvarchar](max) NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[MerchantId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AwinRecommendedMerchants]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[AwinRecommendedMerchants]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -771,7 +878,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AwinTransactions]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[AwinTransactions]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -799,7 +906,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[claimant]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[claimant]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -820,7 +927,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[cmsDocLinks]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[cmsDocLinks]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -836,7 +943,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[cmsProvider]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[cmsProvider]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -852,7 +959,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Commissions]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[Commissions]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -878,38 +985,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[delegation]    Script Date: 12/06/2026 10:52:47 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[delegation](
-	[token] [nvarchar](max) NULL,
-	[user_id] [char](8) NULL,
-	[otp] [varchar](6) NULL,
-	[first_name] [varchar](50) NULL,
-	[email_address] [varchar](255) NULL,
-	[phone_number] [varchar](20) NULL,
-	[created_at] [datetime2](7) NOT NULL
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[deletion]    Script Date: 12/06/2026 10:52:47 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[deletion](
-	[otp_id] [varchar](50) NOT NULL,
-	[user_id] [varchar](8) NOT NULL,
-	[otp] [varchar](10) NOT NULL,
-	[expires_at] [datetime] NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[otp_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[DocLinks]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[DocLinks]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -925,7 +1001,29 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[LASTS]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[FingerprintCatalogAccess]    Script Date: 04/07/2026 17:03:10 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[FingerprintCatalogAccess](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[fingerprint_id] [int] NOT NULL,
+	[catalog_id] [int] NOT NULL,
+	[ProductID] [int] NULL,
+	[timestamp] [datetime2](7) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = ON, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
+ CONSTRAINT [UQ_FingerprintCatalogAccess_Fingerprint_Timestamp] UNIQUE NONCLUSTERED 
+(
+	[fingerprint_id] ASC,
+	[timestamp] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = ON, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[LASTS]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -939,24 +1037,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Otps]    Script Date: 12/06/2026 10:52:47 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[Otps](
-	[otp_id] [varchar](50) NOT NULL,
-	[user_id] [varchar](8) NOT NULL,
-	[otp] [varchar](10) NOT NULL,
-	[email] [varchar](255) NOT NULL,
-	[expires_at] [datetime] NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[otp_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[Payments]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[Payments]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -979,7 +1060,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[PostHogEvents]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[PostHogEvents]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1003,7 +1084,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[RejectedAsins]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[RejectedAsins]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1031,7 +1112,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[sqsMsgCount]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[sqsMsgCount]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1046,33 +1127,26 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Tokens]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[SystemOTPs]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE TABLE [dbo].[Tokens](
-	[token_id] [varchar](512) NOT NULL,
-	[pin] [varchar](6) NOT NULL,
-	[phone] [varchar](15) NOT NULL,
-	[email] [varchar](255) NOT NULL,
+CREATE TABLE [dbo].[SystemOTPs](
+	[otp_id] [int] IDENTITY(1,1) NOT NULL,
+	[user_id] [char](8) NOT NULL,
+	[otp] [varchar](10) NOT NULL,
+	[token_type] [varchar](50) NOT NULL,
 	[created_at] [datetime] NOT NULL,
-	[validated] [bit] NOT NULL,
-	[referrer_by] [char](8) NOT NULL,
-	[issued_at] [datetime] NOT NULL,
-	[accepted_at] [datetime] NULL,
-	[tokenType] [varchar](50) NOT NULL,
-	[signup_url] [varchar](255) NULL,
-	[stripe_account_id] [varchar](255) NULL,
-	[origin_code] [varchar](50) NULL,
-	[url] [varchar](255) NULL,
- CONSTRAINT [PK_Tokens] PRIMARY KEY CLUSTERED 
+	[expires_at] [datetime] NOT NULL,
+	[payload] [nvarchar](max) NULL,
+ CONSTRAINT [PK_SystemOtps] PRIMARY KEY CLUSTERED 
 (
-	[token_id] ASC
+	[otp_id] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[UserApiKeys]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[UserApiKeys]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1104,7 +1178,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[UserCategories]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[UserCategories]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1122,7 +1196,30 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[VatBatch]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  Table [dbo].[UserFingerprints]    Script Date: 04/07/2026 17:03:10 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[UserFingerprints](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[fingerprint_hash] [varchar](64) NOT NULL,
+	[user_id] [varchar](8) NULL,
+	[email] [nvarchar](255) NULL,
+	[created_at] [datetime] NULL,
+	[updated_at] [datetime] NULL,
+	[Clicks] [int] NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = ON, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
+ CONSTRAINT [UQ_UserFingerprints_FingerprintHash] UNIQUE NONCLUSTERED 
+(
+	[fingerprint_hash] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = ON, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[VatBatch]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1184,6 +1281,8 @@ ALTER TABLE [dbo].[clubscan] ADD  DEFAULT (getdate()) FOR [CreatedAt]
 GO
 ALTER TABLE [dbo].[clubscan] ADD  DEFAULT (getdate()) FOR [UpdatedAt]
 GO
+ALTER TABLE [dbo].[clubscan] ADD  CONSTRAINT [DF_clubscan_PartnerURL]  DEFAULT ('https://partner.clubmadeira.io/') FOR [PartnerURL]
+GO
 ALTER TABLE [dbo].[Commissions] ADD  DEFAULT ((0)) FOR [CommunityPaid]
 GO
 ALTER TABLE [dbo].[Commissions] ADD  DEFAULT ((0)) FOR [CommunityPartnerPaid]
@@ -1196,11 +1295,17 @@ ALTER TABLE [dbo].[Commissions] ADD  DEFAULT ((0)) FOR [PlatformPaid]
 GO
 ALTER TABLE [dbo].[DatabaseCallLog] ADD  DEFAULT (sysdatetime()) FOR [Timestamp]
 GO
-ALTER TABLE [dbo].[delegation] ADD  DEFAULT (getdate()) FOR [created_at]
+ALTER TABLE [dbo].[FingerprintCatalogAccess] ADD  DEFAULT (getdate()) FOR [timestamp]
 GO
 ALTER TABLE [dbo].[MerchantProducts] ADD  DEFAULT (getdate()) FOR [Created]
 GO
 ALTER TABLE [dbo].[MerchantProducts] ADD  DEFAULT (getdate()) FOR [LastUpdate]
+GO
+ALTER TABLE [dbo].[Partner] ADD  DEFAULT ((0)) FOR [Approved]
+GO
+ALTER TABLE [dbo].[Partner] ADD  DEFAULT (sysutcdatetime()) FOR [CreatedAt]
+GO
+ALTER TABLE [dbo].[Partner] ADD  DEFAULT (sysutcdatetime()) FOR [UpdatedAt]
 GO
 ALTER TABLE [dbo].[Payments] ADD  DEFAULT ((0)) FOR [VatAmount]
 GO
@@ -1220,9 +1325,7 @@ ALTER TABLE [dbo].[sqsMsgCount] ADD  DEFAULT ((0)) FOR [PendingCount]
 GO
 ALTER TABLE [dbo].[sqsMsgCount] ADD  DEFAULT (getdate()) FOR [UpdatedAt]
 GO
-ALTER TABLE [dbo].[Tokens] ADD  DEFAULT ((0)) FOR [validated]
-GO
-ALTER TABLE [dbo].[Tokens] ADD  DEFAULT ('community') FOR [tokenType]
+ALTER TABLE [dbo].[SystemOTPs] ADD  DEFAULT (getdate()) FOR [created_at]
 GO
 ALTER TABLE [dbo].[UserApiKeys] ADD  DEFAULT (getdate()) FOR [created_at]
 GO
@@ -1235,6 +1338,12 @@ GO
 ALTER TABLE [dbo].[UserApiKeys] ADD  DEFAULT ((0)) FOR [count_updated]
 GO
 ALTER TABLE [dbo].[UserCategories] ADD  DEFAULT (getdate()) FOR [LastUpdate]
+GO
+ALTER TABLE [dbo].[UserFingerprints] ADD  DEFAULT (getdate()) FOR [created_at]
+GO
+ALTER TABLE [dbo].[UserFingerprints] ADD  DEFAULT (getdate()) FOR [updated_at]
+GO
+ALTER TABLE [dbo].[UserFingerprints] ADD  DEFAULT ((0)) FOR [Clicks]
 GO
 ALTER TABLE [dbo].[Users] ADD  DEFAULT (getdate()) FOR [created_at]
 GO
@@ -1258,19 +1367,9 @@ ON DELETE CASCADE
 GO
 ALTER TABLE [dbo].[cmsDocLinks] CHECK CONSTRAINT [FK_cmsDocLinks_cmsProvider]
 GO
-ALTER TABLE [dbo].[deletion]  WITH CHECK ADD  CONSTRAINT [FK_deletion_Users] FOREIGN KEY([user_id])
-REFERENCES [dbo].[Users] ([user_id])
-GO
-ALTER TABLE [dbo].[deletion] CHECK CONSTRAINT [FK_deletion_Users]
-GO
 ALTER TABLE [dbo].[DocLinks]  WITH CHECK ADD FOREIGN KEY([ApiProviderId])
 REFERENCES [dbo].[ApiProvider] ([Id])
 ON DELETE CASCADE
-GO
-ALTER TABLE [dbo].[Otps]  WITH CHECK ADD  CONSTRAINT [FK_Otps_Users] FOREIGN KEY([user_id])
-REFERENCES [dbo].[Users] ([user_id])
-GO
-ALTER TABLE [dbo].[Otps] CHECK CONSTRAINT [FK_Otps_Users]
 GO
 ALTER TABLE [dbo].[UserApiKeys]  WITH CHECK ADD FOREIGN KEY([user_id])
 REFERENCES [dbo].[Users] ([user_id])
@@ -1283,7 +1382,7 @@ ALTER TABLE [dbo].[RejectedAsins]  WITH CHECK ADD  CONSTRAINT [CHK_RejectedAsins
 GO
 ALTER TABLE [dbo].[RejectedAsins] CHECK CONSTRAINT [CHK_RejectedAsins_Categories_NotEmpty]
 GO
-/****** Object:  StoredProcedure [dbo].[DisableMerchantIndexes]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[DisableMerchantIndexes]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1356,7 +1455,7 @@ BEGIN
     PRINT '    - IX_MerchantProducts_Cleanup (UserId + Source + ProcessedBatchId)';
 END
 GO
-/****** Object:  StoredProcedure [dbo].[GenerateUniqueUserId]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[GenerateUniqueUserId]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1403,7 +1502,7 @@ BEGIN
         THROW 50000, 'Unable to generate a unique user_id after 100 attempts', 1;
 END;
 GO
-/****** Object:  StoredProcedure [dbo].[IsIndexDisabledForBulkLoad]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[IsIndexDisabledForBulkLoad]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1422,7 +1521,7 @@ BEGIN
         END    
 END
 GO
-/****** Object:  StoredProcedure [dbo].[KillAndRestartRebuild]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[KillAndRestartRebuild]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1483,7 +1582,7 @@ BEGIN
     PRINT '✅ Rebuild restarted successfully.';
 END
 GO
-/****** Object:  StoredProcedure [dbo].[QueueCatalog]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[QueueCatalog]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1509,7 +1608,7 @@ BEGIN
 
 END
 GO
-/****** Object:  StoredProcedure [dbo].[RebuildMerchantIndexes]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[RebuildMerchantIndexes]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1595,7 +1694,7 @@ BEGIN
     PRINT '✅ Rebuild completed in ' + CAST(@durationSec AS VARCHAR(10)) + ' seconds';
 END
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ClaimVoucher]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[sp_ClaimVoucher]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1705,7 +1804,7 @@ BEGIN
 
 END
 GO
-/****** Object:  StoredProcedure [dbo].[StartAsyncIndexRebuild]    Script Date: 12/06/2026 10:52:47 ******/
+/****** Object:  StoredProcedure [dbo].[StartAsyncIndexRebuild]    Script Date: 04/07/2026 17:03:10 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
