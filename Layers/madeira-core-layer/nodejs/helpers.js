@@ -123,7 +123,7 @@ async function createPlaceholderIfMissing(client, name, placeholder = "CHANGE_ME
     }
 }
 
-// Bcrypt (clean - removed redundant logging)
+// Bcrypt
 async function hashPassword(password) {
     if (!password || typeof password !== 'string') {
         throw new Error('Password is required and must be a string');
@@ -145,29 +145,17 @@ function parseBody(event) {
     }
 
     try {
-        // Handle base64 encoded body (common with API Gateway)
         if (event.isBase64Encoded) {
             const decoded = Buffer.from(event.body, 'base64').toString('utf8');
             return JSON.parse(decoded);
         }
-
-        // If body is already an object (shouldn't normally happen, but defensive)
         if (typeof event.body === 'object') {
             return event.body;
         }
-
-        // Normal string body
         return JSON.parse(event.body);
     } catch (err) {
-        logger.warn('Failed to parse request body', {
-            error: err.message,
-            isBase64Encoded: event.isBase64Encoded,
-            bodyType: typeof event.body,
-            bodyPreview: typeof event.body === 'string' 
-                ? event.body.substring(0, 300) 
-                : '[non-string body]'
-        });
-        return {}; // Return empty object so destructuring doesn't crash
+        logger.warn('Failed to parse request body', { error: err.message });
+        return {};
     }
 }
 
@@ -186,14 +174,8 @@ async function enqueueMessage(message, options = {}) {
     };
 
     if (isFifoQueue) {
-        params.MessageGroupId = options.messageGroupId 
-            || message.userId 
-            || message.catalogId 
-            || message.type 
-            || 'default';
-
-        params.MessageDeduplicationId = options.deduplicationId 
-            || `${message.userId || message.catalogId || 'default'}-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
+        params.MessageGroupId = options.messageGroupId || message.userId || message.catalogId || message.type || 'default';
+        params.MessageDeduplicationId = options.deduplicationId || `${message.userId || message.catalogId || 'default'}-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
     }
 
     const sqs = await getSQSClient();
@@ -201,7 +183,128 @@ async function enqueueMessage(message, options = {}) {
     return { success: true };
 }
 
-// ====================== FINAL RE-EXPORTS (MAIN FUNCTIONS FIRST) ======================
+// ====================== S3 BUCKET ======================
+const S3_BUCKET = process.env.S3_BUCKET || 'madeira-screenshots';
+
+// ====================== S3 UPLOAD HELPERS ======================
+
+async function uploadBase64ToS3(base64Data, key, contentType = 'image/png') {
+    if (!base64Data || !key) throw new Error('base64Data and key are required');
+
+    try {
+        const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+        const buffer = Buffer.from(base64String, 'base64');
+
+        const s3 = await getS3Client();
+        await s3.send(new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            CacheControl: 'max-age=31536000'
+        }));
+
+        const region = await getAwsRegion();
+        return `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
+    } catch (error) {
+        logger.error('S3 upload failed', { key, error: error.message });
+        throw new Error(`Failed to upload to S3: ${error.message}`);
+    }
+}
+
+async function uploadBufferToS3(buffer, key, contentType = 'application/octet-stream') {
+    if (!buffer || !key) throw new Error('buffer and key are required');
+
+    try {
+        const s3 = await getS3Client();
+        await s3.send(new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            CacheControl: 'max-age=31536000'
+        }));
+
+        const region = await getAwsRegion();
+        return `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
+    } catch (error) {
+        logger.error('S3 buffer upload failed', { key, error: error.message });
+        throw new Error(`Failed to upload buffer to S3: ${error.message}`);
+    }
+}
+
+// ====================== S3 DELETE HELPERS ======================
+
+async function deleteFromS3(key, bucket = null) {
+    if (!key) throw new Error('key is required');
+
+    const targetBucket = bucket || S3_BUCKET;
+
+    try {
+        const s3 = await getS3Client();
+        await s3.send(new DeleteObjectCommand({ Bucket: targetBucket, Key: key }));
+        logger.debug('S3 object deleted', { key, bucket: targetBucket });
+        return true;
+    } catch (error) {
+        if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+            return true;
+        }
+        logger.error('Failed to delete from S3', { key, error: error.message });
+        throw error;
+    }
+}
+
+async function deleteMultipleFromS3(keys, bucket = null) {
+    if (!Array.isArray(keys) || keys.length === 0) return true;
+
+    const targetBucket = bucket || S3_BUCKET;
+    const s3 = await getS3Client();
+
+    const objects = keys.map(key => ({ Key: key }));
+
+    await s3.send(new DeleteObjectsCommand({
+        Bucket: targetBucket,
+        Delete: { Objects: objects }
+    }));
+
+    return true;
+}
+
+// ====================== S3 REPLACE HELPERS ======================
+
+async function replaceFileInS3(oldKey, newBase64Data, newKey = null, contentType = 'image/png') {
+    if (!oldKey || !newBase64Data) throw new Error('oldKey and newBase64Data are required');
+
+    const targetKey = newKey || oldKey;
+
+    try {
+        if (oldKey !== targetKey) {
+            await deleteFromS3(oldKey);
+        }
+        return await uploadBase64ToS3(newBase64Data, targetKey, contentType);
+    } catch (error) {
+        logger.error('Failed to replace file in S3', { oldKey, newKey: targetKey, error: error.message });
+        throw new Error(`Failed to replace file in S3: ${error.message}`);
+    }
+}
+
+async function replaceBufferInS3(oldKey, newBuffer, newKey = null, contentType = 'image/png') {
+    if (!oldKey || !newBuffer) throw new Error('oldKey and newBuffer are required');
+
+    const targetKey = newKey || oldKey;
+
+    try {
+        if (oldKey !== targetKey) {
+            await deleteFromS3(oldKey);
+        }
+        return await uploadBufferToS3(newBuffer, targetKey, contentType);
+    } catch (error) {
+        logger.error('Failed to replace buffer in S3', { oldKey, newKey: targetKey, error: error.message });
+        throw new Error(`Failed to replace buffer in S3: ${error.message}`);
+    }
+}
+
+// ====================== FINAL RE-EXPORTS ======================
 module.exports = {
     sql,
     logger,
@@ -224,10 +327,18 @@ module.exports = {
     hashPassword,
     comparePassword,
     createPlaceholderIfMissing,
-    parseBody
+    parseBody,
+
+    // S3 Helpers
+    uploadBase64ToS3,
+    uploadBufferToS3,
+    deleteFromS3,
+    deleteMultipleFromS3,
+    replaceFileInS3,
+    replaceBufferInS3
 };
 
-// ====================== IMPORT CONFIG MODULES (AFTER MAIN EXPORTS) ======================
+// ====================== IMPORT CONFIG MODULES ======================
 const dbConfig = require('./conf/db-config');
 const grokConfig = require('./conf/grok-config');
 const mailerConfig = require('./conf/mailer-config');
@@ -252,5 +363,5 @@ Object.assign(module.exports, {
     getEbayConfig: ebayConfig.getEbayConfig,
     getAwinConfig: awinConfig.getAwinConfig,
     getIncentiveConfig: incentiveConfig.getIncentiveConfig,
-    executeWithRetry: dbConfig.executeWithRetry     // ← Re-exported here
+    executeWithRetry: dbConfig.executeWithRetry
 });

@@ -1,4 +1,4 @@
-// header-widget.js
+// ====================== header-widget.js ======================
 // Self-contained JavaScript widget for header navigation
 // Compatible with AWS Lambda authentication API
 // Includes FontAwesome for icons, PWA support, and SVG sprite injection
@@ -143,13 +143,17 @@ class HeaderWidget {
 
         this.menuItems = [
             { name: 'Home', icon: 'fas fa-home', href: '/index.html', roles: [] },
+            { name: 'Clubs', icon: 'fas fa-users', href: '/madeira-clubs.html', roles: ['notoken'] },  
+            { name: 'Merchants', icon: 'fas fa-user-tie', href: '/madeira-merchants.html', roles: ['notoken'] },  
+            { name: 'Partners', icon: 'fas fa-handshake', href: '/madeira-partners.html', roles: ['notoken'] },  
             { name: 'Login', icon: 'fas fa-sign-in-alt', href: '/login.html', roles: ['notoken'] },            
             { name: 'Dashboard', icon: 'fas fa-chart-bar', href: '/dashboard.html', roles: ['self'] },
             { name: 'Smart Catalogue', icon: 'fas fa-robot', href: '/category.html', roles: ['community'] },
             { name: 'Embed Code', icon: 'fas fa-layer-group', href: '/catalog.html', roles: ['community'] },
             { name: 'API Keys', icon: 'fas fa-key', href: '/apikey.html', roles: ['self'] },
-            { name: 'My Parts', icon: 'fas fa-box-open', href: '/parts.html', roles: ['merchant'] },                        
-            { name: 'Partner', icon: 'fas fa-handshake', href: '/partner.html', roles: ['partner','admin'] },            
+            { name: 'My Parts', icon: 'fas fa-box-open', href: '/parts.html', roles: ['merchant'] },     
+            { name: 'Profile', icon: 'fas fa-images', href: '/partner.html', roles: ['partner'] },                               
+            { name: 'Clubs', icon: 'fas fa-handshake', href: '/clubs.html', roles: ['partner','admin'] },            
             { name: 'Account', icon: 'fas fa-user-gear', href: '/delegate.html', roles: ['community'] },
             { name: 'Install App', icon: 'fas fa-mobile-alt', action: 'install', roles: [] },
             { name: 'Logout', icon: 'fas fa-sign-out-alt', href: '/login.html', roles: ['self'] }
@@ -191,11 +195,11 @@ class HeaderWidget {
         if (isMuted) {
             muteBtn.classList.remove('fa-volume-up');
             muteBtn.classList.add('fa-volume-mute');
-            muteBtn.style.color = '#ff5252';   // Always red when muted
+            muteBtn.style.color = '#ff5252';
         } else {
             muteBtn.classList.remove('fa-volume-mute');
             muteBtn.classList.add('fa-volume-up');
-            muteBtn.style.color = '';           // Let CSS/partner colour take over when unmuted
+            muteBtn.style.color = '';
         }
     }
 
@@ -224,18 +228,14 @@ class HeaderWidget {
                 100% { transform: rotate(360deg); }
             }
 
-            /* === HEADER IS NOW A PROTECTED FIXED TOP BAR (mobile + desktop) === */
+            /* ========== FIXED HEADER ========== */
             header {
                 position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                z-index: 10000 !important;
-                width: 100% !important;
-                min-height: 60px;
-                display: flex;
-                align-items: center;
-                box-sizing: border-box;
+                top: 0;
+                left: 0;
+                width: 100%;
+                z-index: 9998;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             }
 
             /* Widget does NOT set background or colour on header */
@@ -266,7 +266,6 @@ class HeaderWidget {
                 align-items: center;
                 justify-content: space-between;
                 position: relative;
-                width: 100%;
             }
 
             .logo {
@@ -411,7 +410,6 @@ class HeaderWidget {
                 .menu-icon {
                     font-size: 1.5rem;
                     margin-left: 12px !important;
-                    /* color is inherited — no !important so partner .menu-item.selected .menu-icon wins */
                 }
                 .menu-item.selected .menu-link {
                     font-weight: 600;
@@ -445,7 +443,7 @@ class HeaderWidget {
             }
 
             .mute-button.fa-volume-mute {
-                color: #ff5252 !important;   /* forced red when muted */
+                color: #ff5252 !important;
             }
 
             /* Hover Help Tooltip */
@@ -703,18 +701,27 @@ class HeaderWidget {
         this.header = this.element.querySelector('header');
         window.headerElement = this.header;
 
-        // ========== DIAGNOSTIC LOGS ==========
+        // ========== NEW DIAGNOSTIC LOGS ==========
         if (this.header) {
             const cs = getComputedStyle(this.header);
             console.log('🔍 HEADER RENDERED — DIAGNOSTICS:');
+            console.log('  tagName:', this.header.tagName);
+            console.log('  id/class:', this.header.id, this.header.className);
             console.log('  position:', cs.position);
             console.log('  top:', cs.top);
             console.log('  z-index:', cs.zIndex);
+            console.log('  display:', cs.display);
+            console.log('  visibility:', cs.visibility);
+            console.log('  height:', cs.height, 'offsetHeight:', this.header.offsetHeight);
             console.log('  width:', cs.width);
-            console.log('  height:', cs.height);
             console.log('  backgroundColor:', cs.backgroundColor);
+            console.log('  color:', cs.color);
+            console.log('  is in viewport?', this.header.getBoundingClientRect().top < window.innerHeight);
+            console.log('  parent:', this.header.parentElement?.tagName, this.header.parentElement?.id);
+        } else {
+            console.error('❌ HEADER ELEMENT NOT FOUND after render!');
         }
-        // =====================================
+        // =========================================
 
         const menuHint = this.element.querySelector('.menu-hint');
         const menuItems = this.element.querySelectorAll('.menu-item');

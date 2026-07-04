@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="css/page.css">
+</head>
+
+<body>
+    <!-- Header widget -->
+    <header 
+        data-header-widget 
+        data-page-name="My Clubs" 
+        data-requireToken="true"
+    >
+    </header>
+    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/header-widget.js"></script>
+
+    <main>
+
+        <!-- Clubs Section (Replaced Metrics + Charts) -->
+        <section class="clubs">
+            
+            <div id="clubs-widget"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer"></footer>
+
+    <script>
+        // Load footer
+        fetch('footer.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to load footer.html');
+                return response.text();
+            })
+            .then(data => {
+                document.getElementById('footer').innerHTML = data;
+            })
+            .catch(error => {
+                console.error('Error loading footer:', error.message);
+                document.getElementById('footer').innerHTML = '<p>Footer content unavailable</p>';
+            });
+    </script>
+
+    <!-- Load Clubs Widget -->
+    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/clubs-widget.js"></script>
+
+</body>
+</html>
