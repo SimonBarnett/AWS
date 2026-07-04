@@ -1,0 +1,2 @@
+"use strict";require.config({baseUrl:"/scripts/lib",paths:{modules:"../modules",components:"../components",helpers:"../helpers",init:"../init",async:"require-plugins/async",json:"require-plugins/json",text:"require-plugins/text",data:"../data"},shim:{rivets:{deps:["sightglass"],exports:"rivets"}}});
+//# sourceMappingURL=common.js.map

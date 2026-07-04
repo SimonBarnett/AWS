@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!-- saved from url=(0032)shop.html -->
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AllThrive - Shop</title>
+  <link rel="icon" href="https://static.wixstatic.com/media/76aedc_3631b556d68a4b3ea107948f27c186a5%7Emv2.png/v1/fill/w_32%2Ch_32%2Clg_1%2Cusm_0.66_1.00_0.01/76aedc_3631b556d68a4b3ea107948f27c186a5%7Emv2.png" type="image/png">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f8f9fa;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #a8e6cf, #dcedc1, #ffaaa5, #ffd3b6);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      max-width: 280px;
+      height: auto;
+    }
+
+    .nav {
+      display: flex;
+      gap: 12px;
+    }
+
+    .nav a {
+      background: #4a90e2;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .nav a.active {
+      background: white;
+      color: #4a90e2;
+    }
+
+    .shop-container {
+      max-width: 1200px;
+      margin: 40px auto;           /* Centered with good spacing */
+      padding: 0 20px;
+      display: flex;
+      justify-content: center;    /* Extra centering */
+    }
+
+    /* CATALOGUE - Properly Centred + Fixed Height */
+    #madeira-container {
+      width: 100% !important;
+      max-width: 1100px !important;   /* Slightly narrower for better centering */
+      margin: 0 auto !important;
+      border: 6px solid #008b8b;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(139, 0, 0, 0.35);
+      background: #fff;
+      overflow: hidden;
+      display: flex !important;
+      flex-direction: column;
+      min-height: 780px !important;     /* Increased height */
+      height: 780px !important;         /* Fixed height so widget fills properly */
+      position: relative;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <img src="https://static.wixstatic.com/media/76aedc_3631b556d68a4b3ea107948f27c186a5~mv2.png" 
+         alt="AllThrive Sensory Play Space" class="logo">
+
+    <div class="nav">
+      <a href="index.html">Home</a>
+      <a href="#">Explore All Thrive</a>
+      <a href="#">Book Now</a>
+      <a href="shop.html" class="active">Shop</a>
+      <a href="#">Sessions &amp; Prices</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+
+  <!-- Catalogue Section - Centred -->
+  <div class="shop-container">
+    <div id="madeira-container">
+      <!-- Madeira Widget -->
+      <script data-affiliate="OKKCFJOQ" data-css="madeira-widget.css" 
+              src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-widget.js?v=1.0"></script>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer style="background:#333; color:#fff; text-align:center; padding:30px 20px; font-size:14px;">
+    <p>© AllThrive Sensory Play Space • Worple Road, Staines, Middlesex TW18 1HR</p>
+    <p>facebook | email | Affiliated with ArcheryGB | Safeguarding</p>
+  </footer>
+
+</body>
+</html>

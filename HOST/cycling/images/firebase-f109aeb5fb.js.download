@@ -1,0 +1,448 @@
+// console.log('LR Firebase.js implementation loaded...');
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+import {
+  browserLocalPersistence,
+  // Register
+  createUserWithEmailAndPassword,
+  // MFA
+  getAuth,
+  getMultiFactorResolver,
+  initializeAuth,
+  // MFA Enrollment
+  multiFactor,
+  onAuthStateChanged,
+  PhoneMultiFactorGenerator,
+  sendEmailVerification,
+  // TotpMultiFactorGenerator, // Already above
+  // Password Reset
+  sendPasswordResetEmail,
+  // Login
+  signInWithEmailAndPassword,
+  TotpMultiFactorGenerator,
+} from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+
+// This is set in master.blade.php
+// // Your web app's Firebase configuration
+// const firebaseConfig = {
+//   apiKey: "{{ env('FIREBASE_API_KEY') }}",
+//   authDomain: "{{ env('FIREBASE_AUTH_DOMAIN') }}",
+//   projectId: "{{ env('FIREBASE_AUDIENCE') }}",
+//   storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET') }}",
+//   messagingSenderId: "{{ env('FIREBASE_MESSAGE_SENDER_ID') }}",
+//   appId: "{{ env('FIREBASE_APP_ID') }}",
+// };
+// window.firebaseConfig = firebaseConfig;
+
+// Firebase
+const firebase = initializeApp(firebaseConfig);
+window.firebase = firebase;
+
+const authInstance = initializeAuth(firebase, {
+  persistence: [browserLocalPersistence],
+});
+window.authInstance = authInstance;
+var currentUser = authInstance.currentUser;
+window.currentUser = currentUser;
+
+// // Set persistence to browserLocalPersistence
+// setPersistence(authInstance, browserLocalPersistence)
+//     .then(() => {
+//         // console.log('All good...');
+//     })
+//     .catch((error) => {
+//         // console.log("Error setting persistence: ", error);
+//     });
+
+onAuthStateChanged(authInstance, (user) => {
+  // console.log('user', user);
+  if (user) {
+    // console.log('User is signed in:', user);
+    // User is signed in.
+    // You can access the user object here.
+    currentUser = user;
+  } else {
+    // console.log('No user is signed in.');
+  }
+});
+window.onAuthStateChanged = onAuthStateChanged;
+
+// Have a way to listen for updates...
+window.customOnAuthStateChanged = (callback) => {
+  onAuthStateChanged(authInstance, callback);
+};
+
+async function mfaLogin(otpFromAuthenticator, error, callback) {
+  // const authInstance = initializeAuth(firebase);
+
+  const mfaResolver = getMultiFactorResolver(getAuth(), error);
+  const enrolledFactors = mfaResolver.hints.map((info) => info.displayName);
+
+  // console.log('enrolledFactors:', enrolledFactors);
+
+  // Find selectedIndex based on factorId it has to be the first TotpMultiFactorGenerator
+  const selectedIndex = mfaResolver.hints.findIndex(
+    (hint) => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID
+  );
+  if (selectedIndex === -1) {
+    // console.error('No TOTP factor found');
+    return;
+  }
+  // console.log('TOTP factor selectedIndex:', selectedIndex);
+
+  switch (mfaResolver.hints[selectedIndex].factorId) {
+    case TotpMultiFactorGenerator.FACTOR_ID:
+      const multiFactorAssertion = TotpMultiFactorGenerator.assertionForSignIn(
+        mfaResolver.hints[selectedIndex].uid,
+        otpFromAuthenticator
+      );
+      try {
+        const userCredential = await mfaResolver.resolveSignIn(
+          multiFactorAssertion
+        );
+        // Successfully signed in!
+        if (typeof callback === 'function') {
+          const idToken = await userCredential.user.getIdToken();
+          // console.log('MFA login successful, ID Token:', idToken);
+          callback(null, idToken);
+        }
+      } catch (error) {
+        // Invalid or expired OTP.
+      }
+      break;
+    case PhoneMultiFactorGenerator.FACTOR_ID:
+      // Handle SMS second factor.
+      break;
+    default:
+      // Unsupported second factor?
+      break;
+  }
+}
+window.mfaLogin = mfaLogin;
+
+async function firebaseLogin(email, password, callback, mfacode) {
+  try {
+    // const authInstance = initializeAuth(firebase);
+    const userCredential = await signInWithEmailAndPassword(
+      authInstance,
+      email,
+      password
+    );
+    // console.log(userCredential);
+    const idToken = await userCredential.user.getIdToken();
+
+    // console.log(idToken);
+
+    const user = authInstance.currentUser;
+    if (user) {
+      // Check if the user's email matches the expected format  "member+"+email+"@membership.britishcycling.org.uk";
+      if (checkIfEmailTemplateLike(user.email)) {
+        // console.log('Email is in the expected format.');
+        // We don't need to send email verification.
+      } else {
+        // Check if the user's email is verified
+        if (!user.emailVerified) {
+          // console.log('Email not verified. Sending verification email...');
+          await sendEmailVerification(user);
+        } else {
+          // console.log('Email is verified.');
+        }
+      }
+    }
+
+    if (typeof callback === 'function') {
+      callback(null, idToken);
+    }
+    return idToken;
+  } catch (error) {
+    // MFA special case...
+    if (error.code === 'auth/multi-factor-auth-required') {
+      // Handle multi-factor authentication
+      // console.log('Multi-factor authentication required');
+      // Check if the user has an enrolled factor
+      if (mfacode) {
+        // If the user has provided a code, attempt to sign in with it
+        // We don't do callback we pass the callback.
+        mfaLogin(mfacode, error, callback);
+      } else {
+        // Prompt the user for the code
+        // console.log('Please enter the MFA code.');
+
+        const errorMessageObj =
+          mapFirebaseErrorCodeToUserFriendlyMessage(error);
+        if (typeof callback === 'function') {
+          callback(errorMessageObj, null);
+        }
+        return false;
+      }
+    } else {
+      const errorMessageObj = mapFirebaseErrorCodeToUserFriendlyMessage(error);
+      if (typeof callback === 'function') {
+        callback(errorMessageObj, null);
+      }
+      return false;
+    }
+  }
+}
+window.firebaseLogin = firebaseLogin;
+
+async function firebaseRegister(email, password, callback) {
+  try {
+    const authInstance = initializeAuth(firebase);
+
+    const userCredential = await createUserWithEmailAndPassword(
+      authInstance,
+      email,
+      password
+    );
+    const idToken = await userCredential.user.getIdToken();
+
+    // console.log(idToken);
+
+    const user = authInstance.currentUser;
+    if (user) {
+      // Check if the user's email is verified
+      if (!user.emailVerified) {
+        // console.log('Email not verified. Sending verification email...');
+        await sendEmailVerification(user);
+      } else {
+        // console.log('Email is verified.');
+      }
+    }
+
+    if (typeof callback === 'function') {
+      callback(null, idToken);
+    }
+    return idToken;
+  } catch (error) {
+    const errorMessageObj = mapFirebaseErrorCodeToUserFriendlyMessage(error);
+    if (typeof callback === 'function') {
+      callback(errorMessageObj, null);
+    }
+    return false;
+  }
+}
+window.firebaseRegister = firebaseRegister;
+
+async function firebasePasswordReset(email, callback) {
+  try {
+    // const authInstance = initializeAuth(firebase);
+    const sendPasswordResetEmailObj = await sendPasswordResetEmail(
+      authInstance,
+      email
+    );
+    // console.log('Password reset email sent!');
+    if (typeof callback === 'function') {
+      callback(null, sendPasswordResetEmailObj);
+    }
+    return true;
+  } catch (error) {
+    const errorMessageObj = mapFirebaseErrorCodeToUserFriendlyMessage(error);
+    if (typeof callback === 'function') {
+      callback(errorMessageObj, null);
+    }
+    return false;
+  }
+}
+window.firebasePasswordReset = firebasePasswordReset;
+
+function checkIfEmailTemplateLike(email) {
+  // Check if the email is in the format "member+<number>@membership.britishcycling.org.uk"
+  const regex = /^member\+\d+@membership\.britishcycling\.org\.uk$/;
+  return regex.test(email);
+}
+window.checkIfEmailTemplateLike = checkIfEmailTemplateLike;
+
+function checkIfNumberLike(value) {
+  return /^\d+$/.test(value);
+}
+window.checkIfNumberLike = checkIfNumberLike;
+
+function returenEmailOrEmailTemplate(email) {
+  var emailOrMembershipNumberEmail = email;
+  if (checkIfNumberLike(email)) {
+    // If it is, we update the email to look like this;
+    emailOrMembershipNumberEmail =
+      'member+' + email + '@membership.britishcycling.org.uk';
+  }
+  return emailOrMembershipNumberEmail;
+}
+window.returenEmailOrEmailTemplate = returenEmailOrEmailTemplate;
+
+function mapFirebaseErrorCodeToUserFriendlyMessage(errorObj) {
+  const errorCode = errorObj.code;
+  let friendlyMessage = errorObj.message;
+  switch (errorCode) {
+    case 'auth/invalid-email':
+      friendlyMessage = 'The email address is badly formatted.';
+      break;
+    case 'auth/user-not-found':
+      friendlyMessage =
+        'There is no user record corresponding to this identifier. The user may have been deleted.';
+      break;
+    case 'auth/wrong-password':
+      friendlyMessage =
+        'The password is invalid or the user does not have a password.';
+      break;
+    case 'auth/email-already-in-use':
+      friendlyMessage =
+        'The email address is already in use by another account.';
+      break;
+    case 'auth/weak-password':
+      friendlyMessage = 'The password must be 6 characters long or more.';
+      break;
+    case 'auth/invalid-credential':
+      friendlyMessage =
+        'The login credentials you entered are incorrect. Please check your email and password and try again.';
+      break;
+    case 'auth/multi-factor-auth-required':
+      friendlyMessage =
+        'Multi-factor authentication is required for this account.';
+      break;
+    default:
+      // console.log(errorCode);
+      friendlyMessage = 'An unknown error occurred.';
+  }
+
+  if (!errorObj) {
+    return null;
+  }
+
+  return {
+    ...errorObj,
+    friendlyMessage,
+  };
+}
+window.mapFirebaseErrorCodeToUserFriendlyMessage =
+  mapFirebaseErrorCodeToUserFriendlyMessage;
+
+// MFA
+const startMFAEnrollment = async (
+  appName = 'British Cycling Account',
+  setError
+) => {
+  setError(''); // Reset the error state
+  try {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) {
+      // We can't proceed, there is no active user session...
+      setError('No active user session found.');
+      return;
+    }
+
+    // Generate a TOTP secret.
+    const multiFactorSession = await multiFactor(currentUser).getSession();
+    const totpSecret = await TotpMultiFactorGenerator.generateSecret(
+      multiFactorSession
+    );
+
+    const totpUri = totpSecret.generateQrCodeUrl(
+      currentUser?.email ?? '',
+      appName
+    );
+
+    // console.log('totpUri:', totpUri);
+    // console.log('secret', totpSecret.secretKey);
+
+    return {
+      initialized: true,
+      totpSecret,
+      totpUri,
+    };
+  } catch (error) {
+    // console.log('Error logging in:', error);
+    setError(error?.message ?? 'An unexpected error occurred.');
+  }
+};
+window.startMFAEnrollment = startMFAEnrollment;
+
+const completeMFAEnrollment = async (verificationCode, secretObj, setError) => {
+  setError(''); // Reset the error state
+  try {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) {
+      setError('No active user session found.');
+      return;
+    }
+
+    const totpSecret = secretObj;
+    // console.log('Secret', totpSecret);
+
+    // Finalize the enrollment.
+    const multiFactorAssertion =
+      TotpMultiFactorGenerator.assertionForEnrollment(
+        totpSecret,
+        verificationCode
+      );
+    const finalizationResult = await multiFactor(currentUser).enroll(
+      multiFactorAssertion,
+      'TOTP MFA'
+    );
+
+    // console.log('MFA Enrollment Complete:', finalizationResult);
+    return true;
+  } catch (error) {
+    // console.log('Error completing MFA enrollment:', error);
+    setError(error?.message ?? 'An unexpected error occurred.');
+  }
+};
+window.completeMFAEnrollment = completeMFAEnrollment;
+
+const isMFAEnabled = () => {
+  try {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) {
+      setError('No active user session found.');
+      return;
+    }
+
+    // Get the user's enrolled second factors
+    const enrolledFactors = multiFactor(currentUser).enrolledFactors;
+
+    // Check if TOTP is enabled
+    const isTotpEnabled = enrolledFactors.some(
+      (factor) => factor.factorId === TotpMultiFactorGenerator.FACTOR_ID
+    );
+
+    // console.log('Is MFA enabled:', isTotpEnabled);
+
+    return isTotpEnabled;
+  } catch (error) {
+    console.error('Error checking MFA status:', error);
+    return undefined;
+  }
+};
+window.isMFAEnabled = isMFAEnabled;
+
+const removeFirebaseMFA = async (setError) => {
+  setError(''); // Reset the error state
+  try {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) {
+      setError('No active user session found.');
+      return;
+    }
+
+    // Get the user's enrolled second factors
+    const enrolledFactors = multiFactor(currentUser).enrolledFactors;
+
+    // Find the TOTP factor
+    const totpFactor = enrolledFactors.find(
+      (factor) => factor.factorId === TotpMultiFactorGenerator.FACTOR_ID
+    );
+
+    if (!totpFactor) {
+      setError('No TOTP MFA factor found to remove.');
+      return;
+    }
+
+    // Unenroll the TOTP factor
+    await multiFactor(currentUser).unenroll(totpFactor);
+
+    // console.log('TOTP MFA factor removed successfully.');
+  } catch (error) {
+    console.error('Error removing MFA factor:', error);
+    setError(error?.message ?? 'An unexpected error occurred.');
+  }
+};
+window.removeFirebaseMFA = removeFirebaseMFA;

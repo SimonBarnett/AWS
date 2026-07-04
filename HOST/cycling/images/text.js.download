@@ -1,0 +1,2 @@
+define([],function(){"use strict";$=_jQuery;return{linkify:function(r){return r.replace(/(((https?:\/\/)|(www\.))[^\s]+)/g,function(r,n,t){return $("<a>",{href:"www."==t?"http://"+r:r,text:r}).wrapAll("div").parent().html()})},stripTags:function(r){return r.replace(/(<([^>]+)>)/gi,"")},nl2br:function(r){return(r+"").replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g,"$1<br />$2")}}});
+//# sourceMappingURL=text.js.map

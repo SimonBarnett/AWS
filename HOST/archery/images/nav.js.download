@@ -1,0 +1,28 @@
+// hold the menu at the top of the page on scroll
+var container = document.querySelector('.main-content');
+var logo = document.querySelector('.logo');
+var dropdown = document.getElementsByClassName('dropdown');
+
+$(window).on("scroll", function(e) {
+  var scrollTop = $(window).scrollTop();
+  //console.log($(window).width());
+  if ($(window).width() > 767) {
+    if (scrollTop > 150) {
+      $('.w-nav').addClass("fixed");
+      logo.style.width = "50%";
+      logo.style.marginTop = "0";
+      container.style.marginTop = "146px";
+    } else {
+      $('.w-nav').removeClass("fixed");
+      logo.style.width = "100%";
+      logo.style.marginTop = "-63px";
+      container.style.marginTop = "86px";
+    }
+  }
+});
+
+for (var i = 0; i < dropdown.length; i++) {
+    dropdown[i].addEventListener('click', function(){
+        console.log("yes");
+    });
+}

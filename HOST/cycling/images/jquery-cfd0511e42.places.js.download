@@ -1,0 +1,277 @@
+/**
+ * jQuery plugin implementing the autocomplete behavior for Lets Ride.
+ */
+
+(function($) {
+    $.places = function(element, options) {
+        var plugin = this;
+        plugin.settings = {};
+
+        var defaults = {
+            componentRestrictions: {
+                country: [
+                    'gb', // Great Britain
+                    'je', // Jersey
+                    'im', // Isle of Man
+                    'gg', // Guernsey
+                ]
+            },
+            fields: [
+                'name',
+                'geometry',
+                'address_component'
+            ]
+        };
+
+        var $element = $(element);
+
+        const current_location_string = "Current Location";
+
+        const searching_string = "Searching";
+
+        plugin.init = function() {
+            plugin.settings = $.extend({}, defaults, options);
+
+            // An text input which will be turned into a Google Autocomplete field
+            var $input = $($element.data('input'));
+            if($input.length === 0) {
+                console.log('Please provide the data-input attribute');
+                return;
+            }
+
+            // A hidden field which will receive the latitude of a selected Google place or GPS location from device
+            var $latitude = $($element.data('latitude'));
+            if($latitude.length === 0) {
+                console.log('Please provide the data-latitude attribute');
+                return;
+            }
+
+            // A hidden field which will receive the longitude of a selected Google place or GPS location from device
+            var $longitude = $($element.data('longitude'));
+            if($longitude.length === 0) {
+                console.log('Please provide the data-longitude attribute');
+                return;
+            }
+
+            // A button which if specified will try to geo-locate the users current position using the devices GPS
+            var $locate = $element.data('locate') ? $($element.data('locate')) : null;
+
+            // If set, display the selected result by its postcode
+            var postcodeonly = $element.is('[data-postcodeonly]');
+
+            // A form which if specified will be automatically submitted when a new long/lat is selected
+            var $form = $element.data('form') ? $($element.data('form')) : null;
+
+            var stash = {
+                input : "",
+                latitude : "",
+                longitude : ""
+            };
+
+            /**
+             * We are not going to geocode anything so if all we have is a text location name then
+             * that's not good enough. Clear down.
+             */
+            if($input.val().length > 0) {
+                if($latitude.val().length === 0 || $longitude.val().length === 0) {
+                    revertInput();
+                }
+            }
+
+            if($locate) {
+                $locate.on('click', function() {
+                    $input.prop("disabled", true);
+                    $input.val(searching_string);
+                    $latitude.val("");
+                    $longitude.val("");
+                    navigator.geolocation.getCurrentPosition(function(success) {
+                        $input.prop("disabled", false);
+                        $input.val(current_location_string);
+                        $latitude.val(success.coords.latitude);
+                        $longitude.val(success.coords.longitude);
+                        stashInput();
+                        notifyChange();
+                        if($form) {
+                            $form.submit();
+                        }
+                    }, function(error) {
+                        if(error.code === 1) {
+                            // User denied permission to us
+                            alert('You have blocked this page from reading your location, but you can still enter it manually.');
+                        }
+                        if(error.code === 2) {
+                            // GPS could not get a fix
+                            alert('Your location could not be determined. Please enter it manually.');
+                        }
+                        if(error.code === 3) {
+                            // Took too long
+                            alert('Your location could not be determined. Please enter it manually.');
+                        }
+
+                        $input.prop("disabled", false);
+                        revertInput();
+                    }, {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    });
+                });
+            }
+
+            this.autocomplete = new google.maps.places.Autocomplete(
+                $input[0],
+                plugin.settings
+            );
+
+            google.maps.event.addListener(
+                this.autocomplete,
+                'place_changed',
+                $.proxy(function() {
+                    var place = this.autocomplete.getPlace();
+
+                    if(typeof place.geometry === 'undefined') {
+                        if(place.name === "") {
+                            // The user wants to clear the field
+                            clearInput();
+                        }
+                        else {
+                            // The user has not selected from the drop down options
+                            revertInput();
+                        }
+                        notifyChange();
+                        return;
+                    }
+
+                    var name = place.name;
+
+                    if (postcodeonly) {
+                        var postcode_component = place.address_components.filter(function(component) {
+                            var flagged_as_postcode = component.types.indexOf('postal_code') !== -1;
+                            var flagged_as_prefix = component.types.indexOf('postal_code_prefix') !== -1;
+
+                            return flagged_as_postcode && !flagged_as_prefix;
+                        });
+
+                        // If we can't find a postcode, we have to abandon this selection. This matches the old behaviour.
+                        if (postcode_component.length === 0) {
+                            revertInput();
+                            notifyChange();
+                            return;
+                        }
+                        name = postcode_component[0].long_name;
+                    }
+
+                    $input.val(name);
+                    $latitude.val(place.geometry.location.lat());
+                    $longitude.val(place.geometry.location.lng());
+
+                    stashInput();
+                    if($form) {
+                        $form.submit();
+                    }
+
+                    notifyChange();
+
+                }, this)
+            );
+
+            // Disable automatic submission of the form on "enter selects"
+            google.maps.event.addDomListener($input[0], 'keydown', function(event) {
+                if (event.keyCode === 13) {
+                    event.preventDefault();
+                }
+            });
+
+            selectFirstPredictionOnEnter($input[0]);
+
+            google.maps.event.addDomListener($input[0], 'focus', function(event) {
+                stashInput();
+            });
+
+            google.maps.event.addDomListener($input[0], 'blur', function(event) {
+                if($input.val().length === 0) {
+                    // This allows users to null a location (e.g. remove my home address)
+                    clearInput();
+                    stashInput();
+                }
+                else {
+                    revertInput();
+                }
+            });
+
+            function clearInput()
+            {
+                $input.val("");
+                $latitude.val("");
+                $longitude.val("");
+            }
+
+            function stashInput()
+            {
+                stash.input = $input.val();
+                stash.latitude = $latitude.val();
+                stash.longitude = $longitude.val();
+            }
+
+            function revertInput()
+            {
+                $input.val(stash.input);
+                $latitude.val(stash.latitude);
+                $longitude.val(stash.longitude);
+            }
+
+            function notifyChange()
+            {
+                $input.change();
+                $latitude.change();
+                $longitude.change();
+            }
+
+            function selectFirstPredictionOnEnter(input) {
+                // store the original event binding function
+                var _addEventListener = (input.addEventListener) ? input.addEventListener : input.attachEvent;
+
+                function addEventListenerWrapper(type, listener) {
+                    // Simulate a 'down arrow' keypress on hitting 'return' when no pac suggestion is selected,
+                    // and then trigger the original listener.
+                    if(type === 'keydown') {
+                        var orig_listener = listener;
+                        listener = function(event) {
+                            var suggestion_selected = $(".pac-item-selected").length > 0;
+                            if (event.which === 13 && !suggestion_selected) {
+                                var simulated_downarrow = $.Event("keydown", {
+                                    keyCode: 40,
+                                    which: 40
+                                });
+                                orig_listener.apply(input, [simulated_downarrow]);
+                            }
+                            orig_listener.apply(input, [event]);
+                        };
+                    }
+                    _addEventListener.apply(input, [type, listener]);
+                }
+                if (input.addEventListener)
+                    input.addEventListener = addEventListenerWrapper;
+                else if (input.attachEvent)
+                    input.attachEvent = addEventListenerWrapper;
+            }
+
+        };
+        plugin.init();
+    };
+
+    // add the plugin to the jQuery.fn object
+    $.fn.places = function(options) {
+        return this.each(function() {
+            if (undefined === $(this).data('places')) {
+                var plugin = new $.places(this, options);
+                $(this).data('places', plugin);
+            }
+        });
+    }
+})(jQuery);
+
+$(function() {
+    $('.google-places-autocomplete').places();
+    $('[data-toggle="tooltip"]').tooltip();
+});

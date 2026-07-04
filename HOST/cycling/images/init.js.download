@@ -1,0 +1,2 @@
+define(["modules/form"],function(t){"use strict";$=_jQuery;return{start:function(){t.validate()}}});
+//# sourceMappingURL=init.js.map
