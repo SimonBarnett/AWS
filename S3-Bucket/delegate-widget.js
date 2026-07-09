@@ -1,9 +1,8 @@
 // ====================== delegate-widget.js ======================
 // FULL AND UNABRIDGED
-// + Fixed intl-tel-input loading + improved fallback phone UI
-// + Better phone validation in fallback mode
-// + Cleaner phone field rendering
-// + Audio Tour now uses stable widget name (delegate-widget) instead of dynamic ID
+// + Robust intl-tel-input loading (from partner-widget.js pattern)
+// + No more duplicate phone UI — fallback only shown when intl-tel-input fails
+// + Clean single-field experience when intl-tel-input works
 
 (function () {
     console.log('[DelegateWidget] Script started');
@@ -16,21 +15,45 @@
         document.head.appendChild(faLink);
     }
 
-    function loadIntlTelInput() {
+    // ====================== ROBUST INTL-TEL-INPUT LOADING ======================
+    function loadIntlTelInputScript() {
+        if (window.intlTelInput) return Promise.resolve();
+        if (document.querySelector('script[src*="intl-tel-input"]')) {
+            return new Promise((resolve) => {
+                const existing = document.querySelector('script[src*="intl-tel-input"]');
+                existing.addEventListener('load', resolve, { once: true });
+            });
+        }
         return new Promise((resolve) => {
-            if (window.intlTelInput) {
-                return resolve(true);
-            }
-
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intl-tel-input.min.js';
-            
+            script.src = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intlTelInput.min.js';
             script.onload = () => resolve(true);
             script.onerror = () => {
-                console.warn('[DelegateWidget] intl-tel-input failed to load — using fallback');
+                console.warn('[DelegateWidget] intl-tel-input script failed to load — using fallback');
                 resolve(false);
             };
-            
+            document.head.appendChild(script);
+        });
+    }
+
+    function loadIntlTelInputCSS() {
+        if (document.querySelector('link[href*="intl-tel-input"]')) return Promise.resolve();
+        return new Promise((resolve) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/css/intlTelInput.css';
+            link.onload = resolve;
+            document.head.appendChild(link);
+        });
+    }
+
+    function loadIntlTelInputUtils() {
+        if (window.intlTelInputUtils) return Promise.resolve();
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js';
+            script.onload = resolve;
+            script.onerror = () => resolve(); // non-fatal
             document.head.appendChild(script);
         });
     }
@@ -61,7 +84,11 @@
         async init() {
             this.renderSkeleton();
 
-            const intlLoaded = await loadIntlTelInput();
+            await Promise.all([
+                loadIntlTelInputScript(),
+                loadIntlTelInputCSS(),
+                loadIntlTelInputUtils()
+            ]);
 
             this.render();
             this.loadAudioTour();
@@ -121,7 +148,7 @@
                         <div style="margin-bottom:15px;">
                             <label>Phone Number</label>
                             <div id="phone-container" style="display:flex; gap:8px; align-items:center;">
-                                <!-- Phone input will be injected here -->
+                                <!-- Phone field injected here (clean or fallback) -->
                             </div>
                             <span id="phone-error" style="color:red;font-size:12px;display:none;">Please enter a valid phone number</span>
                         </div>
@@ -141,6 +168,8 @@
 
         setupPhoneField() {
             const container = this.element.querySelector('#phone-container');
+            if (!container) return;
+
             const phoneInput = document.createElement('input');
             phoneInput.type = 'tel';
             phoneInput.id = 'phone';
@@ -150,7 +179,29 @@
             phoneInput.style.border = '1px solid #ccc';
             phoneInput.style.borderRadius = '4px';
 
-            // Create country code select
+            if (window.intlTelInput) {
+                // ✅ intl-tel-input loaded successfully → clean single field
+                container.appendChild(phoneInput);
+
+                try {
+                    this.iti = window.intlTelInput(phoneInput, {
+                        initialCountry: 'gb',
+                        utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js'
+                    });
+                    phoneInput.style.paddingLeft = '58px';
+                } catch (e) {
+                    console.warn('[DelegateWidget] intlTelInput init failed — falling back to manual select');
+                    this.createFallbackPhoneUI(container, phoneInput);
+                }
+            } else {
+                // ❌ intl-tel-input not available → show fallback UI
+                this.createFallbackPhoneUI(container, phoneInput);
+            }
+
+            this.phoneInput = phoneInput;
+        }
+
+        createFallbackPhoneUI(container, phoneInput) {
             const countrySelect = document.createElement('select');
             countrySelect.id = 'country-code';
             countrySelect.style.width = '110px';
@@ -177,21 +228,7 @@
             container.appendChild(countrySelect);
             container.appendChild(phoneInput);
 
-            this.phoneInput = phoneInput;
             this.countrySelect = countrySelect;
-
-            // Try to initialize intl-tel-input if available
-            if (window.intlTelInput) {
-                try {
-                    this.iti = window.intlTelInput(phoneInput, {
-                        initialCountry: 'gb',
-                        utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js'
-                    });
-                    phoneInput.style.paddingLeft = '58px';
-                } catch (e) {
-                    console.warn('[DelegateWidget] intlTelInput initialization failed');
-                }
-            }
         }
 
         setupFormValidation() {
@@ -204,7 +241,6 @@
                 const firstName = firstNameInput.value.trim();
                 const email = emailInput.value.trim();
                 const phoneVal = this.phoneInput.value.trim();
-
                 const isPhoneValid = phoneVal.length >= 7;
 
                 this.element.querySelector('#first_name-error').style.display = firstName ? 'none' : 'block';
@@ -217,7 +253,9 @@
             firstNameInput.addEventListener('input', validate);
             emailInput.addEventListener('input', validate);
             this.phoneInput.addEventListener('input', validate);
-            this.countrySelect.addEventListener('change', validate);
+            if (this.countrySelect) {
+                this.countrySelect.addEventListener('change', validate);
+            }
 
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -228,7 +266,7 @@
         async submitDelegation() {
             const firstName = this.element.querySelector('#first_name').value.trim();
             const email = this.element.querySelector('#email').value.trim();
-            const countryCode = this.countrySelect.value;
+            const countryCode = this.countrySelect ? this.countrySelect.value : '';
             const phoneNumber = this.phoneInput.value.trim();
             const phone = countryCode + phoneNumber;
 
@@ -263,7 +301,7 @@
             }
         }
 
-        // ====================== ACCEPT FORM (unchanged) ======================
+        // ====================== ACCEPT FORM ======================
         renderAcceptForm(token) {
             // ... (keep your existing accept form code)
         }
@@ -294,9 +332,8 @@
                 script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
                 script.onload = () => {
                     if (window.initAudioTour) {
-                        // Use stable, non-dynamic name so audiotour.js can correctly load from S3
                         this.element.id = 'delegate-widget';
-                        window.initAudioTour('delegate-widget', 'delegate-widget-audiotour.json');
+                        window.initAudioTour('delegate-widget', 'delegate-widget-audio.json');
                     }
                 };
                 document.head.appendChild(script);

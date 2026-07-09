@@ -558,14 +558,18 @@
             }
         }
 
+        // ====================== FIXED AUDIO TOUR LOADING ======================
         loadAudioTour() {
             setTimeout(() => {
                 const script = document.createElement('script');
                 script.src = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/audiotour.js';
                 script.onload = () => {
                     if (window.initAudioTour) {
-                        this.element.id = this.element.id || 'partner-widget-' + Date.now();
-                        window.initAudioTour(this.element.id, 'partner-widget-audiotour.json');
+                        // Use stable name so audiotour.js can correctly load from S3
+                        if (!this.element.id) {
+                            this.element.id = 'partner-widget';
+                        }
+                        window.initAudioTour('partner-widget', 'partner-widget-audiotour.json');
                     }
                 };
                 document.head.appendChild(script);

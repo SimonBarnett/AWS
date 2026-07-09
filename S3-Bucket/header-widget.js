@@ -141,27 +141,11 @@ class HeaderWidget {
         console.log('data-requireToken trimmed:', requireTokenAttr ? requireTokenAttr.trim() : null);
         console.log('requireToken parsed as:', this.requireToken);
 
-        this.menuItems = [
-            { name: 'Home', icon: 'fas fa-home', href: '/index.html', roles: [] },
-            { name: 'Clubs', icon: 'fas fa-users', href: '/madeira-clubs.html', roles: ['notoken'] },  
-            { name: 'Merchants', icon: 'fas fa-user-tie', href: '/madeira-merchants.html', roles: ['notoken'] },  
-            { name: 'Partners', icon: 'fas fa-handshake', href: '/madeira-partners.html', roles: ['notoken'] },  
-            { name: 'Login', icon: 'fas fa-sign-in-alt', href: '/login.html', roles: ['notoken'] },            
-            { name: 'Dashboard', icon: 'fas fa-chart-bar', href: '/dashboard.html', roles: ['self'] },
-            { name: 'Smart Catalogue', icon: 'fas fa-robot', href: '/category.html', roles: ['community'] },
-            { name: 'Embed Code', icon: 'fas fa-layer-group', href: '/catalog.html', roles: ['community'] },
-            { name: 'API Keys', icon: 'fas fa-key', href: '/apikey.html', roles: ['self'] },
-            { name: 'My Parts', icon: 'fas fa-box-open', href: '/parts.html', roles: ['merchant'] },     
-            { name: 'Profile', icon: 'fas fa-images', href: '/partner.html', roles: ['partner'] },                               
-            { name: 'Clubs', icon: 'fas fa-handshake', href: '/clubs.html', roles: ['partner','admin'] },            
-            { name: 'Account', icon: 'fas fa-user-gear', href: '/delegate.html', roles: ['community'] },
-            { name: 'Install App', icon: 'fas fa-mobile-alt', action: 'install', roles: [] },
-            { name: 'Logout', icon: 'fas fa-sign-out-alt', href: '/login.html', roles: ['self'] }
-        ];
+        this.menuItems = []; // will be populated in init() from JSON or default
         const currentPath = window.location.pathname;
         const currentPage = currentPath.split('/').pop();
-        this.currentMenuItem = this.menuItems.find(item => item.href && item.href.split('/').pop() === currentPage);
-        this.logoIcon = element.dataset.icon || (this.currentMenuItem ? this.currentMenuItem.icon : 'fas fa-home');
+        this.currentMenuItem = null; // will be set after menuItems loaded
+        this.logoIcon = element.dataset.icon || 'fas fa-home';
         this.installPromptEvent = null;
 
         this.addPwaMetaTags();
@@ -215,14 +199,26 @@ class HeaderWidget {
     }
 
     injectStyles() {
-        if (document.getElementById('header-widget-styles')) {
-            console.log('Header widget styles already exist');
-            return;
+        console.log('[HeaderWidget] injectStyles() called');
+
+        // === FORCE FRESH INJECTION ===
+        const existing = document.getElementById('header-widget-styles');
+        if (existing) {
+            console.log('[HeaderWidget] Old #header-widget-styles found — REMOVING it to force fresh styles');
+            existing.remove();
+        } else {
+            console.log('[HeaderWidget] No existing #header-widget-styles tag found');
         }
-    
+
         const style = document.createElement('style');
         style.id = 'header-widget-styles';
+
+        // Version stamp visible in DevTools
+        const versionStamp = `/* HEADER-WIDGET STYLES v2.9 — injected at ${new Date().toISOString()} */`;
+
         style.innerHTML = `
+            ${versionStamp}
+
             @keyframes spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
@@ -238,9 +234,6 @@ class HeaderWidget {
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             }
 
-            /* Widget does NOT set background or colour on header */
-            /* Partner page.css FULLY controls via: header { background-color: #508738; color: white; } */
-
             .logo i,
             .logo-text,
             .menu-link,
@@ -248,12 +241,10 @@ class HeaderWidget {
                 color: inherit !important;
             }
 
-            /* Menu icons inherit by default — NO !important so partner .menu-item.selected .menu-icon wins */
             .menu-icon {
                 color: inherit;
             }
 
-            /* MOBILE MENU — text inherits, but icon colour is NOT forced with !important */
             .menu-list.show .menu-link,
             .menu-list.show .menu-text,
             .menu-list.show .hamburger,
@@ -317,12 +308,9 @@ class HeaderWidget {
                 white-space: nowrap;
             }
 
-            .menu-link:hover {
-                background-color: rgba(255,255,255,0.12);
-            }
-
+            /* ========== DESKTOP HOVER — icon hover only (all background hover rules removed) ========== */
             .menu-link:hover .menu-icon {
-                transform: scale(1.15);
+                transform: scale(1.25) !important;
                 transition: transform 0.2s ease;
             }
 
@@ -336,12 +324,10 @@ class HeaderWidget {
                 font-size: 0.95rem;
             }
 
-            /* SELECTED STATE — widget only sets font-weight. Background + icon colour are 100% partner-controlled */
             .menu-item.selected .menu-link {
                 font-weight: 600;
             }
 
-            /* Hamburger */
             .hamburger {
                 font-size: 1.7rem;
                 cursor: pointer;
@@ -367,7 +353,7 @@ class HeaderWidget {
                 }
             }
 
-            /* Mobile / Tablet styles */
+            /* Mobile / Tablet styles — REDUCED VERTICAL SPACING BETWEEN ITEMS (mobile hover background rule removed) */
             @media (max-width: 1199px) {
                 .hamburger {
                     display: block !important;
@@ -382,7 +368,7 @@ class HeaderWidget {
                     border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 10px;
                     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-                    padding: 8px 0;
+                    padding: 4px 0;
                     min-width: 250px;
                     z-index: 9999;
                 }
@@ -394,22 +380,19 @@ class HeaderWidget {
                 }
                 .menu-link {
                     text-decoration: none;
-                    padding: 14px 20px;
+                    padding: 8px 16px !important;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 8px !important;
                     width: 100%;
                     white-space: nowrap;
                     color: inherit !important;
                     justify-content: flex-end !important;
                     flex-direction: row-reverse !important;
                 }
-                .menu-link:hover {
-                    background-color: rgba(255,255,255,0.1);
-                }
                 .menu-icon {
                     font-size: 1.5rem;
-                    margin-left: 12px !important;
+                    margin-left: 6px !important;
                 }
                 .menu-item.selected .menu-link {
                     font-weight: 600;
@@ -446,7 +429,7 @@ class HeaderWidget {
                 color: #ff5252 !important;
             }
 
-            /* Hover Help Tooltip */
+            /* Hover Help Tooltip — background synced to partner header */
             .menu-hint {
                 position: absolute;
                 display: flex;
@@ -460,6 +443,7 @@ class HeaderWidget {
                 z-index: 10000;
                 pointer-events: none;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                color: #fff;
             }
             .menu-hint.visible {
                 visibility: visible;
@@ -469,8 +453,12 @@ class HeaderWidget {
                 font-size: 1.1rem;
             }
         `;
+
         document.head.appendChild(style);
-        console.log('Header widget styles injected');
+
+        console.log('[HeaderWidget] Fresh styles injected successfully');
+        console.log('[HeaderWidget] Critical rule check:');
+        console.log('  All hover background color rules removed (desktop + mobile)');
     }
 
     addPwaMetaTags() {
@@ -636,6 +624,47 @@ class HeaderWidget {
             }
         }
 
+        // ========== FULL DEFAULT MENU (used if /menu-config.json missing or invalid) ==========
+        const defaultMenuItems = [
+            { name: 'Home', icon: 'fas fa-home', href: '/index.html', roles: [] },
+            { name: 'Clubs', icon: 'fas fa-users', href: '/madeira-clubs.html', roles: ['notoken'] },  
+            { name: 'Merchants', icon: 'fas fa-user-tie', href: '/madeira-merchants.html', roles: ['notoken'] },  
+            { name: 'Partners', icon: 'fas fa-handshake', href: '/madeira-partners.html', roles: ['notoken'] },  
+            { name: 'Vouchers', icon: 'fas fa-ticket', href: '/madeira-vouchers.html', roles: ['notoken'] },  
+            { name: 'Login', icon: 'fas fa-sign-in-alt', href: '/login.html', roles: ['notoken'] },            
+            { name: 'Dashboard', icon: 'fas fa-chart-bar', href: '/dashboard.html', roles: ['self'] },
+            { name: 'Smart Catalogue', icon: 'fas fa-robot', href: '/category.html', roles: ['community'] },
+            { name: 'Embed Code', icon: 'fas fa-layer-group', href: '/catalog.html', roles: ['community'] },
+            { name: 'API Keys', icon: 'fas fa-key', href: '/apikey.html', roles: ['self'] },
+            { name: 'My Parts', icon: 'fas fa-box-open', href: '/parts.html', roles: ['merchant'] },     
+            { name: 'Profile', icon: 'fas fa-images', href: '/partner.html', roles: ['partner'] },                               
+            { name: 'Clubs', icon: 'fas fa-handshake', href: '/clubs.html', roles: ['partner','admin'] },            
+            { name: 'Account', icon: 'fas fa-user-gear', href: '/delegate.html', roles: ['community'] },
+            { name: 'Install App', icon: 'fas fa-mobile-alt', action: 'install', roles: [] },
+            { name: 'Logout', icon: 'fas fa-sign-out-alt', href: '/login.html', roles: ['self'] }
+        ];
+
+        // ========== LOAD FROM PARTNER SITE JSON (FULLY EXTERNAL) ==========
+        this.menuItems = defaultMenuItems; // start with full default
+        try {
+            console.log('Fetching menu config from /menu-config.json (partner site)');
+            const menuResponse = await fetch('/menu-config.json');
+            if (menuResponse.ok) {
+                const menuData = await menuResponse.json();
+                if (menuData.menuItems && Array.isArray(menuData.menuItems) && menuData.menuItems.length > 0) {
+                    this.menuItems = menuData.menuItems;
+                    console.log('Successfully loaded custom menuItems from /menu-config.json on partner site. Count:', this.menuItems.length);
+                } else {
+                    console.warn('/menu-config.json loaded but did not contain a valid non-empty menuItems array — using built-in default (full list preserved)');
+                }
+            } else {
+                console.log('/menu-config.json not found or failed to load (HTTP ' + menuResponse.status + ') on partner site — using full built-in default menuItems');
+            }
+        } catch (error) {
+            console.error('Error fetching /menu-config.json from partner site, falling back to full built-in default:', error.message);
+        }
+
+        // Re-apply the Smart Catalogue dynamic href (if needed)
         this.menuItems = this.menuItems.map(item => {
             if (item.name === 'Smart Catalogue') {
                 return {
@@ -645,6 +674,13 @@ class HeaderWidget {
             }
             return item;
         });
+
+        const currentPath = window.location.pathname;
+        const currentPage = currentPath.split('/').pop();
+        this.currentMenuItem = this.menuItems.find(item => item.href && item.href.split('/').pop() === currentPage);
+        if (this.currentMenuItem && this.currentMenuItem.icon) {
+            this.logoIcon = this.currentMenuItem.icon;
+        }
 
         this.render();
     }
@@ -723,6 +759,17 @@ class HeaderWidget {
         }
         // =========================================
 
+        // === EXTRA COMPUTED STYLE CHECKS FOR DEBUGGING ===
+        setTimeout(() => {
+            const firstLink = this.element.querySelector('.menu-link');
+            if (firstLink) {
+                const computed = getComputedStyle(firstLink);
+                console.log('[HeaderWidget] COMPUTED gap on first .menu-link:', computed.gap);
+                console.log('[HeaderWidget] COMPUTED padding on first .menu-link:', computed.padding);
+            }
+        }, 300);
+        // =================================================
+
         const menuHint = this.element.querySelector('.menu-hint');
         const menuItems = this.element.querySelectorAll('.menu-item');
         const hamburger = this.element.querySelector('.hamburger');
@@ -734,6 +781,20 @@ class HeaderWidget {
             console.error('Nav element not found');
             return;
         }
+
+        // ========== EXTRA GLOBAL HOVER LOGGING FOR DEBUG ==========
+        this.header.addEventListener('mouseenter', (e) => {
+            const target = e.target;
+            if (target.classList.contains('menu-link') || target.closest('.menu-link')) {
+                const link = target.classList.contains('menu-link') ? target : target.closest('.menu-link');
+                const computedBg = getComputedStyle(link).backgroundColor;
+                console.log('[HeaderWidget] GLOBAL HOVER on menu-link (text hover area):', link.dataset.name || 'unknown');
+                console.log('[HeaderWidget] Computed backgroundColor:', computedBg);
+            } else {
+                console.log('[HeaderWidget] GLOBAL HOVER on non-menu-link element:', target.tagName, target.className || target.id);
+            }
+        }, true);
+        // =========================================================
 
         hamburger.addEventListener('click', () => {
             console.log('Hamburger clicked - toggling menu');
@@ -815,6 +876,21 @@ class HeaderWidget {
                     });
                 });
             }
+
+            // ========== HOVER DEBUG LOGGING (TEXT HOVER AREA) + MENU HINT BACKGROUND SYNC ==========
+            link.addEventListener('mouseenter', () => {
+                const computedBg = getComputedStyle(link).backgroundColor;
+                console.log('[HeaderWidget] HOVER triggered on TEXT area:', name);
+                console.log('[HeaderWidget] Computed backgroundColor on text hover:', computedBg);
+
+                // Sync menu hint background to partner header background
+                if (this.header && menuHint) {
+                    const headerBg = getComputedStyle(this.header).backgroundColor;
+                    menuHint.style.backgroundColor = headerBg;
+                    menuHint.style.color = '#fff';
+                }
+            });
+            // ========================================
 
             link.addEventListener('mouseenter', (event) => {
                 menuHint.querySelector('.menu-name').textContent = name;

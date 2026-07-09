@@ -297,7 +297,7 @@
                     <!-- Header -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0; color: #1f2937;">
-                            &nbsp;<i class="fas fa-handshake"></i> My Clubs
+                            <i class="fas fa-handshake"></i> My Clubs
                         </h2>
                         
                         <div style="display: flex; align-items: center; gap: 12px;">
@@ -410,28 +410,22 @@
 
             this.container.querySelector('#backToList').addEventListener('click', () => this.showListView());
 
-            // Invite Button
             const inviteBtn = this.container.querySelector('#inviteBtn');
             inviteBtn.addEventListener('click', () => this.showInviteModal());
 
-            // Close modal
             this.container.querySelector('#closeInviteModal').addEventListener('click', () => {
                 this.container.querySelector('#inviteModal').style.display = 'none';
             });
         }
 
         showInviteModal() {
-            console.log('[Invite] showInviteModal called');
-
             const modal = this.container.querySelector('#inviteModal');
             const container = this.container.querySelector('#inviteContainer');
 
             container.innerHTML = `<div data-partner-widget style="min-height: 420px; width: 100%;"></div>`;
             modal.style.display = 'flex';
-            console.log('[Invite] Modal opened + target div inserted');
 
             const scriptSrc = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/partner-widget.js';
-
             const oldScript = document.querySelector(`script[src*="${scriptSrc}"]`);
             if (oldScript) oldScript.remove();
 
@@ -440,24 +434,13 @@
             fresh.async = true;
 
             fresh.onload = () => {
-                console.log('[Invite] Fresh partner-widget.js loaded');
-
                 setTimeout(() => {
                     const target = container.querySelector('[data-partner-widget]');
                     if (target && typeof window.PartnerWidget === 'function') {
-                        console.log('[Invite] PartnerWidget class found — instantiating with target element');
-                        try {
-                            new window.PartnerWidget(target);
-                        } catch (e) {
-                            console.error('[Invite] Error instantiating PartnerWidget:', e);
-                        }
-                    } else {
-                        console.warn('[Invite] window.PartnerWidget class not available after load');
+                        new window.PartnerWidget(target);
                     }
                 }, 250);
             };
-
-            fresh.onerror = () => console.error('[Invite] Failed to load partner-widget.js');
 
             document.head.appendChild(fresh);
         }
@@ -613,27 +596,15 @@
 
             content.innerHTML = '';
 
-            if (tabName === 'details') {
-                this.renderDetailsTab();
-            } 
-            else if (tabName === 'widget') {
-                this.renderWidgetTab(club);
-            } 
-            else if (tabName === 'stats') {
-                this.renderStatsTab(club);
-            } 
-            else if (tabName === 'gallery') {
-                this.renderGalleryTab(club);
-            } 
-            else if (tabName === 'promote') {
-                this.renderPromoteTab(club);
-            } 
-            else {
-                content.innerHTML = `<p style="color:#6b7280; padding: 40px 20px; text-align:center;">${tabName} section coming soon...</p>`;
-            }
+            if (tabName === 'details') this.renderDetailsTab();
+            else if (tabName === 'widget') this.renderWidgetTab(club);
+            else if (tabName === 'stats') this.renderStatsTab(club);
+            else if (tabName === 'gallery') this.renderGalleryTab(club);
+            else if (tabName === 'promote') this.renderPromoteTab(club);
+            else content.innerHTML = `<p style="color:#6b7280; padding: 40px 20px; text-align:center;">${tabName} section coming soon...</p>`;
         }
 
-        // ====================== STATS TAB (with Chart.js loading) ======================
+        // ====================== STATS TAB (FIXED - matches backend) ======================
         renderStatsTab(club) {
             const content = this.container.querySelector('#tabContent');
             const clubId = club.ClubID;
@@ -655,8 +626,8 @@
                             <div class="stats-group-title">Report Type</div>
                             <div class="stats-pills">
                                 <div class="stats-pill active" data-report="Catalogue Views"><i class="fas fa-eye"></i> Catalogue Views</div>
-                                <div class="stats-pill" data-report="Product Clicks"><i class="fas fa-mouse-pointer"></i> Product Clicks</div>
-                                <div class="stats-pill" data-report="Conversions"><i class="fas fa-shopping-cart"></i> Conversions</div>
+                                <div class="stats-pill" data-report="Catalogue Clicks"><i class="fas fa-mouse-pointer"></i> Catalogue Clicks</div>
+                                <div class="stats-pill" data-report="Catalogue Visitors"><i class="fas fa-users"></i> Catalogue Visitors</div>
                             </div>
                         </div>
                     </div>
@@ -682,7 +653,6 @@
             const fetchAndRender = async () => {
                 loading.style.display = 'flex';
 
-                // Ensure Chart.js is loaded before using it
                 try {
                     await ensureChartJsLoaded();
                 } catch (err) {
@@ -889,6 +859,7 @@
 
             const clubId = club.ClubID;
             const MADEIRA_SCRIPT_URL = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-widget.js';
+            const VOUCHER_SCRIPT_URL = 'https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/madeira-voucher-widget.js';
 
             const STYLESHEETS = [
                 { name: 'Default', filename: 'madeira-widget.css' },
@@ -898,7 +869,8 @@
 
             content.innerHTML = `
                 <div style="max-width: 700px;">
-                    <h3 style="margin-bottom: 8px;">Widget Code for ${club.Name}</h3>
+                    <!-- CATALOG WIDGET -->
+                    <h3 style="margin-bottom: 8px;">Catalog widget for ${club.Name}</h3>
                     <p style="color: #6b7280; margin-bottom: 20px;">Use this code on your website to embed the catalogue.</p>
 
                     <div style="margin-bottom: 20px;">
@@ -918,9 +890,27 @@
                         style="background:#3b82f6; color:white; border:none; padding:12px 24px; border-radius:8px; font-size:15px; cursor:pointer; display:flex; align-items:center; gap:8px;">
                         <i class="fas fa-copy"></i> Copy to Clipboard
                     </button>
+
+                    <!-- VOUCHER WIDGET -->
+                    <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                        <h3 style="margin-bottom: 8px;">Voucher widget for ${club.Name}</h3>
+                        <p style="color: #6b7280; margin-bottom: 20px;">Use this code on your website to embed the vouchers.</p>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="display:block; font-weight:600; margin-bottom:6px;">Voucher Widget Code</label>
+                            <textarea id="voucher-widget-code" readonly 
+                                style="width:100%; height:100px; font-family:monospace; padding:12px; border:1px solid #d1d5db; border-radius:8px; background:#f9fafb; font-size:13px; resize:vertical;"></textarea>
+                        </div>
+
+                        <button id="copy-voucher-btn" 
+                            style="background:#3b82f6; color:white; border:none; padding:12px 24px; border-radius:8px; font-size:15px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-copy"></i> Copy to Clipboard
+                        </button>
+                    </div>
                 </div>
             `;
 
+            // === CATALOG WIDGET LOGIC (unchanged) ===
             const styleSelect = content.querySelector('#widget-style-select');
             const codeTextarea = content.querySelector('#widget-code');
             const copyBtn = content.querySelector('#copy-widget-btn');
@@ -945,6 +935,29 @@
                 copyBtn.innerHTML = `<i class="fas fa-check"></i> Copied!`;
                 setTimeout(() => {
                     copyBtn.innerHTML = originalText;
+                }, 2000);
+            });
+
+            // === VOUCHER WIDGET LOGIC (new - no CSS, no dropdown) ===
+            const voucherCodeTextarea = content.querySelector('#voucher-widget-code');
+            const copyVoucherBtn = content.querySelector('#copy-voucher-btn');
+
+            const updateVoucherCode = () => {
+                voucherCodeTextarea.value = 
+`<div id="madeira-vouchers-container"></div>
+<script data-affiliate="${clubId}" src="${VOUCHER_SCRIPT_URL}?v=1.0"></script>`;
+            };
+
+            updateVoucherCode();
+
+            copyVoucherBtn.addEventListener('click', () => {
+                voucherCodeTextarea.select();
+                document.execCommand('copy');
+
+                const originalText = copyVoucherBtn.innerHTML;
+                copyVoucherBtn.innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                setTimeout(() => {
+                    copyVoucherBtn.innerHTML = originalText;
                 }, 2000);
             });
         }

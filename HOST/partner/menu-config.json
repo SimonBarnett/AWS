@@ -1,0 +1,20 @@
+{
+    "menuItems": [
+      { "name": "Home", "icon": "fas fa-home", "href": "/index.html", "roles": [] },
+      { "name": "Clubs", "icon": "fas fa-users", "href": "/madeira-clubs.html", "roles": ["notoken"] },
+      { "name": "Merchants", "icon": "fas fa-user-tie", "href": "/madeira-merchants.html", "roles": ["notoken"] },
+      { "name": "Partners", "icon": "fas fa-handshake", "href": "/madeira-partners.html", "roles": ["notoken"] },
+      { "name": "Vouchers", "icon": "fas fa-ticket", "href": "/madeira-vouchers.html", "roles": ["notoken"] },
+      { "name": "Login", "icon": "fas fa-sign-in-alt", "href": "/login.html", "roles": ["notoken"] },
+      { "name": "Dashboard", "icon": "fas fa-chart-bar", "href": "/dashboard.html", "roles": ["self"] },
+      { "name": "Smart Catalogue", "icon": "fas fa-robot", "href": "/category.html", "roles": ["community"] },
+      { "name": "Embed Code", "icon": "fas fa-layer-group", "href": "/catalog.html", "roles": ["community"] },
+      { "name": "API Keys", "icon": "fas fa-key", "href": "/apikey.html", "roles": ["self"] },
+      { "name": "My Parts", "icon": "fas fa-box-open", "href": "/parts.html", "roles": ["merchant"] },
+      { "name": "Profile", "icon": "fas fa-images", "href": "/partner.html", "roles": ["partner"] },
+      { "name": "Clubs", "icon": "fas fa-handshake", "href": "/clubs.html", "roles": ["partner","admin"] },
+      { "name": "Account", "icon": "fas fa-user-gear", "href": "/delegate.html", "roles": ["community"] },
+      { "name": "Install App", "icon": "fas fa-mobile-alt", "action": "install", "roles": [] },
+      { "name": "Logout", "icon": "fas fa-sign-out-alt", "href": "/login.html", "roles": ["self"] }
+    ]
+  }

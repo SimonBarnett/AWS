@@ -15,6 +15,7 @@
             this.container = container;
             this.type = container.dataset.type || 'clubs';
             this.data = null;
+            this.affiliateCode = '';   // ← stored here so filters can use it
             this.render();
             this.loadData();
         }
@@ -65,6 +66,37 @@
                         background: #bae6fd !important;
                         transform: translateY(-1px);
                     }
+                    .copy-btn {
+                        background: #f1f5f9;
+                        border: 1px solid #cbd5e1;
+                        color: #334155;
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    }
+                    .copy-btn:hover {
+                        background: #e0f2fe;
+                        border-color: #0ea5e9;
+                    }
+                    .link-btn {
+                        background: #e0f2fe;
+                        border: 1px solid #0ea5e9;
+                        color: #0369a1;
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        text-decoration: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 5px;
+                    }
+                    .link-btn:hover {
+                        background: #bae6fd;
+                    }
                 </style>
             `;
         }
@@ -76,6 +108,7 @@
             if (this.type === 'clubs') this.renderClubs(content);
             else if (this.type === 'partners') this.renderPartners(content);
             else if (this.type === 'merchants') this.renderMerchants(content);
+            else if (this.type === 'discount') this.renderDiscount(content);
         }
 
         // ====================== CLUBS ======================
@@ -169,7 +202,7 @@
             `;
         }
 
-        // ====================== PARTNERS (Refactored & Improved Styling) ======================
+        // ====================== PARTNERS ======================
         renderPartners(container) {
             const partners = this.data.Partners || [];
 
@@ -179,18 +212,13 @@
 
                 return `
                     <div style="margin-bottom:48px; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; box-shadow:0 8px 25px rgba(15, 23, 42, 0.08); background:white;">
-                        
-                        <!-- Partner Header -->
                         <div style="padding:28px 32px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
                             <div style="display:flex; gap:24px; align-items:flex-start;">
-                                
-                                <!-- Clickable Logo -->
                                 <a href="${partner.Website || '#'}" target="_blank" style="flex-shrink:0; display:block;">
                                     <img src="${partner.Logo}" 
                                          style="width:80px; height:80px; object-fit:contain; border-radius:12px; border:1px solid #e2e8f0; padding:8px; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.06);"
                                          alt="${partner.Name}">
                                 </a>
-
                                 <div style="flex:1; min-width:0;">
                                     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
                                         <h2 style="margin:0; font-size:26px; color:#0f172a; font-weight:700;">${partner.Name}</h2>
@@ -200,31 +228,24 @@
                                             </span>
                                         ` : ''}
                                     </div>
-
                                     ${partner.Description ? `
                                         <p style="margin:0; color:#475569; font-size:15px; line-height:1.6; max-width:620px;">
                                             ${partner.Description}
                                         </p>
                                     ` : ''}
-
-                                    <!-- Meta Row -->
                                     <div style="margin-top:14px; display:flex; flex-wrap:wrap; gap:20px; font-size:14px;">
                                         ${partner.Website ? `
                                             <a href="${partner.Website}" target="_blank" 
                                                style="color:#0284c8; text-decoration:none; display:flex; align-items:center; gap:6px; font-weight:500;">
-                                                <i class="fas fa-globe"></i> 
-                                                <span>Visit Website</span>
+                                                <i class="fas fa-globe"></i> <span>Visit Website</span>
                                             </a>
                                         ` : ''}
                                         ${partner.Phone ? `
                                             <span style="color:#64748b; display:flex; align-items:center; gap:6px;">
-                                                <i class="fas fa-phone-alt"></i> 
-                                                <span>${partner.Phone}</span>
+                                                <i class="fas fa-phone-alt"></i> <span>${partner.Phone}</span>
                                             </span>
                                         ` : ''}
                                     </div>
-
-                                    <!-- Provides -->
                                     ${provides.length > 0 ? `
                                         <div style="margin-top:16px;">
                                             <div style="font-size:12px; color:#64748b; margin-bottom:8px; font-weight:500;">SERVICES</div>
@@ -240,14 +261,11 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Clubs Section -->
                         <div style="padding:28px 32px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
                                 <h4 style="margin:0; color:#334155; font-size:17px; font-weight:600;">Featured Clubs &amp; Sites</h4>
                                 <span style="font-size:13px; color:#64748b;">${clubs.length} site${clubs.length !== 1 ? 's' : ''}</span>
                             </div>
-
                             <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:18px;">
                                 ${clubs.map(club => `
                                     <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(0,0,0,0.04);">
@@ -339,6 +357,180 @@
                     pill.classList.add('active');
                     const sector = pill.dataset.sector;
                     this.renderMerchantGrid(container, sectors, sector);
+                });
+            });
+        }
+
+        // ====================== DISCOUNT ======================
+        renderDiscount(container) {
+            const sectors = this.data.sectors || [];
+            if (sectors.length === 0) {
+                container.innerHTML = `<p style="padding:20px; color:#666;">No active discounts available.</p>`;
+                return;
+            }
+
+            // ====================== GET AFFILIATE CODE FROM WIDGET (data-affiliate) ======================
+            let affiliateCode = '';
+            try {
+                const scriptEl = document.currentScript || 
+                                 document.querySelector('script[data-affiliate]') || 
+                                 document.querySelector('script[src*="madeira-widget.js"]');
+                if (scriptEl) {
+                    affiliateCode = scriptEl.getAttribute('data-affiliate') || 
+                                    scriptEl.dataset.affiliate || 
+                                    '';
+                }
+            } catch (e) {
+                console.warn('Could not read data-affiliate from widget script tag');
+            }
+
+            this.affiliateCode = affiliateCode;   // ← store on instance so filters can use it
+
+            const pillsHTML = sectors.map((s, index) => `
+                <button class="sector-pill ${index === 0 ? 'active' : ''}" 
+                        data-sector="${s.primarySector}"
+                        style="padding:8px 18px; border-radius:20px; border:1px solid #ccc; background:white; cursor:pointer; font-size:14px; margin-right:8px; transition:all 0.2s;">
+                    ${s.primarySector}
+                </button>
+            `).join('');
+
+            container.innerHTML = `
+                <div>
+                    <div style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:8px;">
+                        ${pillsHTML}
+                    </div>
+                    <div id="discount-grid" style="display:flex; flex-direction:column; gap:24px;"></div>
+                </div>
+            `;
+
+            const firstSector = sectors[0].primarySector;
+            this.renderDiscountGrid(container, sectors, firstSector, this.affiliateCode);
+            this.attachDiscountFilters(container, sectors);
+        }
+
+        renderDiscountGrid(container, sectors, filterSector, affiliateCode = '') {
+            const grid = container.querySelector('#discount-grid');
+
+            // ====================== HELPER: Append &clickref= to EVERY tracking link ======================
+            const appendClickRef = (url, code) => {
+                if (!url || url === '#' || !code) return url || '#';
+                const separator = url.includes('?') ? '&' : '?';
+                return url + separator + 'clickref=' + encodeURIComponent(code);
+            };
+
+            let html = '';
+
+            sectors.forEach(sector => {
+                if (sector.primarySector !== filterSector) return;
+
+                sector.merchants.forEach(merchant => {
+                    if (!merchant.deals || merchant.deals.length === 0) return;
+
+                    // ====================== MERCHANT HEADER LINKS (logo + name) - NOW INCLUDE &clickref= ======================
+                    const firstDealTrackingUrl = merchant.deals[0]?.TrackingUrl || '#';
+                    const merchantLink = appendClickRef(firstDealTrackingUrl, affiliateCode);
+
+                    html += `
+                        <div style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; background:white; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                            <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+                                ${merchant.logoUrl ? `
+                                    <a href="${merchantLink}" target="_blank" style="flex-shrink:0;">
+                                        <img src="${merchant.logoUrl}" style="width:56px; height:56px; object-fit:contain; border-radius:8px; border:1px solid #eee;" alt="${merchant.Name}">
+                                    </a>
+                                ` : ''}
+                                <div>
+                                    <a href="${merchantLink}" target="_blank" style="text-decoration:none; color:inherit;">
+                                        <h3 style="margin:0; font-size:20px; color:#0f172a;">${merchant.Name}</h3>
+                                    </a>
+                                    <p style="margin:4px 0 0 0; color:#64748b; font-size:14px;">${merchant.merchantDescription || ''}</p>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                ${merchant.deals.map(deal => {
+                                    // ====================== EVERY INDIVIDUAL DEAL LINK - NOW ALSO INCLUDES &clickref= ======================
+                                    const dealLink = appendClickRef(deal.TrackingUrl || '#', affiliateCode);
+
+                                    return `
+                                        <div style="border:1px solid #e0e7ff; border-radius:10px; padding:16px; background:#f8fafc;">
+                                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                                                <div style="flex:1; min-width:200px;">
+                                                    <div style="font-weight:700; font-size:17px; color:#1e40af; margin-bottom:6px;">
+                                                        ${deal.VoucherCode}
+                                                    </div>
+                                                    <p style="margin:0 0 8px 0; color:#334155; font-size:14px; line-height:1.5;">
+                                                        ${deal.dealDescription || ''}
+                                                    </p>
+                                                    <div style="font-size:12px; color:#64748b;">
+                                                        Valid until: ${new Date(deal.EndDate).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Buttons -->
+                                                <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                                                    <!-- Copy Button (no link, unchanged) -->
+                                                    <button class="copy-btn copy-voucher-btn" data-code="${deal.VoucherCode}">
+                                                        <i class="fas fa-copy"></i> Copy Code
+                                                    </button>
+
+                                                    <!-- Link Button - &clickref= IS INCLUDED -->
+                                                    <a href="${dealLink}" target="_blank" class="link-btn" title="Go to offer">
+                                                        <i class="fas fa-external-link-alt"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+
+            grid.innerHTML = html || '<p>No active discounts in this sector.</p>';
+
+            // ====================== COPY BUTTON EVENT LISTENERS (unchanged) ======================
+            const copyButtons = grid.querySelectorAll('.copy-voucher-btn');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const code = button.dataset.code;
+
+                    navigator.clipboard.writeText(code).then(() => {
+                        const originalHTML = button.innerHTML;
+                        button.innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                        setTimeout(() => {
+                            button.innerHTML = originalHTML;
+                        }, 1800);
+                    }).catch(() => {
+                        // Fallback for older browsers
+                        const textarea = document.createElement("textarea");
+                        textarea.value = code;
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(textarea);
+
+                        const originalHTML = button.innerHTML;
+                        button.innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                        setTimeout(() => {
+                            button.innerHTML = originalHTML;
+                        }, 1800);
+                    });
+                });
+            });
+        }
+
+        attachDiscountFilters(container, sectors) {
+            const pills = container.querySelectorAll('.sector-pill');
+
+            pills.forEach(pill => {
+                pill.addEventListener('click', () => {
+                    pills.forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    const sector = pill.dataset.sector;
+                    // ← FIXED: now passes this.affiliateCode so clickref is preserved after filtering
+                    this.renderDiscountGrid(container, sectors, sector, this.affiliateCode);
                 });
             });
         }
