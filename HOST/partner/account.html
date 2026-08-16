@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings</title>
+    <link rel="stylesheet" href="css/page.css">
+</head>
+<body>
+    <!-- Header -->
+    <header data-header-widget data-page-name="Account Settings" data-requireToken="true"></header>
+    <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/header-widget.js"></script>
+
+    <main style="max-width: 900px; margin: 40px auto; padding: 0 20px; margin-bottom: 80px;">
+        <br>
+        <!-- ====================== DELEGATE ====================== -->
+        <section style="margin-bottom: 60px;">
+            
+            <div data-delegate-widget></div>
+            <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/delegate-widget.js?v=1.1"></script>
+        </section>
+
+        <!-- ====================== STRIPE ====================== -->
+        <section style="margin-bottom: 60px;">
+            
+            <div data-stripe-widget></div>
+            <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/stripe-widget.js"></script>
+        </section>
+
+        <!-- ====================== RESET CATALOGUE ====================== -->
+        <section style="margin-bottom: 60px;">
+            
+            <div data-reset-catalogue></div>
+            <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/reset-catalogue.js"></script>
+        </section>
+
+        <!-- ====================== GDPR DELETE ====================== -->
+        <section>
+            
+            <div data-gdpr-delete></div>
+            <script src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/gdpr-delete.js"></script>
+        </section>
+
+    </main>
+
+    <footer id="footer"></footer>
+    <script>
+        fetch('footer.html')
+            .then(r => r.text())
+            .then(html => document.getElementById('footer').innerHTML = html)
+            .catch(() => document.getElementById('footer').innerHTML = '<p>Footer unavailable</p>');
+    </script>
+</body>
+</html>

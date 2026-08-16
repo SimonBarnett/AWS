@@ -13,7 +13,7 @@
       { "name": "My Parts", "icon": "fas fa-box-open", "href": "/parts.html", "roles": ["merchant"] },
       { "name": "Profile", "icon": "fas fa-images", "href": "/partner.html", "roles": ["partner"] },
       { "name": "Clubs", "icon": "fas fa-handshake", "href": "/clubs.html", "roles": ["partner","admin"] },
-      { "name": "Account", "icon": "fas fa-user-gear", "href": "/delegate.html", "roles": ["community"] },
+      { "name": "Account", "icon": "fas fa-user-gear", "href": "/account.html", "roles": ["community"] },
       { "name": "Install App", "icon": "fas fa-mobile-alt", "action": "install", "roles": [] },
       { "name": "Logout", "icon": "fas fa-sign-out-alt", "href": "/login.html", "roles": ["self"] }
     ]
