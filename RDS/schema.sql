@@ -487,7 +487,8 @@ CREATE FUNCTION [dbo].[Part2]
     @LastSubCategory NVARCHAR(255) = NULL,
     @LastID INT = NULL,
     @PageSize INT,
-    @SortOrder NVARCHAR(50) = 'PriceDesc'
+    @SortOrder NVARCHAR(50) = 'PriceDesc',
+    @SearchTerm NVARCHAR(255) = NULL
 )
 RETURNS TABLE
 AS
@@ -531,6 +532,12 @@ RETURN
         WHERE p.UserId = @UserId
           AND p.Category = @MainCategory
           AND (@SubCategory IS NULL OR p.SubCategory = @SubCategory)
+          AND (
+                @SearchTerm IS NULL
+                OR p.Title LIKE '%' + @SearchTerm + '%'
+                OR p.Brand LIKE '%' + @SearchTerm + '%'
+                OR p.Mpn LIKE '%' + @SearchTerm + '%'
+              )
     ),
     Numbered AS (
         SELECT *,
@@ -559,9 +566,10 @@ RETURN
         Mpn,
         Brand,
         SubCategoryOrder,
-        CreatedDate
+        CreatedDate,
+        rn AS rowid
     FROM Numbered
-    WHERE (@LastID IS NULL OR ID > @LastID)   -- SIMPLIFIED: only need last ID + full sort order
+    WHERE (@LastID IS NULL OR rn > @LastID)
     ORDER BY rn
 );
 GO

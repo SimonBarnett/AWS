@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Madeira Scan Interface</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        .logo {
+            width: 80px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #555;
+        }
+        .results {
+            margin-top: 30px;
+            text-align: left;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .spinner {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Additional styles for formatted results */
+        .section {
+            margin-bottom: 40px;
+            text-align: left;
+        }
+        .section h2 {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .section p {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .segment {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .segment h3 {
+            color: #28a745;
+            margin-bottom: 15px;
+        }
+        .segment ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .segment li {
+            margin-bottom: 10px;
+            font-size: 16px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .merchant-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            vertical-align: top;
+        }
+        .merchant-content {
+            flex: 1;
+        }
+        .merchant-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .merchant-pairs {
+            margin-top: 5px;
+        }
+        .merchant-pair {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .intro {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/icon-192.png" alt="Club Madeira Logo" class="logo">
+        <h1>Club Scan Interface</h1>
+        <p>Enter a URL to scan and get started!</p>
+        <input type="url" id="urlInput" placeholder="https://example.com" required>
+        <button id="scanButton">Go</button>
+        <div class="spinner" id="spinner"></div>
+        <div class="status" id="statusMessage">Ready to scan...</div>
+        <div class="results" id="resultsContainer"></div>
+    </div>
+
+    <script>
+        const apiBase = 'https://ytepcnwske.execute-api.eu-west-2.amazonaws.com/prod/clubscan';
+        let pollingInterval;
+
+        // Function to parse query parameters
+        function getQueryParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        // Check for URL parameter on load
+        window.addEventListener('load', () => {
+            const paramUrl = getQueryParam('url');
+            if (paramUrl) {
+                const urlInput = document.getElementById('urlInput');
+                const statusMessage = document.getElementById('statusMessage');
+                const spinner = document.getElementById('spinner');
+
+                urlInput.value = paramUrl;
+                statusMessage.textContent = 'Loading scan...';
+                spinner.style.display = 'block';
+
+                fetchAndDisplayStatus(paramUrl, true).catch(error => {
+                    console.error('Auto-fetch error:', error);
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.classList.add('error');
+                    spinner.style.display = 'none';
+                });
+            }
+        });
+
+        document.getElementById('scanButton').addEventListener('click', async () => {
+            const urlInput = document.getElementById('urlInput').value.trim();
+            const statusMessage = document.getElementById('statusMessage');
+            const spinner = document.getElementById('spinner');
+            const resultsContainer = document.getElementById('resultsContainer');
+
+            // Clear previous results and status
+            statusMessage.textContent = '';
+            statusMessage.classList.remove('error');
+            resultsContainer.innerHTML = '';
+            clearInterval(pollingInterval);
+
+            // Validate URL
+            try {
+                new URL(urlInput);
+                if (!urlInput.startsWith('http://') && !urlInput.startsWith('https://')) {
+                    throw new Error('Invalid URL format');
+                }
+            } catch (e) {
+                statusMessage.textContent = 'Please enter a valid URL (e.g., https://example.com)';
+                statusMessage.classList.add('error');
+                return;
+            }
+
+            // Start scanning
+            statusMessage.textContent = 'Checking for existing scan...';
+            spinner.style.display = 'block';
+
+            try {
+                await fetchAndDisplayStatus(urlInput, true); // Initial check
+            } catch (error) {
+                console.error('Initial fetch error:', error);
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.classList.add('error');
+                spinner.style.display = 'none';
+            }
+        });
+
+        async function fetchAndDisplayStatus(url, isInitial = false) {
+            const statusMessage = document.getElementById('statusMessage');
+            const spinner = document.getElementById('spinner');
+            const resultsContainer = document.getElementById('resultsContainer');
+
+            try {
+                console.log(`Fetching status for URL: ${url} (isInitial: ${isInitial})`);
+                const response = await fetch(`${apiBase}?url=${encodeURIComponent(url)}`);
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+                const data = await response.json();
+                console.log('Fetched data:', data);
+                console.log('Fetched data type:', typeof data);
+                console.log('Fetched data keys:', Object.keys(data));
+                if (data.results) {
+                    console.log('Results data type:', typeof data.results);
+                    console.log('Results keys:', Object.keys(data.results));
+                }
+
+                statusMessage.textContent = `Status: ${data.status || 'Unknown'}`;
+
+                if (data.status === 'completed') {
+                    clearInterval(pollingInterval);
+                    spinner.style.display = 'none';
+                    renderResults(data.results, resultsContainer);
+                    statusMessage.textContent = 'Scan completed successfully!';
+                } else if (data.status === 'failed') {
+                    clearInterval(pollingInterval);
+                    spinner.style.display = 'none';
+                    statusMessage.textContent = `Scan failed: ${data.error || 'Unknown error'}`;
+                    statusMessage.classList.add('error');
+                } else {
+                    // If not initial, or if initial but processing, start/set polling
+                    if (isInitial) {
+                        statusMessage.textContent = 'Scan is processing...';
+                    }
+                    if (!pollingInterval) {
+                        pollingInterval = setInterval(() => fetchAndDisplayStatus(url), 15000);
+                    }
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                clearInterval(pollingInterval);
+                spinner.style.display = 'none';
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.classList.add('error');
+            }
+        }
+
+        function renderResults(results, container) {
+            console.log('Rendering results:', results);
+            console.log('Results type:', typeof results);
+            console.log('Results keys:', Object.keys(results));
+            if (!results || typeof results !== 'object') {
+                console.warn('Invalid results data');
+                container.innerHTML = '<p class="error">No valid data available to display.</p>';
+                return;
+            }
+
+            console.log('Blind Review data:', results.blindReview);
+            console.log('Site Review data:', results.review);
+            console.log('Market Segments data:', results.marketSegments);
+            console.log('Market Segments type:', typeof results.marketSegments);
+            if (Array.isArray(results.marketSegments)) {
+                console.log('Market Segments length:', results.marketSegments.length);
+                results.marketSegments.forEach((seg, idx) => {
+                    console.log(`Segment ${idx} data:`, seg);
+                    console.log(`Segment ${idx} type:`, typeof seg);
+                    console.log(`Segment ${idx} keys:`, Object.keys(seg));
+                    console.log(`Segment ${idx} merchants:`, seg.merchants);
+                    console.log(`Segment ${idx} merchants type:`, typeof seg.merchants);
+                    if (Array.isArray(seg.merchants)) {
+                        console.log(`Segment ${idx} merchants length:`, seg.merchants.length);
+                        seg.merchants.forEach((merch, mIdx) => {
+                            console.log(`Merchant ${mIdx} in segment ${idx}:`, merch);
+                            console.log(`Merchant ${mIdx} type:`, typeof merch);
+                            if (typeof merch === 'object') {
+                                console.log(`Merchant ${mIdx} keys:`, Object.keys(merch));
+                            }
+                        });
+                    }
+                });
+            }
+
+            let html = `
+                <div class="section blind-review">
+                    <h2>Blind Review</h2>
+                    <p>${results.blindReview || 'No blind review available.'}</p>
+                </div>
+                <div class="section site-review">
+                    <h2>Site Review</h2>
+                    <p>${results.review || 'No site review available.'}</p>
+                </div>
+                <div class="section market-segments">
+                    <h2>Market Segments</h2>
+            `;
+
+            if (results.marketSegments && Array.isArray(results.marketSegments)) {
+                results.marketSegments.forEach(segmentDetails => {
+                    const segmentName = segmentDetails.segmentName || 'Unnamed Segment';
+                    const merchants = Array.isArray(segmentDetails.merchants) ? segmentDetails.merchants : [];
+                    html += `
+                        <div class="segment">
+                            <h3>${segmentName}</h3>
+                            <ul>
+                                ${merchants.map(merchant => {
+                                    if (typeof merchant === 'object' && merchant !== null) {
+                                        const merchantName = merchant.name || 'Unnamed Merchant';
+                                        const otherPairs = Object.entries(merchant).filter(([key]) => key !== 'name').map(([key, value]) => `<div class="merchant-pair"><strong>${key}:</strong> ${value}</div>`).join('');
+                                        return `
+                                            <li>
+                                                <img src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/merchant.png" alt="Merchant Icon" class="merchant-icon">
+                                                <div class="merchant-content">
+                                                    <div class="merchant-name">${merchantName}</div>
+                                                    <div class="merchant-pairs">${otherPairs}</div>
+                                                </div>
+                                            </li>
+                                        `;
+                                    } else {
+                                        return `
+                                            <li>
+                                                <img src="https://madeira-widget-bucket.s3.eu-west-2.amazonaws.com/merchant.png" alt="Merchant Icon" class="merchant-icon">
+                                                <div class="merchant-content">
+                                                    <div class="merchant-name">${merchant}</div>
+                                                </div>
+                                            </li>
+                                        `;
+                                    }
+                                }).join('') || '<li>No merchants listed for this segment.</li>'}
+                            </ul>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p>No market segments data available.</p>';
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

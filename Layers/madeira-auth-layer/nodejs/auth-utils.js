@@ -69,4 +69,4 @@ module.exports = {
     validateUserId 
 };
 
-logger.debug('✅ Auth utilities loaded (User ID generation + validation)');
+logger.info('✅ Auth utilities loaded (User ID generation + validation)');

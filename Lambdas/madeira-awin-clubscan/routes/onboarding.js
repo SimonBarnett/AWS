@@ -45,7 +45,15 @@ exports.handler = async (event, { pool } = {}) => {
 
                 if (await emailAlreadyExists(pool, email)) continue;
 
-                const user = await createAwinMerchantUser(pool, { advertiserId, name, website });
+                // Pass credentials explicitly so helpers never need getAwinCredentials
+                const user = await createAwinMerchantUser(pool, {
+                    advertiserId,
+                    name,
+                    website,
+                    accessToken: ACCESS_TOKEN,
+                    publisherId: PUBLISHER_ID
+                });
+
                 await updateAwinUserId(pool, advertiserId, user.userId);
 
                 newAdvertisers.push({
@@ -70,7 +78,7 @@ exports.handler = async (event, { pool } = {}) => {
         const stats = await getAwinStats(pool);
         const last24hSales = await getLast24hAwinSales(pool);
 
-        // ====================== ALWAYS SEND REPORT ======================
+        // ====================== ALWAYS SEND REPORT (non-fatal) ======================
         const emailTo = sandbox ? 'si@ntsa.uk' : NOTIFICATION_EMAIL_TO;
         const projectedTotalMerchants = stats.totalAwinMerchants + (sandbox ? 0 : newAdvertisers.length);
 
@@ -91,7 +99,7 @@ exports.handler = async (event, { pool } = {}) => {
             ? `<h3>New Awin Merchants Onboarded Today (${newAdvertisers.length})</h3><table border="1" cellpadding="8" style="border-collapse:collapse; width:100%;"><thead><tr style="background:#f0f0f0;"><th>Company</th><th>Description</th><th>Email</th></tr></thead><tbody>${newTableRows}</tbody></table>`
             : `<p><em>No new merchants onboarded today.</em></p>`;
 
-        // Last 24h Sales + Currency Totals (kept exactly as before)
+        // Last 24h Sales + Currency Totals
         const salesRows = last24hSales.map(s => `
             <tr>
                 <td>${s.ClubID}</td>
@@ -154,7 +162,7 @@ exports.handler = async (event, { pool } = {}) => {
             : '';
 
         const mailOptions = {
-            from: 'support@clubmadeira.uk',
+            from: 'support@smartcatalogue.uk',
             to: emailTo,
             subject: `${sandbox ? '[SANDBOX TEST] ' : ''}Daily Awin Report - ${new Date().toISOString().split('T')[0]}`,
             html: `
@@ -178,8 +186,40 @@ exports.handler = async (event, { pool } = {}) => {
             `
         };
 
-        await sendMail(mailOptions);
-        logger.info(`✅ Daily report sent successfully to ${emailTo}`);
+        // Email is non-fatal — never let it kill the whole onboarding
+        try {
+            await sendMail(mailOptions);
+            logger.info(`✅ Daily report sent successfully to ${emailTo}`);
+        } catch (mailError) {
+            logger.error(`❌ Email sending failed (non-fatal): ${mailError.message}`, {
+                to: emailTo,
+                error: mailError.message
+            });
+        }
+
+        // ====================== CLEANUP: Remove UserApiKeys for unjoined merchants ======================
+        if (!sandbox) {
+            try {
+                const cleanupResult = await pool.request().query(`
+                    DELETE FROM UserApiKeys 
+                    WHERE user_id IN (
+                        SELECT AwinUserId 
+                        FROM dbo.AwinHighApprovalMerchants 
+                        WHERE AwinUserId IS NOT NULL 
+                          AND Joined <> 1
+                          AND EXISTS (
+                              SELECT 1 
+                              FROM UserApiKeys 
+                              WHERE user_id = AwinHighApprovalMerchants.AwinUserId
+                          )
+                    )
+                `);
+
+                logger.info(`✅ Cleanup completed - removed ${cleanupResult.rowsAffected[0]} UserApiKeys records for unjoined merchants`);
+            } catch (cleanupError) {
+                logger.error('Failed to run UserApiKeys cleanup', { error: cleanupError.message });
+            }
+        }
 
         return { statusCode: 200 };
 
@@ -187,15 +227,31 @@ exports.handler = async (event, { pool } = {}) => {
         logger.error(`Awin onboarding failed: ${error.message}`, { stack: error.stack });
         throw error;
     }
-    // NOTE: Pool is managed by the orchestrator (index.js). Do not close here.
 };
 
-// ====================== HELPER FUNCTIONS (updated to accept pool) ======================
+// ====================== HELPER FUNCTIONS ======================
 
 async function getJoinedProgrammes(publisherId, accessToken) {
     const url = `https://api.awin.com/publishers/${publisherId}/programmes?relationship=joined`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!response.ok) throw new Error(`Awin API error: ${response.status}`);
+    
+    const response = await fetch(url, {
+        headers: { 
+            Authorization: `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        logger.error('Awin 403 raw response', { 
+            status: response.status, 
+            url, 
+            body: errorBody,
+            tokenPrefix: accessToken?.substring(0, 20) + '...'   
+        });
+        throw new Error(`Awin API error: ${response.status} - ${errorBody}`);
+    }
+
     return await response.json();
 }
 

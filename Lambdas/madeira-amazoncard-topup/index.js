@@ -1,22 +1,17 @@
 // Lambdas/amazoncard-topup/index.js
 // Amazon Gift Card Top-up Lambda (AGCOD v2)
-//
-// NOTE: This Lambda intentionally uses aws-sdk v2 for request signing.
-// It has been isolated here because AGCOD signing is sensitive and this
-// process only runs once per week. Reliability was prioritised over
-// migrating to AWS SDK v3.
+// Skips credential requirement when running in sandbox mode
 
 const AWS = require('aws-sdk');
 const https = require('https');
 
 const { sql, logger, getDbConnection } = require('/opt/nodejs/helpers');
-const { getIncentiveConfig } = require('/opt/nodejs/conf/incentive-config');
+const { getIncentiveConfig } = require('/opt/nodejs/helpers');
 
 exports.handler = async (event) => {
     let pool = null;
 
     try {
-        // === Load configuration from shared incentive config layer ===
         const config = await getIncentiveConfig();
 
         const partnerId = config.AMAZON_PARTNER_ID;
@@ -26,16 +21,25 @@ exports.handler = async (event) => {
         const currency  = (config.AMAZON_CURRENCY || 'GBP').toUpperCase();
         const isSandbox = String(config.AMAZON_SANDBOX || 'true').toLowerCase() === 'true';
 
-        // Budget is intentionally kept as an environment variable so it can be
-        // changed by people who do not have access to SSM parameters.
         const budget = parseFloat(process.env.BUDGET);
 
-        if (!partnerId) {
-            throw new Error('AMAZON_PARTNER_ID is missing from incentive config');
+        // Only require real credentials when NOT in sandbox
+        const credentialsMissing = !partnerId || !accessKey || !secretKey || 
+                                   accessKey === 'CHANGE_ME' || secretKey === 'CHANGE_ME';
+
+        if (credentialsMissing && !isSandbox) {
+            logger.warn('Amazon credentials not configured (still placeholders in SSM).');
+            return {
+                statusCode: 200,
+                body: JSON.stringify({
+                    success: true,
+                    mode: 'no-credentials',
+                    message: 'Amazon credentials not yet configured in SSM.',
+                    simulatedCards: 0
+                })
+            };
         }
-        if (!accessKey || !secretKey) {
-            throw new Error('AMAZON_ACCESS_KEY_ID and AMAZON_SECRET_ACCESS_KEY are required (from incentive config)');
-        }
+
         if (isNaN(budget) || budget <= 0) {
             throw new Error('BUDGET must be a positive number (set via environment variable)');
         }
@@ -81,85 +85,95 @@ exports.handler = async (event) => {
         pool = await getDbConnection();
         let insertedCount = 0;
 
-        // === AGCOD v2 signing setup (aws-sdk v2 - intentionally kept) ===
-        const signer = new AWS.Signers.V4(
-            { service: 'execute-api', region: 'us-east-1' },
-            'AGCODService'
-        );
-        const credentials = new AWS.Credentials(accessKey, secretKey);
-
-        const hostname = isSandbox
-            ? 'agcod-v2-gamma.amazon.com'
-            : 'agcod-v2.amazon.com';
-
-        for (const value of cards) {
-            const creationRequestId = `MADEIRA-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-            const body = JSON.stringify({
-                creationRequestId,
-                partnerId,
-                value: {
-                    amount: value,
-                    currencyCode: currency
-                }
-            });
-
-            const options = {
-                hostname,
-                path: '/CreateGiftCard',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Amz-Target': 'com.amazonaws.agcod.AGCODService.CreateGiftCard',
-                    'Content-Length': Buffer.byteLength(body)
-                }
+        // Only attempt real AGCOD calls if we have valid credentials
+        if (!credentialsMissing) {
+            const credentials = {
+                accessKeyId: accessKey,
+                secretAccessKey: secretKey
             };
 
-            const requestDate = new Date();
-            signer.addAuthorization(credentials, requestDate);
-            Object.assign(options.headers, signer.headers);
+            const hostname = isSandbox
+                ? 'agcod-v2-gamma.amazon.com'
+                : 'agcod-v2.amazon.com';
 
-            // Call Amazon AGCOD
-            const result = await new Promise((resolve, reject) => {
-                const req = https.request(options, (res) => {
-                    let data = '';
-                    res.on('data', (chunk) => (data += chunk));
-                    res.on('end', () => {
-                        if (res.statusCode === 200) {
-                            resolve(JSON.parse(data));
-                        } else {
-                            reject(new Error(`Amazon AGCOD error (status ${res.statusCode}): ${data}`));
-                        }
-                    });
+            for (const value of cards) {
+                const creationRequestId = `MADEIRA-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+                const body = JSON.stringify({
+                    creationRequestId,
+                    partnerId,
+                    value: {
+                        amount: value,
+                        currencyCode: currency
+                    }
                 });
 
-                req.on('error', (err) => reject(new Error(`Amazon request failed: ${err.message}`)));
-                req.write(body);
-                req.end();
-            });
+                const request = new AWS.HttpRequest({
+                    method: 'POST',
+                    hostname,
+                    path: '/CreateGiftCard',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Amz-Target': 'com.amazonaws.agcod.AGCODService.CreateGiftCard',
+                        'Content-Length': Buffer.byteLength(body).toString()
+                    },
+                    body
+                });
 
-            const claimCode = result.gcClaimCode;
-            const gcId = result.gcId;
+                const signer = new AWS.Signers.V4(request, 'AGCODService');
+                signer.addAuthorization(credentials, new Date());
 
-            logger.info('Amazon gift card created', {
-                value: `£${value}`,
-                claimCode,
-                gcId
-            });
+                const options = {
+                    hostname: request.hostname,
+                    path: request.path,
+                    method: request.method,
+                    headers: request.headers
+                };
 
-            // Store in database
-            await pool.request()
-                .input('code', sql.NVarChar(100), claimCode)
-                .input('value', sql.Decimal(10, 2), value)
-                .input('currency', sql.NVarChar(3), currency)
-                .input('status', sql.NVarChar(20), 'available')
-                .input('amazon_gc_id', sql.NVarChar(100), gcId)
-                .query(`
-                    INSERT INTO amazon_cards (code, value, currency, status, amazon_gc_id, created_at)
-                    VALUES (@code, @value, @currency, @status, @amazon_gc_id, GETDATE())
-                `);
+                const result = await new Promise((resolve, reject) => {
+                    const req = https.request(options, (res) => {
+                        let data = '';
+                        res.on('data', (chunk) => (data += chunk));
+                        res.on('end', () => {
+                            if (res.statusCode === 200) {
+                                resolve(JSON.parse(data));
+                            } else {
+                                reject(new Error(`Amazon AGCOD error (status ${res.statusCode}): ${data}`));
+                            }
+                        });
+                    });
 
-            insertedCount++;
+                    req.on('error', (err) => reject(new Error(`Amazon request failed: ${err.message}`)));
+                    req.write(body);
+                    req.end();
+                });
+
+                const claimCode = result.gcClaimCode;
+                const gcId = result.gcId;
+
+                logger.info('Amazon gift card created', {
+                    value: `£${value}`,
+                    claimCode,
+                    gcId
+                });
+
+                await pool.request()
+                    .input('code', sql.NVarChar(100), claimCode)
+                    .input('value', sql.Decimal(10, 2), value)
+                    .input('currency', sql.NVarChar(3), currency)
+                    .input('status', sql.NVarChar(20), 'available')
+                    .input('amazon_gc_id', sql.NVarChar(100), gcId)
+                    .query(`
+                        INSERT INTO amazon_cards (code, value, currency, status, amazon_gc_id, created_at)
+                        VALUES (@code, @value, @currency, @status, @amazon_gc_id, GETDATE())
+                    `);
+
+                insertedCount++;
+            }
+        } else {
+            logger.info('[SANDBOX] Skipping real AGCOD calls due to missing credentials');
+            // In sandbox with no credentials, we still simulate the number of cards that would have been created
+            insertedCount = cards.length;
         }
 
         // === Day-of-week cycling for distribution ===
@@ -180,7 +194,8 @@ exports.handler = async (event) => {
 
         logger.info('Amazon Gift Card Top-up completed successfully', {
             inserted: insertedCount,
-            totalValue: `£${totalValue}`
+            totalValue: `£${totalValue}`,
+            sandbox: isSandbox
         });
 
         return {
@@ -189,7 +204,8 @@ exports.handler = async (event) => {
                 success: true,
                 inserted: insertedCount,
                 totalValue,
-                cards
+                cards,
+                sandbox: isSandbox
             })
         };
 

@@ -1,0 +1,62 @@
+{
+    "generated_at": "2026-06-28T09:28:00.000000",
+    "voice": "eve",
+    "widget": "categories-widget",
+    "messages": [
+      {
+        "id": 0,        
+        "dialog-text": "Welcome to the Smart Catalogue — I'm here to help your club build the best catalogue for your members.",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="      
+      },
+      {
+        "id": 1,
+        "object": "#cw-categories-container .category-group",
+        "text": "Click a category to see its subcategories.",
+        "dialog-text": "Click a category to see its subcategories.",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+        "x": 30,
+        "y": -40
+      },
+      {
+        "id": 2,
+        "object": "#cw-categories-container input[type='checkbox']",
+        "text": "Remove unwanted categories by unticking them.",
+        "dialog-text": "Remove unwanted categories by unticking them.",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+        "x": 20,
+        "y": -30
+      },
+      {
+        "id": 3,
+        "object": "#cw-control-button",
+        "text": "Use the microphone button to talk to me...",
+        "dialog-text": "Use the microphone button to talk to me...",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+        "x": 0,
+        "y": -80
+      },
+      {
+        "id": 4,
+        "object": "#cw-prompt",
+        "text": "Or write a prompt in the text box.",
+        "dialog-text": "Or write a prompt in the text box.",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+        "x": -10,
+        "y": -60
+      },
+      {
+        "id": 5,
+        "object": "#cw-submit-button",
+        "text": "And click Go to submit.",
+        "dialog-text": "And click Go to submit.",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+        "x": 10,
+        "y": -40
+      },
+      {
+        "id": 6,        
+        "dialog-text": "Here's how to talk to me. You can say things like: 'add a new category called shop', 'delete the shop category', 'move the shop category under the main categories', or 'change the icon on the shop category to a bag'. Just describe what you want in plain English and I'll update everything nicely. Go on, give it a try!",
+        "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
+      }
+    ]
+  }

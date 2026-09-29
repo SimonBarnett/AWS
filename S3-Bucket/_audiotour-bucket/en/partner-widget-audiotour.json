@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-06-28T16:30:00.000000",
+  "voice": "eve",
+  "widget": "partner-widget",
+  "messages": [
+    {
+      "id": 0,
+      "object": ".madeira-signup-options",
+      "text": "This tool allows you to invite new users to join as Community, Merchant, or Partner. They will receive a secure token valid for 48 hours. Choose the role you want to invite the new user as. Community, Merchant, or Partner. The available options depend on your own permissions.",
+      "base64": "//",
+      "x": 20,
+      "y": -55
+    },    
+    {
+      "id": 1,
+      "object": "#url",
+      "text": "If inviting a Community or Partner, enter the website URL they will manage.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 2,
+      "object": "#email",
+      "text": "Enter the email address of the person you want to invite. They will receive an invitation email with a secure link.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 3,
+      "object": "#mobile",
+      "text": "Enter the mobile number of the new user. This is used to send a PIN number, for verification.",
+      "base64": "//",
+      "x": 10,
+      "y": -55
+    },
+    {
+      "id": 4,
+      "object": "#generateTokenButton",
+      "text": "Click Generate Token to send the invitation. The new user will receive an email with a secure link to join.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    }
+  ]
+}

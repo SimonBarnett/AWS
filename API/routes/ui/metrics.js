@@ -1,5 +1,5 @@
 // ====================== routes/ui/metrics.js ======================
-// Full original logic restored + adapted to pool + executeWithRetry + ALL THREE METRICS (Categories, Parts, Top 3) updated exactly as requested
+// Full original logic restored + adapted to pool + executeWithRetry + ALL METRICS updated + Partner & Admin merged into single onboarding cards with first-of-month filter
 
 const { logger, executeWithRetry, sql } = require('/opt/nodejs/helpers');
 
@@ -105,7 +105,7 @@ async function fetchCommunityMetrics(pool, userId) {
         icon: 'fa-boxes' 
     });
 
-    // Top 3 Categories — exact query and layout you requested (no "Last 7 Days" text)
+    // Top 3 Categories — exact query and layout you requested
     const topResult = await executeQuery(pool, `
         select distinct top 3 c.MainCategory , count(*) AS Clicks
         from UserFingerprints fp
@@ -114,7 +114,8 @@ async function fetchCommunityMetrics(pool, userId) {
         where user_id = @userId
         and ProductID is not null
         and ca.timestamp > dateadd(day,-30,getdate())
-        group by MainCategory`, { userId });
+        group by MainCategory
+        ORDER BY Clicks DESC`, { userId });
 
     const list = topResult.length
         ? topResult.map(r => `<li>${r.MainCategory} (${r.Clicks})</li>`).join('')
@@ -127,55 +128,68 @@ async function fetchCommunityMetrics(pool, userId) {
 async function fetchMerchantMetrics(pool, userId) {
     const metrics = [];
 
-    const badKeys = await executeQuery(pool,
-        `SELECT COUNT(*) as count FROM UserApiKeys 
-         WHERE user_id = @userId AND LastStatus NOT IN (0, 200)`, { userId });
-    const count = badKeys[0].count;
+    const allKeys = await executeQuery(pool,
+        `SELECT COUNT(*) as total, 
+                SUM(CASE WHEN LastStatus NOT IN (0, 200) THEN 1 ELSE 0 END) as bad 
+         FROM UserApiKeys 
+         WHERE user_id = @userId`, { userId });
+
+    const total = allKeys[0].total || 0;
+    const bad = allKeys[0].bad || 0;
+
+    let valueHtml = '';
+
+    if (total === 0) {
+        valueHtml = `No keys found. <a href="/apikey.html">Set up your store link here.</a>`;
+    } else {
+        valueHtml = `Valid keys : ${total - bad}<br>`;
+        if (bad > 0) {
+            valueHtml += `<a href="/apikey.html">Warning: ${bad} keys need attention</a>`;
+        }
+    }
+
     metrics.push({
         title: 'API Key Status',
-        value: count > 0 ? `Warning: ${count} invalid keys` : 'All keys valid',
-        icon: count > 0 ? 'fa-exclamation-triangle' : 'fa-check'
-    });
-
-    const [uploaded, listed] = await Promise.all([
-        executeQuery(pool, 'SELECT COUNT(*) as count FROM MerchantProducts WHERE UserId = @userId', { userId }),
-        executeQuery(pool, 'SELECT COUNT(*) as count FROM MerchantCatalog WHERE MerchantID = @userId', { userId })
-    ]);
-
-    metrics.push({
-        title: 'Parts Uploaded vs Listed',
-        value: `Uploaded: ${uploaded[0].count} / Listed: ${listed[0].count}`,
-        icon: 'fa-boxes'
+        value: valueHtml,
+        icon: bad > 0 ? 'fa-exclamation-triangle' : 'fa-check'
     });
 
     return metrics;
 }
 
 async function fetchPartnerMetrics(pool, userId) {
+    // MERGED INTO SINGLE "Onboarding" CARD + FIRST OF MONTH FILTER
     const result = await executeQuery(pool, `
         SELECT 
             SUM(CASE WHEN role = 'merchant' THEN 1 ELSE 0 END) as merchantSignups,
             SUM(CASE WHEN role = 'community' THEN 1 ELSE 0 END) as communitySignups
         FROM Users 
         WHERE referrer = @userId 
-          AND created_at >= DATEADD(day, -7, GETDATE())`, { userId });
+          AND created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)`, { userId });
 
-    return [
-        { title: 'Merchant Signups (Last 7 Days)', value: result[0].merchantSignups || 0, icon: 'fa-user-plus' },
-        { title: 'Community Signups (Last 7 Days)', value: result[0].communitySignups || 0, icon: 'fa-user-plus' }
-    ];
+    const valueHtml = `Merchants : ${result[0].merchantSignups || 0}<br>Communities : ${result[0].communitySignups || 0}`;
+
+    return [{ 
+        title: 'Onboarding', 
+        value: valueHtml, 
+        icon: 'fa-user-plus' 
+    }];
 }
 
 async function fetchAdminMetrics(pool) {
+    // MERGED INTO SINGLE "Total Onboarding" CARD + FIRST OF MONTH FILTER
     const result = await executeQuery(pool, `
         SELECT 
             SUM(CASE WHEN role = 'merchant' THEN 1 ELSE 0 END) as merchantSignups,
             SUM(CASE WHEN role = 'community' THEN 1 ELSE 0 END) as communitySignups
         FROM Users 
-        WHERE created_at >= DATEADD(day, -7, GETDATE())`);
+        WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)`);
 
-    return [
-        { title: 'Total Merchant Signups (Last 7 Days)', value: result[0].merchantSignups || 0, icon: 'fa-user-plus' },
-        { title: 'Total Community Signups (Last 7 Days)', value: result[0].communitySignups || 0, icon: 'fa-user-plus' }
-    ];
+    const valueHtml = `Merchants : ${result[0].merchantSignups || 0}<br>Communities : ${result[0].communitySignups || 0}`;
+
+    return [{ 
+        title: 'Total Onboarding', 
+        value: valueHtml, 
+        icon: 'fa-user-plus' 
+    }];
 }

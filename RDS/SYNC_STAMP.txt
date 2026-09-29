@@ -1,0 +1,4 @@
+﻿Synced from AWS account 620257466932 (eu-west-2) via profile Si
+UTC: 2026-09-29T11:05:19.8593458Z
+Lambdas/Layers/S3 refreshed from live AWS.
+Local madeiradb Part2 fix retained in RDS/schema.sql.

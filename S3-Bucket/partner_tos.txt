@@ -1,0 +1,172 @@
+# Terms of Service for Club Madeira Partner Program
+
+**Last Updated: 26 August 2025**
+
+Welcome to the Club Madeira Partner Program (the "Program"). These Terms of Service ("Terms") govern your participation as a partner referring new participants to Club Madeira, using the Madeira Partner code to integrate widgets on your website under your own branding, and, if applicable, managing a provided telephone and extension number. By joining or participating in the Program, you agree to be bound by these Terms. Please read them carefully. These Terms do not constitute tax or legal advice; consult a professional for such advice.
+
+## 1 Definitions
+
+- **"We", "Us", or "Our"**: Club Madeira Ltd, a company registered in England and Wales (company number 16541872, registered office: Ground Floor, Citygate, Longridge Road, Preston, Lancashire PR2 5BQ, United Kingdom).
+- **"You" or "Partner"**: The individual or entity participating in the Program.
+- **"Program"**: The Club Madeira Partner Program, through which you refer new partners, use the Madeira Partner code for widget integration, and, if provided, manage a telephone and extension number.
+- **"Services"**: Tools, links, tracking codes, token generation systems, the Madeira Partner code, and, if applicable, a telephone and extension number provided for Program participation.
+- **"Madeira Partner Code"**: Code provided under the MIT License, enabling you to pull widgets from our S3 bucket (madeira-widget-bucket.s3.eu-west-2.amazonaws.com) for display on your website under your branding.
+- **"Traffic Minimums"**: minimum levels of engagement or referral traffic a community must generate, as shall be determined by us from time to time.
+- **"MIT License"**: The open-source license governing use of the Madeira Partner code, permitting use, copying, modification, and distribution, provided the license and copyright notice are included (full terms provided separately).
+- **"Business Hours"**: Monday to Friday, 9:00 AM to 5:00 PM GMT/BST, excluding UK public holidays.
+
+## 2 Eligibility
+
+### 2.1 To participate, You must:
+
+- Be at least 18 years old or a UK-registered entity.
+- Have a valid UK address or be UK-registered.
+- Comply with all applicable UK laws, including but not limited to those relating to tax (HMRC), advertising (ASA), and data protection (UK GDPR, Data Protection Act 2018).
+
+### 2.2 
+We may reject or terminate Your participation at our sole discretion if You fail to meet these criteria or breach these Terms.
+
+## 3 Partner Responsibilities and Restrictions
+
+### 3.1 You must:
+
+- Refer new partners fairly and lawfully, using only Our approved promotional materials, links, or token generation systems.
+- Use the Madeira Partner code in accordance with the MIT License, solely to pull widgets for promotion on Your website under Your branding.
+- Ensure that Your website includes all applicable cookie notices as we may advise, or as required by law.
+- If provided with a telephone and extension number:
+  - Answer the telephone during Business Hours to support Program-related inquiries.
+  - Be liable for any line rental costs arising from its use, as invoiced by Us or the service provider.
+
+### 3.2 You may grant partner accounts to other agencies only if:
+
+- You have referred at least 20 communities that meet Traffic Minimums, entitling You to 2 partner licences.
+- For every additional 10 communities meeting Traffic Minimums, You receive 1 additional partner licence.
+- You may charge a reasonable fee for setting up new partners, subject toOur approval of fee reasonableness.
+
+### 3.3 Prohibited activities ("shady conduct") include, but are not limited to:
+
+- Using bots, fake accounts, or fraudulent methods to generate referrals.
+- Misrepresenting Our brand, products, or services.
+- Promoting on platforms with illegal, offensive, or inappropriate content (e.g., hate speech, explicit material).
+- Granting partner accounts without meeting licence requirements or charging excessive setup fees.
+- Misusing the Madeira Partner code (e.g., modifying widgets beyond MIT License permissions or using unauthorised sources).
+- Failing to answer the provided telephone during Business Hours or failing to pay line rental costs.
+
+### 3.4 
+We may monitor Your activity, including widget usage, API calls, and telephone responsiveness, to ensure compliance with these Terms and the MIT License.
+
+## 4 Permanent Ban for Non-Compliance
+
+### 4.1 We may impose an immediate, permanent ban for shady conduct or breaches, including but not limited to:
+
+- Fraudulent referral practices (including, but not limited to, fake referrals).
+- Violation of UK laws (including, but not limited to, tax evasion, non-compliant advertising).
+- Unauthorized granting of partner accounts or excessive setup fees.
+- Misuse of the Madeira Partner code or violation of the MIT License.
+- Failure to answer the provided telephone during Business Hours or pay line rental costs.
+- Actions harming Our reputation, brand, or other partners (including, but not limited to, false claims about the Program).
+
+### 4.2 Upon a ban:
+
+- Your access to the Program and Services is terminated immediately without notice and We shall accept no liability for any losses (including, but not limited to, loss of revenue or opportunity) resulting from such termination.
+- You must cease using all Program materials, links, token systems, the Madeira Partner code, and any provided telephone.
+- Outstanding commissions or rewards due to You shall be forfeited.
+- and any unpaid line rental costs remain due from You.
+- You shall be prohibited from rejoining the Program whether in Your own name or otherwise.
+
+### 4.3 
+We may pursue legal action for any direct, indirect or consequential financial loss, reputational damage, or other harm.
+resulting from Your actions leading to the ban.
+
+### 4.4 
+Ban decisions are at Our sole discretion and shall be final.
+
+## 5 Commissions and Payments
+
+### 5.1 
+You may earn commissions or rewards for valid referrals of new partners via Your tokens, and for subsequently connected any merchants to a community, per the Program's reward structure (provided separately). Such reward structure may be amended from time to time and Your continued participation in the Program constitutes Your acceptance of such changes.
+
+### 5.2 
+Payments are made at the end of each month for commissions arising from that month and paid to Your designated account, subject to a £50 minimum threshold.
+
+### 5.3 
+You are responsible for declaring and paying any taxes that may be due on commissions.
+
+### 5.4 
+We may withhold or reverse payments for suspected fraud, shady conduct, or breaches, including failure to pay line rental costs.
+
+## 6 Service Availability
+
+### 6.1 
+The Services or other material or products offered through the Program may be unavailable from time to time or may be offered on a limited basis.
+
+### 6.2 
+Although We shall use reasonable endeavours to keep the Services up and running these are not offered with a guaranteed level of quality of service and may suffer occasional disruptions and outages. We will use reasonable endeavours to minimise any disruptions but shall not be liable for any financial losses that may arise from such inavailability howsoever caused.
+
+## 7 Intellectual Property
+
+### 7.1 
+We grant You a limited, non-exclusive, revocable license to use approved promotional materials and the Madeira Partner code solely for Program participation, subject to the MIT License for the code.
+
+### 7.2 
+You may not modify, copy, distribute, or create derivative works from Our promotional materials without written consent, except as permitted by the MIT License for the Madeira Partner code.
+
+### 7.3 
+All intellectual property rights in Our brand, logos, materials, and widgets (excluding the Madeira Partner code under the MIT License) remain Ours.
+
+## 8 Confidentiality
+
+### 8.1 
+Save as required by law, You must not disclose confidential information (including, but not limited to, commission structures, business strategies, or integration details relating to the Program) to third parties without our prior written consent.
+
+### 8.2 
+This obligation survives Program termination.
+
+## 9 Data Protection
+
+### 9.1 
+Both parties must at all times comply with all applicable privacy and data protection legislation in respect of any personal data processed relating to the Program.
+
+### 9.2 
+You shall comply with Our data protection policies as shall be updated from time to time.
+
+## 10 Liability
+
+### 10.1 
+The Program, Services, and Madeira Partner code are provided "as is" without warranties, express or implied, except as provided in the MIT License. Any reports that We provide to You as part of the Program and Services are AI generated and although We will use reasonable endeavours to ensure they are correct, We shall bear no responsibility for the accuracy of the content and You should validate any content for Yourself.
+
+### 10.2 
+To the fullest extent permitted by law, We are not liable for indirect, consequential, or incidental losses (including, but not limited to lost profits, data, or opportunities).
+
+### 10.3 
+Our total liability is limited to commissions paid to You in the 12 months prior to a claim, excluding line rental costs You are liable for.
+
+## 11 Force Majeure
+
+### 11.1 
+We are not liable for delays or failures due to events beyond our control (including but not limited to, wars and civil unrest, strikes, natural disasters, cyber-attacks, pandemics).
+
+### 11.2 
+In such cases, obligations may be suspended until the event resolves or for six weeks whichever is soonest, after which time either party may elect to terminate any agreement on these Terms.
+
+## 12 Dispute Resolution
+
+### 12.1 
+Disputes should first be addressed via mediation in good faith.
+
+### 12.2 
+If unresolved, disputes are governed by English law and subject to the exclusive jurisdiction of English courts.
+
+## 13 Changes to Terms
+
+### 13.1 
+We may update these Terms by posting revisions on our website or notifying you.
+
+### 13.2 
+Continued participation after changes constitutes acceptance.
+
+## 14 Contact Us
+
+Email: support@clubmadeira.uk  
+Phone: 01772 36 99 55  
+Ground Floor, Citygate, Longridge Road, Preston, Lancashire PR2 5BQ, United Kingdom  

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>iOS WebView Speech-to-Text Permission Test</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #f5f5f7; }
+    textarea { width: 100%; max-width: 600px; height: 200px; padding: 12px; font-size: 17px; border: 1px solid #c7c7cc; border-radius: 12px; background: white; }
+    button { margin-top: 20px; padding: 14px 28px; font-size: 17px; background: #007aff; color: white; border: none; border-radius: 12px; }
+    button.listening { background: #ff3b30; }
+    #status { margin-top: 15px; font-size: 15px; color: #666; }
+    .info { margin-top: 30px; font-size: 14px; color: #888; line-height: 1.4; }
+  </style>
+</head>
+<body>
+
+  <h2>Speech-to-Text Test (iOS WebView)</h2>
+  <p>Type or speak – this tests microphone permission & Web Speech API inside a WKWebView.</p>
+
+  <textarea id="cw-prompt" placeholder="Tap the microphone and speak…"></textarea>
+  <br>
+  <button id="mic-button">Start Listening</button>
+
+  <div id="status"></div>
+
+  <div class="info">
+    <strong>How to test permission:</strong><br>
+    1. Tap “Start Listening” → iOS should show a microphone permission prompt the first time.<br>
+    2. If you allow, the button turns red and listening starts.<br>
+    3. Speak → text appears in the box (interim in real-time, final when pause detected).<br>
+    4. Tap again to stop (last partial phrase is discarded – matches common iOS behavior).<br><br>
+    <strong>Notes for WKWebView:</strong><br>
+    • Page must be served over HTTPS or localhost (file:// may block permission).<br>
+    • The WKWebView must have <code>mediaCapture</code> allowed in its configuration.<br>
+    • iOS only supports webkitSpeechRecognition (added automatically below).
+  </div>
+
+<script>
+  // Web Speech API with iOS fallback
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    document.getElementById('status').textContent = '❌ Web Speech API not supported on this browser/device.';
+    document.getElementById('mic-button').disabled = true;
+    throw new Error('SpeechRecognition not supported');
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;         // try to keep listening
+  recognition.interimResults = true;        // show text as you speak
+  recognition.lang = 'en-US';               // change if you need another language
+
+  let isListening = false;
+  let speechBuffer = '';                    // accumulates only final results
+  let interimTranscript = '';
+  const textarea = document.getElementById('cw-prompt');
+  const button = document.getElementById('mic-button');
+  const status = document.getElementById('status');
+
+  // Update button appearance
+  function updateButton() {
+    if (isListening) {
+      button.textContent = 'Stop Listening';
+      button.classList.add('listening');
+      status.textContent = '🔴 Listening… speak now';
+    } else {
+      button.textContent = 'Start Listening';
+      button.classList.remove('listening');
+      status.textContent = '✅ Ready – tap to start';
+    }
+  }
+
+  // Live update of textarea (final + gray interim)
+  recognition.onresult = (event) => {
+    interimTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+
+      if (event.results[i].isFinal) {
+        speechBuffer += transcript;
+        // Add a space after each final chunk (mirrors your original code)
+        if (!speechBuffer.endsWith(' ')) speechBuffer += ' ';
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    textarea.value = (speechBuffer + interimTranscript).trimStart();
+    textarea.scrollTop = textarea.scrollHeight;
+  };
+
+  // Auto-restart if recognition ends unexpectedly (helps on iOS)
+  recognition.onend = () => {
+    if (isListening) {
+      try {
+        recognition.start();
+      } catch (e) { /* already starting */ }
+    } else {
+      updateButton();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error', event.error);
+    isListening = false;
+    updateButton();
+
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      status.textContent = '❌ Microphone permission denied or blocked';
+    } else if (event.error === 'network') {
+      status.textContent = '🌐 Network error – check connection';
+    } else {
+      status.textContent = `Error: ${event.error}`;
+    }
+  };
+
+  recognition.onstart = () => {
+    console.log('Recognition started');
+  };
+
+  // Toggle listening – closely follows your original logic
+  function toggleSpeechRecognition() {
+    if (isListening) {
+      // === STOP ===
+      isListening = false;
+      recognition.stop();
+
+      // Match your original code: commit only the final buffer (discard interim
+      if (textarea) {
+        textarea.value = speechBuffer.trim();
+        textarea.scrollTop = textarea.scrollHeight;
+      }
+      updateButton();
+    } else {
+      // === START ===
+      if (textarea) {
+        speechBuffer = textarea.value.trim();
+        if (speechBuffer && !speechBuffer.endsWith(' ')) {
+          speechBuffer += ' ';
+        }
+        textarea.value = speechBuffer; // start clean
+      }
+      interimTranscript = '';
+      isListening = true;
+
+      try {
+        recognition.start();               // <-- this triggers iOS permission prompt
+        updateButton();
+      } catch (err) {
+        console.error('Start error:', err);
+        isListening = false;
+        updateButton();
+        status.textContent = 'Failed to start – try again';
+      }
+    }
+  }
+
+  button.addEventListener('click', toggleSpeechRecognition);
+
+  // Initial state
+  updateButton();
+</script>
+
+</body>
+</html>

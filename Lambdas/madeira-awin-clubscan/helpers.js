@@ -36,13 +36,11 @@ async function recordRecommendedMerchants(pool, merchantIds) {
     }
 }
 
-// ====================== Create Awin Merchant User ======================
-async function createAwinMerchantUser(pool, { advertiserId, name, website }) {
+async function createAwinMerchantUser(pool, { advertiserId, name, website, accessToken, publisherId }) {
     try {
-        const userId = generateUserId();           // ← Now from auth layer
+        const userId = generateUserId();
         const email = `${advertiserId}@awin.com`;
         const plainPassword = String(advertiserId);
-
         const hashedPassword = await hashPassword(plainPassword);
 
         logger.info('Creating Awin merchant user', { 
@@ -52,6 +50,7 @@ async function createAwinMerchantUser(pool, { advertiserId, name, website }) {
             email 
         });
 
+        // ====================== 1. CREATE USER ======================
         await pool.request()
             .input('userId', sql.VarChar(20), userId)
             .input('email', sql.VarChar(255), email)
@@ -91,7 +90,110 @@ async function createAwinMerchantUser(pool, { advertiserId, name, website }) {
                     );
             `);
 
-        logger.info('✅ Awin merchant user created successfully', { userId, email, advertiserId });
+        // ====================== 2. GET ALL FEEDS FROM MODERN API ======================
+        let feedsWithDownloadUrl = [];
+
+        try {
+            // Use the credentials that were passed in from onboarding.js
+            // (never call getAwinCredentials here – it is not in scope)
+            const response = await fetch(
+                `https://api.awin.com/publishers/${publisherId}/product-feeds?advertiserId=${advertiserId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                const feeds = data.feeds || data.data || [];
+                feedsWithDownloadUrl = feeds.filter(feed => feed.downloadUrl);
+            } else {
+                const errorBody = await response.text();
+                logger.warn('Modern API call failed when fetching feeds', { 
+                    advertiserId, 
+                    status: response.status,
+                    body: errorBody.substring(0, 300)
+                });
+            }
+        } catch (apiErr) {
+            logger.warn('Modern API call failed when fetching feeds', { 
+                advertiserId, 
+                error: apiErr.message 
+            });
+        }
+
+        // ====================== 3. CREATE ONE UserApiKeys ROW PER FEED ======================
+        const merchantName = name || `Advertiser ${advertiserId}`;
+
+        for (let index = 0; index < feedsWithDownloadUrl.length; index++) {
+            const feed = feedsWithDownloadUrl[index];
+            const feedId = feed.feedId || feed.id;
+            const feedNumber = index + 1;
+            const description = `Awin Product Feed - ${merchantName} #${feedNumber}`;
+
+            // Only feedUrl in the JSON
+            const apiKeyData = JSON.stringify({
+                feedUrl: feed.downloadUrl
+            });
+
+            try {
+                await pool.request()
+                    .input('userId', sql.VarChar(8), userId)
+                    .input('apiKeyType', sql.VarChar(50), 'awin')
+                    .input('apiKeyData', sql.NVarChar(sql.MAX), apiKeyData)
+                    .input('description', sql.NVarChar(255), description)
+                    .query(`
+                        MERGE INTO UserApiKeys AS target
+                        USING (SELECT @userId AS user_id, @apiKeyType AS api_key_type, @description AS Description) AS source
+                        ON target.user_id = source.user_id 
+                           AND target.api_key_type = source.api_key_type 
+                           AND target.Description = source.Description
+                        WHEN NOT MATCHED THEN
+                            INSERT (
+                                user_id, 
+                                api_key_type, 
+                                api_key_data, 
+                                Description, 
+                                created_at, 
+                                updated_at, 
+                                LastStatus
+                            )
+                            VALUES (
+                                @userId, 
+                                @apiKeyType, 
+                                @apiKeyData, 
+                                @description, 
+                                GETDATE(), 
+                                GETDATE(), 
+                                0
+                            );
+                    `);
+
+                logger.info('✅ Created UserApiKeys record', { 
+                    userId, 
+                    advertiserId, 
+                    merchantName,
+                    feedNumber,
+                    feedId 
+                });
+            } catch (err) {
+                logger.error('Failed to create UserApiKeys record', { 
+                    advertiserId, 
+                    feedId, 
+                    error: err.message 
+                });
+            }
+        }
+
+        if (feedsWithDownloadUrl.length === 0) {
+            logger.info('No feeds with downloadUrl found - skipping UserApiKeys creation', { 
+                advertiserId,
+                merchantName 
+            });
+        }
 
         return { userId, email };
 
@@ -104,7 +206,6 @@ async function createAwinMerchantUser(pool, { advertiserId, name, website }) {
         throw error;
     }
 }
-
 module.exports = {
     getAlreadyRecommendedMerchants,
     recordRecommendedMerchants,

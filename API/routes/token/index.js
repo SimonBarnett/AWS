@@ -8,6 +8,7 @@ const resetPasswordRoute = require('./reset-password');
 const onboardingRoute = require('./onboarding');
 const tosRoute = require('./tos');
 const delegateRoute = require('../../delegate');
+const networkRoute = require('./network');
 
 module.exports = async (event, { sandbox = false } = {}) => {
     const path = event.path || '/';
@@ -39,6 +40,10 @@ module.exports = async (event, { sandbox = false } = {}) => {
 
         } else if (path.endsWith('/tos') && method === 'GET') {
             return await tosRoute(event, { pool, sandbox });
+
+        // === NEW: Public Network Route (unpassworded) ===
+        } else if (path.endsWith('/network') && method === 'GET') {
+            return await networkRoute(event);
 
         } else if (path.endsWith('/acceptdelegation') && method === 'POST') {
             return await delegateRoute(event, { action: 'accept', pool, sandbox });

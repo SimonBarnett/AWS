@@ -1,6 +1,7 @@
 // sqs/scheduler.js
 // FIXED VERSION - Supports optional event for TOP override + 150ms delay
-// Updated: 10 June 2026
+// Fixed: Invalid column name 'UserId' error (RecentUsers CTE was selecting ClubID but joining on UserId)
+// Updated: 28 June 2026
 
 const {
     sql,
@@ -32,16 +33,16 @@ async function run(pool, event = {}) {
 
         const backfillResult = await pool.request().query(`
             INSERT INTO dbo.CatalogAffiliateUpdates (CatalogId, AffiliateKey, LastUpdate)
-            SELECT 
+            SELECT
                 c.ID,
                 a.AffiliateKey,
                 '1900-01-01'
             FROM Catalog c
             CROSS JOIN (VALUES ${AFFILIATES.map(a => `('${a}')`).join(',')}) AS a(AffiliateKey)
             WHERE NOT EXISTS (
-                SELECT 1 
-                FROM dbo.CatalogAffiliateUpdates cau 
-                WHERE cau.CatalogId = c.ID 
+                SELECT 1
+                FROM dbo.CatalogAffiliateUpdates cau
+                WHERE cau.CatalogId = c.ID
                   AND cau.AffiliateKey = a.AffiliateKey
             );
         `);
@@ -62,25 +63,25 @@ async function run(pool, event = {}) {
             .input('minAgeHours', MIN_AGE_HOURS)
             .query(`
             WITH RecentUsers AS (
-                SELECT DISTINCT UserId 
-                FROM [madeiradb].[dbo].[DatabaseCallLog] 
-                WHERE Timestamp > DATEADD(hour, -72, GETDATE())
+                SELECT DISTINCT ClubID
+                FROM [madeiradb].[dbo].[clubscan]
+                WHERE active = 1
             )
             SELECT TOP (@topCount)
-                c.ID as catalogId, 
-                c.UserId, 
-                c.MainCategory, 
+                c.ID as catalogId,
+                c.UserId,
+                c.MainCategory,
                 c.SubCategory,
                 c.SearchTerms,
                 cau.AffiliateKey,
                 DATEDIFF(hour, ISNULL(cau.LastUpdate, '1900-01-01'), GETDATE()) AS HoursSinceLastUpdate
             FROM Catalog c
-            INNER JOIN RecentUsers ru ON ru.UserId = c.UserId
+            INNER JOIN RecentUsers ru ON ru.ClubID = c.UserId
             INNER JOIN [madeiradb].[dbo].[clubscan] cs ON cs.ClubID = c.UserId
             INNER JOIN dbo.CatalogAffiliateUpdates cau ON cau.CatalogId = c.ID
             WHERE cau.AffiliateKey IN (${affiliateList})
               AND DATEDIFF(hour, ISNULL(cau.LastUpdate, '1900-01-01'), GETDATE()) >= @minAgeHours
-              AND cs.Status = 'completed'                    -- ← Added filter
+              AND cs.Status = 'completed'
             ORDER BY HoursSinceLastUpdate DESC, c.ID ASC, cau.AffiliateKey ASC
         `);
 
@@ -103,11 +104,11 @@ async function run(pool, event = {}) {
                 .query(`
                     MERGE dbo.CatalogAffiliateUpdates AS target
                     USING (VALUES (@catId, @aff)) AS source (CatalogId, AffiliateKey)
-                    ON target.CatalogId = source.CatalogId 
+                    ON target.CatalogId = source.CatalogId
                        AND target.AffiliateKey = source.AffiliateKey
-                    WHEN MATCHED THEN 
+                    WHEN MATCHED THEN
                         UPDATE SET LastUpdate = GETDATE()
-                    WHEN NOT MATCHED THEN 
+                    WHEN NOT MATCHED THEN
                         INSERT (CatalogId, AffiliateKey, LastUpdate)
                         VALUES (source.CatalogId, source.AffiliateKey, GETDATE());
                 `);
@@ -119,7 +120,6 @@ async function run(pool, event = {}) {
                 hoursStale: pair.HoursSinceLastUpdate
             };
 
-
             logger.info('🚀 Enqueuing PROCESS_CATEGORY', logInfo);
             await enqueueMessage({
                 type: "PROCESS_CATEGORY",
@@ -128,7 +128,7 @@ async function run(pool, event = {}) {
                 userId: pair.UserId,
                 category: pair.MainCategory,
                 subcategory: pair.SubCategory,
-                searchterms: pair.searchterms
+                searchterms: pair.SearchTerms
             });
 
             enqueuedCount++;

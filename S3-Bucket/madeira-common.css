@@ -1,0 +1,447 @@
+/* Common layout, icons, and animations for Madeira widget */
+.catalog-widget {
+    position: relative;
+    font-family: Arial, sans-serif;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Menu container: Fixed position on the left within the widget */
+.menu-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 200px;
+    height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    z-index: 1001;
+}
+
+/* Controls container: Separate container placed above the parts container */
+.controls-container {
+    position: absolute;
+    top: 0;
+    left: 200px;
+    width: calc(100% - 200px);
+    padding: 10px;
+    z-index: 1001;
+    box-sizing: border-box;
+}
+
+/* Mobile controls: Category select with filter/sort icons */
+.mobile-controls {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    align-items: center;
+}
+
+.mobile-controls .subcategory-filter {
+    width: calc(100% - 60px); /* Adjust for icons + gap */
+    padding: 5px;
+    font-size: 14px;
+    margin-right: 10px; /* Gap between select and icons */
+}
+
+.mobile-controls .icon-container {
+    display: inline-flex;
+    gap: 10px;
+}
+
+.mobile-controls .icon-container i {
+    cursor: pointer;
+    font-size: 27px; /* 75% of original */
+    padding: 10px; /* Increased padding */
+}
+
+/* Desktop controls: Filter and sort dropdowns */
+.desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+}
+
+/* Parts container: Scrollable area directly below the controls */
+.parts-container {
+    position: absolute;
+    top: 50px;
+    left: 200px;
+    width: calc(100% - 200px);
+    height: calc(100% - 50px);
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 10px;
+    margin-top: 0;
+    z-index: 1000;
+}
+
+/* Loading overlay: Fills entire widget */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000; /* Highest z-index */
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent to cover content */
+}
+
+.spinner-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+
+.spinner {
+    position: absolute;
+    border-radius: 50%;
+    border: 8px solid transparent;
+    animation: spin 1.5s linear infinite;
+}
+
+.spinner-1 {
+    width: 80px;
+    height: 80px;
+    border-top-color: #ff6f61;
+    top: 60px;
+    left: 60px;
+    animation-delay: 0s;
+}
+
+.spinner-2 {
+    width: 60px;
+    height: 60px;
+    border-top-color: #6bff61;
+    top: 70px;
+    left: 70px;
+    animation-delay: 0.3s;
+}
+
+.spinner-3 {
+    width: 40px;
+    height: 40px;
+    border-top-color: #61cfff;
+    top: 80px;
+    left: 80px;
+    animation-delay: 0.6s;
+}
+
+.spinner-4 {
+    width: 20px;
+    height: 20px;
+    border-top-color: #ff61ff;
+    top: 90px;
+    left: 90px;
+    animation-delay: 0.9s;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* No records message */
+.no-records {
+    display: none;
+    position: absolute;
+    top: 50px;
+    left: 200px;
+    width: calc(100% - 200px);
+    text-align: center;
+    padding: 20px;
+    font-size: 18px;
+    z-index: 999;
+}
+
+.no-records i {
+    margin-right: 10px;
+}
+
+/* Error message */
+.error {
+    display: none;
+    position: absolute;
+    top: 50px;
+    left: 200px;
+    width: calc(100% - 200px);
+    text-align: center;
+    padding: 20px;
+    font-size: 18px;
+    z-index: 999;
+}
+
+/* Menu button styling */
+.menu-button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: left;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.3s;
+}
+
+.menu-button i {
+    margin-right: 5px;
+}
+
+/* Filter label styling */
+.filter-label {
+    margin-right: 5px;
+}
+
+/* Subcategory filter (dropdown) styling */
+.subcategory-filter {
+    padding: 5px;
+    font-size: 14px;
+}
+
+/* Individual part styling */
+.part {
+    width: 200px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.part:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* Image container styling */
+.image-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    overflow: hidden;
+}
+
+/* Price shield styling */
+.price-shield {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+/* Secondary price shield styling */
+.secondary-price-shield {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+/* Part image styling */
+.part img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Part title styling */
+.part h3 {
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+/* Part paragraph styling */
+.part p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Sentinel for infinite scrolling */
+.sentinel {
+    height: 1px;
+}
+
+/* Source icon styling */
+.source-icon {
+    border-radius: 5px;
+    margin: 1px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+}
+
+/* Sponsor icon styling */
+.sponsor-icon {
+    border-radius: 5px;
+    margin: 1px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    padding: 2px;
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+    position: absolute;
+    z-index: 1002; /* Higher than parts container */
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--background-color, #ffffff);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.dropdown-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.dropdown-menu li {
+    padding: 10px;
+    cursor: pointer;
+    background-color: var(--background-color, #ffffff);
+}
+
+.dropdown-menu li:hover {
+    background-color: var(--hover-background, #f0f0f0);
+}
+
+/* Adjust layout for small screens (mobile) */
+@media screen and (max-width: 768px) {
+    .menu-container {
+        display: none;
+    }
+    .desktop-controls {
+        display: none;
+    }
+    .mobile-controls {
+        display: flex;
+    }
+    .controls-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1001;
+    }
+    .parts-container {
+        top: 50px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 50px);
+        margin-top: 0;
+        gap: 15px;
+    }
+    .loading-overlay {
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        z-index: 10000;
+    }
+    .no-records {
+        top: 50px;
+        left: 0;
+        width: 100%;
+    }
+    .error {
+        top: 50px;
+        left: 0;
+        width: 100%;
+    }
+    .dropdown-menu {
+        z-index: 1002;
+        background-color: var(--background-color, #ffffff);
+    }
+    .part {
+        width: 120px;
+        padding: 2.5px;
+    }
+    .image-container {
+        height: 150px;
+    }
+    .part h3 {
+        font-size: 12px;
+        margin: 7.5px 0;
+    }
+    .part p {
+        margin: 3.75px 0;
+        font-size: 10.5px;
+    }
+    .source-icon, .sponsor-icon {
+        font-size: 18px;
+        top: 7.5px;
+        left: 7.5px;
+    }
+    .price-shield {
+        top: 7.5px;
+        right: 7.5px;
+        padding: 3.75px;
+    }
+    .secondary-price-shield {
+        bottom: 7.5px;
+        right: 7.5px;
+        padding: 3.75px;
+    }
+}
+
+/* Adjust layout for desktop screens */
+@media screen and (min-width: 769px) {
+    .mobile-controls {
+        display: none;
+    }
+    .desktop-controls {
+        display: flex;
+    }
+    .menu-container {
+        display: block;
+    }
+    .controls-container {
+        top: 0;
+        left: 200px;
+        width: calc(100% - 200px);
+        z-index: 1001;
+    }
+    .parts-container {
+        top: 50px;
+        left: 200px;
+        width: calc(100% - 200px);        
+        margin-top: 0;
+    }
+    .loading-overlay {
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10000;
+    }
+    .no-records {
+        top: 50px;
+        left: 200px;
+        width: calc(100% - 200px);
+    }
+    .error {
+        top: 50px;
+        left: 200px;
+        width: calc(100% - 200px);
+    }
+}

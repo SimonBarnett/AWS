@@ -1,34 +1,65 @@
 // ====================== routes/ui/chartData.js ======================
-// Full original logic restored + adapted to new pool + executeWithRetry pattern
+// Full original logic restored + adapted to new pool + executeWithRetry 
+// + COMMUNITY REPORTS RENAMED AND REMAPPED EXACTLY AS REQUESTED 
+// + ADMIN VIEWS REPLACED WITH NETWORK-WIDE TOTALS 
+// + MERCHANT SIMPLIFIED TO SINGLE PRODUCT CLICKS GRAPH RENAMED TO 'My Product Clicks'
+// + ROLE + REPORT DATA RETURNED FOR WIDGET (WITH ICONS)
 
 const { logger, executeWithRetry, sql } = require('/opt/nodejs/helpers');
 
-// Define permitted views by role with user-friendly names and clicks-first order
+// ====================== ICON MAPPINGS ======================
+
+const roleIcons = {
+    admin:     'fa-shield-alt',
+    merchant:  'fa-user-tie',
+    community: 'fa-people-group',
+    partner:   'fa-handshake'
+};
+
+const reportIcons = {
+    // Community reports
+    'Catalogue Views':     'fa-eye',
+    'Catalogue Clicks':    'fa-mouse-pointer',
+    'Catalogue Visitors':  'fa-users',
+
+    // Merchant reports
+    'My Product Clicks':   'fa-mouse-pointer',
+
+    // Partner reports
+    'Total Views':         'fa-eye',
+    'Total Clicks':        'fa-mouse-pointer',
+    'Total Visitors':      'fa-users',
+
+    // Admin / Network reports
+    'Network Views':       'fa-eye',
+    'Network Clicks':      'fa-mouse-pointer',
+    'Network Visitors':    'fa-users'
+};
+
+// ====================== PERMITTED VIEWS BY ROLE ======================
+
 const permittedViews = {
     admin: [
-        'Total Clicks for the Network',
-        'Referral Clicks for the Network',
-        'New User Signups for the Network',
-        'Unique Visitors for the Network',
-        'User Logins for the Network'
+        'Network Views',
+        'Network Clicks',
+        'Network Visitors'
     ],
     merchant: [
-        'Product Clicks on my Store',
-        'Referral Clicks on my Store',
-        'Product Views on my Store'
+        'My Product Clicks'
     ],
     community: [
-        'Total Clicks on my Catalog',
-        'Referral Clicks on my Catalog',
-        'Unique Visitors on my Catalog'
+        'Catalogue Views',
+        'Catalogue Clicks',
+        'Catalogue Visitors'
     ],
     partner: [
-        'Total Clicks by my Signups',
-        'Referral Clicks by my Signups',
-        'New User Signups by my Signups',
-        'Unique Visitors by my Signups'
+        'Total Views',
+        'Total Clicks',
+        'Total Visitors'
     ]
 };
+
+// ====================== MAIN HANDLER ======================
 
 module.exports = async (event, { pool, sandbox = false } = {}) => {
     try {
@@ -38,20 +69,47 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         const userId = decoded.user_id;
         const permissions = decoded.permissions || [];
 
-        const roles = permissions.filter(role => ['admin', 'merchant', 'community', 'partner'].includes(role));
+        // Desired display order: community → merchant → partner → admin
+        const roleOrder = ['community', 'merchant', 'partner', 'admin'];
+
+        // Filter to only roles the user actually has, then sort by desired order
+        const userRoles = permissions.filter(role => ['admin', 'merchant', 'community', 'partner'].includes(role));
+        const roles = userRoles.sort((a, b) => roleOrder.indexOf(a) - roleOrder.indexOf(b));
+
         if (roles.length === 0) {
             return { statusCode: 403, body: { message: 'Forbidden: No valid roles' } };
         }
 
-        const views = [...new Set(roles.flatMap(role => permittedViews[role] || []))];
+        // Build roles with icons (now in correct order)
+        const rolesWithIcons = roles.map(role => ({
+            name: role,
+            icon: roleIcons[role] || 'fa-user'
+        }));
 
+        // ====================== ROLE FILTERING SUPPORT ======================
         const queryParams = event.queryStringParameters || {};
+        const selectedRole = queryParams.role ? decodeURIComponent(queryParams.role).trim().toLowerCase() : null;
+
+        let activeRoles = roles;
+        if (selectedRole && roles.includes(selectedRole)) {
+            activeRoles = [selectedRole];
+        }
+
+        // Get permitted views for the active role(s)
+        const viewNames = [...new Set(activeRoles.flatMap(role => permittedViews[role] || []))];
+
+        // Build permittedViews with icons
+        const permittedViewsWithIcons = viewNames.map(name => ({
+            name: name,
+            icon: reportIcons[name] || 'fa-chart-bar'
+        }));
+
         const granularity = decodeURIComponent(queryParams.granularity || '').trim().toLowerCase();
         let report_type = decodeURIComponent(queryParams.report_type || '').trim();
 
-        if (!report_type || !views.includes(report_type)) {
-            if (views.length > 0) {
-                report_type = views[0];
+        if (!report_type || !viewNames.includes(report_type)) {
+            if (viewNames.length > 0) {
+                report_type = viewNames[0];
             } else {
                 return { statusCode: 403, body: { message: 'Forbidden: No permitted reports available' } };
             }
@@ -140,7 +198,7 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
             periods = { current: currentMonths, currentMinus1: lastYear, currentMinus2: twoYearsAgo };
         }
 
-        // Query data using passed pool + executeWithRetry
+        // Query data using passed pool + executeWithRetry + NEW FINGERPRINT TABLES WHERE APPLICABLE
         const currentData = await Promise.all(periods.current.map(period =>
             queryDatabase(pool, report_type, userId, period.start, period.end, granularity)
         ));
@@ -156,7 +214,8 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
         const currentMinus2Counts = currentMinus2Data.map(result => result[0]?.count || 0);
 
         const response = {
-            permittedViews: views,
+            roles: rolesWithIcons,                    // ← ROLES + ICONS FOR RADIO
+            permittedViews: permittedViewsWithIcons,  // ← REPORTS + ICONS FOR RADIO
             chartData: {
                 labels,
                 datasets: [
@@ -182,51 +241,120 @@ module.exports = async (event, { pool, sandbox = false } = {}) => {
 async function queryDatabase(pool, reportType, userId, start, end, granularity) {
     let query;
     switch (reportType) {
-        case 'Total Clicks on my Catalog':
-            query = `SELECT COUNT(*) as count FROM DatabaseCallLog WHERE UserId = @userId AND Timestamp BETWEEN @start AND @end`;
+        case 'Catalogue Views':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id = @userId 
+                  AND ca.ProductID IS NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Referral Clicks on my Catalog':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'click' AND source = @userId AND timestamp BETWEEN @start AND @end`;
+        case 'Catalogue Clicks':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id = @userId 
+                  AND ca.ProductID IS NOT NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Unique Visitors on my Catalog':
-            query = `SELECT COUNT(DISTINCT RemoteIP) as count FROM DatabaseCallLog WHERE UserId = @userId AND Timestamp BETWEEN @start AND @end`;
+        case 'Catalogue Visitors':
+            query = `
+                SELECT COUNT(DISTINCT fp.fingerprint_hash) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id = @userId 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Product Clicks on my Store':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'click' AND destination = @userId AND timestamp BETWEEN @start AND @end`;
+        case 'My Product Clicks':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM dbo.MerchantProducts mp 
+                INNER JOIN dbo.Products p ON mp.ASIN = p.ASIN AND mp.Source = p.Source 
+                INNER JOIN dbo.FingerprintCatalogAccess fca ON fca.ProductID = p.ID 
+                WHERE (fca.ProductID IS NOT NULL) 
+                  AND (mp.UserId = @userId) 
+                  AND fca.timestamp BETWEEN @start AND @end
+            `;
             break;
         case 'Referral Clicks on my Store':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'click' AND destination = @userId AND timestamp BETWEEN @start AND @end`;
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id = @userId 
+                  AND ca.ProductID IS NOT NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
         case 'Product Views on my Store':
-            query = `SELECT COUNT(DISTINCT IP) as count FROM PostHogEvents WHERE eventtype = 'view' AND destination = @userId AND timestamp BETWEEN @start AND @end`;
+            query = `
+                SELECT COUNT(DISTINCT fp.fingerprint_hash) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id = @userId 
+                  AND ca.ProductID IS NOT NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Total Clicks by my Signups':
-            query = `SELECT COUNT(*) as count FROM DatabaseCallLog WHERE UserId IN (SELECT user_id FROM Users WHERE referrer = @userId) AND Timestamp BETWEEN @start AND @end`;
+        case 'Total Views':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id IN (SELECT user_id FROM Users WHERE referrer = @userId) 
+                  AND ca.ProductID IS NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Referral Clicks by my Signups':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'click' AND source_referrer = @userId AND timestamp BETWEEN @start AND @end`;
+        case 'Total Clicks':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id IN (SELECT user_id FROM Users WHERE referrer = @userId) 
+                  AND ca.ProductID IS NOT NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'New User Signups by my Signups':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'signup' AND source_referrer = @userId AND timestamp BETWEEN @start AND @end`;
+        case 'Total Visitors':
+            query = `
+                SELECT COUNT(DISTINCT fp.fingerprint_hash) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE fp.user_id IN (SELECT user_id FROM Users WHERE referrer = @userId) 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Unique Visitors by my Signups':
-            query = `SELECT COUNT(DISTINCT RemoteIP) as count FROM DatabaseCallLog WHERE UserId IN (SELECT user_id FROM Users WHERE referrer = @userId) AND Timestamp BETWEEN @start AND @end`;
+        case 'Network Views':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                WHERE ca.ProductID IS NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Total Clicks for the Network':
-            query = `SELECT COUNT(*) as count FROM DatabaseCallLog WHERE Timestamp BETWEEN @start AND @end`;
+        case 'Network Clicks':
+            query = `
+                SELECT COUNT(*) as count 
+                FROM FingerprintCatalogAccess ca 
+                WHERE ca.ProductID IS NOT NULL 
+                  AND ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'Referral Clicks for the Network':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'click' AND timestamp BETWEEN @start AND @end`;
+        case 'Network Visitors':
+            query = `
+                SELECT COUNT(DISTINCT fp.fingerprint_hash) as count 
+                FROM FingerprintCatalogAccess ca 
+                JOIN UserFingerprints fp ON ca.fingerprint_id = fp.id 
+                WHERE ca.timestamp BETWEEN @start AND @end
+            `;
             break;
-        case 'New User Signups for the Network':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'signup' AND timestamp BETWEEN @start AND @end`;
-            break;
-        case 'Unique Visitors for the Network':
-            query = `SELECT COUNT(DISTINCT RemoteIP) as count FROM DatabaseCallLog WHERE Timestamp BETWEEN @start AND @end`;
-            break;
-        case 'User Logins for the Network':
-            query = `SELECT COUNT(*) as count FROM PostHogEvents WHERE eventtype = 'login' AND timestamp BETWEEN @start AND @end`;
-            break;
+
         default:
             throw new Error('Invalid report type');
     }

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Madeira P&L Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 300px;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 5px;
+        }
+        .percent-input {
+            position: relative;
+            display: inline-block;
+        }
+        .percent-input input {
+            padding-right: 20px;
+        }
+        .percent-input::after {
+            content: '%';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+        }
+        .pound-input {
+            position: relative;
+            display: inline-block;
+        }
+        .pound-input input {
+            padding-left: 20px;
+        }
+        .pound-input::before {
+            content: '£';
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+        }
+        .dollar-input {
+            position: relative;
+            display: inline-block;
+        }
+        .dollar-input input {
+            padding-left: 20px;
+        }
+        .dollar-input::before {
+            content: '$';
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+            font-size: 0.9em;
+        }
+        ul {
+            list-style-type: disc;
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .profit-loss {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .profit-loss li {
+            margin: 5px 0;
+        }
+        .negative {
+            color: red;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Club Madeira P&L Calculator</h1>
+
+    <h2>Input Parameters</h2>
+    
+    <div class="input-section">
+        <h3>Sales Inputs</h3>
+        <div class="input-group">
+            <label>Number of community sites (default: 20):</label>
+            <input type="number" id="numSites" value="20" min="1" max="10000" step="5">
+        </div>
+        <div class="input-group">
+            <label>Number of merchant sites (default: 30):</label>
+            <input type="number" id="numMerchantSites" value="30" min="1" max="10000" step="5">
+        </div>
+        <div class="input-group">
+            <label>Minimum visitors per site per month (default: 1200):</label>
+            <input type="number" id="visitors" value="1200" min="0" max="5000" step="100">
+        </div>
+        <div class="input-group">
+            <label>Conversion rate in percent (default: 1):</label>
+            <div class="percent-input">
+                <input type="number" id="conversionRate" value="1" min="0.1" max="5.0" step="0.1">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Average sale price in pounds (default: £40):</label>
+            <div class="pound-input">
+                <input type="number" id="salePrice" value="40" min="5" max="60" step="5">
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-section">
+        <h3>Sales Split Inputs</h3>
+        <div class="input-group">
+            <label>Amazon sales share in percent (default: 35):</label>
+            <div class="percent-input">
+                <input type="number" id="amazonShare" value="35" min="0" max="100" step="5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>eBay sales share in percent (default: 25):</label>
+            <div class="percent-input">
+                <input type="number" id="ebayShare" value="25" min="0" max="100" step="5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Merchants sales share in percent (default: 40):</label>
+            <div class="percent-input">
+                <input type="number" id="merchantShare" value="40" min="0" max="100" step="5">
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-section">
+        <h3>Revenue Inputs</h3>
+        <div class="input-group">
+            <label>Amazon commission rate in percent (default: 6):</label>
+            <div class="percent-input">
+                <input type="number" id="amazonRate" value="6" min="5" max="7" step="0.5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>eBay commission rate in percent (default: 3):</label>
+            <div class="percent-input">
+                <input type="number" id="ebayRate" value="3" min="2" max="4" step="0.5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Merchant net commission rate in percent (default: 8):</label>
+            <div class="percent-input">
+                <input type="number" id="merchantRate" value="8" min="6" max="10" step="0.5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Monthly merchant fee in pounds (default: £10):</label>
+            <div class="pound-input">
+                <input type="number" id="monthlyMerchantFee" value="10" min="0" max="50" step="5">
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-section">
+        <h3>Cost Inputs</h3>
+        <div class="input-group">
+            <label>Fixed monthly running cost in pounds (default: £180):</label>
+            <div class="pound-input">
+                <input type="number" id="fixedRunningCosts" value="180" min="160" max="2000" step="5">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Cost per site per day in dollars (default: $0.50):</label>
+            <div class="dollar-input">
+                <input type="number" id="costPerSitePerDay" value="0.50" min="0.25" max="2.0" step="0.25">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Community rebate in percent (default: 25):</label>
+            <div class="percent-input">
+                <input type="number" id="rebateRate" value="25" min="0" max="50" step="1">
+            </div>
+        </div>
+    </div>
+    
+    <div id="error" class="error"></div>
+
+    <h2>Profit and Loss</h2>
+    <div id="results">
+        <p>Profit and Loss Statement:</p>
+        <div class="profit-loss">
+            <ul id="profitLossSummary"></ul>
+        </div>
+    </div>
+    <button onclick="resetInputs()">Refresh to Defaults</button>
+
+    <script>
+        // Default values
+        const defaults = {
+            numSites: 20,
+            numMerchantSites: 30,
+            visitors: 1200,
+            conversionRate: 1,
+            salePrice: 40,
+            amazonShare: 35,
+            ebayShare: 25,
+            merchantShare: 40,
+            amazonRate: 6,
+            ebayRate: 3,
+            merchantRate: 8,
+            monthlyMerchantFee: 10,
+            fixedRunningCosts: 180,
+            costPerSitePerDay: 0.50,
+            rebateRate: 25
+        };
+
+        // Constants
+        const EXCHANGE_RATE = 0.75; // $1 = £0.75
+        const DAYS_PER_MONTH = 30;
+        const PARTNER_COMMISSION_RATE = 0.02; // 1% for community signup + 1% for merchant signup
+        const COMMUNITY_COMMISSION_RATE = 0.02; // 2% of merchant sales
+
+        // Get input elements
+        const inputs = {
+            numSites: document.getElementById('numSites'),
+            numMerchantSites: document.getElementById('numMerchantSites'),
+            visitors: document.getElementById('visitors'),
+            conversionRate: document.getElementById('conversionRate'),
+            salePrice: document.getElementById('salePrice'),
+            amazonShare: document.getElementById('amazonShare'),
+            ebayShare: document.getElementById('ebayShare'),
+            merchantShare: document.getElementById('merchantShare'),
+            amazonRate: document.getElementById('amazonRate'),
+            ebayRate: document.getElementById('ebayRate'),
+            merchantRate: document.getElementById('merchantRate'),
+            monthlyMerchantFee: document.getElementById('monthlyMerchantFee'),
+            fixedRunningCosts: document.getElementById('fixedRunningCosts'),
+            costPerSitePerDay: document.getElementById('costPerSitePerDay'),
+            rebateRate: document.getElementById('rebateRate')
+        };
+
+        // Get result elements
+        const profitLossSummary = document.getElementById('profitLossSummary');
+
+        // Error display
+        const errorDiv = document.getElementById('error');
+
+        // Validate and parse input
+        function getInputValue(element, defaultValue) {
+            let value = parseFloat(element.value);
+            if (isNaN(value) || value < 0) {
+                return defaultValue;
+            }
+            return value;
+        }
+
+        // Format number with thousand separators and two decimal places
+        function formatNumber(value, prefix = '') {
+            const number = Number(value).toFixed(2);
+            const parts = number.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return `${prefix}${parts.join('.')}`;
+        }
+
+        // Perform calculation and update display
+        function calculate() {
+            // Clear previous errors
+            errorDiv.textContent = '';
+
+            // Get and validate inputs
+            let numSites = getInputValue(inputs.numSites, defaults.numSites);
+            let numMerchantSites = getInputValue(inputs.numMerchantSites, defaults.numMerchantSites);
+            let visitors = getInputValue(inputs.visitors, defaults.visitors);
+            let conversionRate = getInputValue(inputs.conversionRate, defaults.conversionRate);
+            let salePrice = getInputValue(inputs.salePrice, defaults.salePrice);
+            let amazonShare = getInputValue(inputs.amazonShare, defaults.amazonShare);
+            let ebayShare = getInputValue(inputs.ebayShare, defaults.ebayShare);
+            let merchantShare = getInputValue(inputs.merchantShare, defaults.merchantShare);
+            let amazonRate = getInputValue(inputs.amazonRate, defaults.amazonRate);
+            let ebayRate = getInputValue(inputs.ebayRate, defaults.ebayRate);
+            let merchantRate = getInputValue(inputs.merchantRate, defaults.merchantRate);
+            let monthlyMerchantFee = getInputValue(inputs.monthlyMerchantFee, defaults.monthlyMerchantFee);
+            let fixedRunningCosts = getInputValue(inputs.fixedRunningCosts, defaults.fixedRunningCosts);
+            let costPerSitePerDay = getInputValue(inputs.costPerSitePerDay, defaults.costPerSitePerDay);
+            let rebateRate = getInputValue(inputs.rebateRate, defaults.rebateRate);
+
+            // Check for zero sites to avoid division by zero
+            if (numSites === 0) {
+                numSites = defaults.numSites;
+                inputs.numSites.value = numSites;
+                errorDiv.textContent += 'Number of sites cannot be zero. Using default value (20). ';
+            }
+
+            // Check if sales shares sum to 100%
+            const totalShare = amazonShare + ebayShare + merchantShare;
+            if (Math.abs(totalShare - 100) > 0.01) {
+                errorDiv.textContent += 'Sales shares must sum to 100%. Current sum: ' + totalShare.toFixed(2) + '%. ';
+                return; // Stop calculation if invalid
+            }
+
+            // Calculate total running costs
+            const costPerSitePerMonth = costPerSitePerDay * EXCHANGE_RATE * DAYS_PER_MONTH;
+            const totalRunningCosts = fixedRunningCosts + (numSites * costPerSitePerMonth);
+
+            // Calculate sales and commissions
+            const totalSales = numSites * visitors * (conversionRate / 100) * salePrice;
+            const salesPerCommunity = totalSales / numSites;
+            const amazonSales = totalSales * (amazonShare / 100);
+            const ebaySales = totalSales * (ebayShare / 100);
+            const merchantSales = totalSales * (merchantShare / 100);
+            const amazonCommission = amazonSales * (amazonRate / 100);
+            const ebayCommission = ebaySales * (ebayRate / 100);
+            const merchantCommission = merchantSales * (merchantRate / 100);
+            const merchantFees = numMerchantSites * monthlyMerchantFee;
+            const partnerCommission = merchantSales * PARTNER_COMMISSION_RATE; // 2% of merchant sales
+            const communityCommissionTotal = merchantSales * COMMUNITY_COMMISSION_RATE; // 2% of merchant sales (total)
+            const communityCommissionPerSite = communityCommissionTotal / numSites; // Per community
+            const preliminaryProfit = amazonCommission + ebayCommission + merchantCommission + merchantFees - (partnerCommission + communityCommissionTotal + totalRunningCosts);
+            const communityRebateTotal = preliminaryProfit > 0 ? preliminaryProfit * (rebateRate / 100) : 0;
+            const communityRebatePerSite = communityRebateTotal / numSites;
+            const totalCostOfSales = partnerCommission + communityCommissionTotal + totalRunningCosts + communityRebateTotal;
+            const profitLoss = amazonCommission + ebayCommission + merchantCommission + merchantFees - totalCostOfSales;
+
+            // Update profit and loss summary
+            profitLossSummary.innerHTML = `
+                <li>Total Sales: £${formatNumber(totalSales)}</li>
+                <li>Sales per Community: £${formatNumber(salesPerCommunity)}</li>
+                <li>Amazon Sales: £${formatNumber(amazonSales)}</li>
+                <li>eBay Sales: £${formatNumber(ebaySales)}</li>
+                <li>Merchants Sales: £${formatNumber(merchantSales)}</li>
+                <li><strong>Revenue:</strong></li>
+                <li style="margin-left: 20px;">Amazon Affiliate Commission: £${formatNumber(amazonCommission)}</li>
+                <li style="margin-left: 20px;">eBay Affiliate Commission: £${formatNumber(ebayCommission)}</li>
+                <li style="margin-left: 20px;">Merchant Commission: £${formatNumber(merchantCommission)}</li>
+                <li style="margin-left: 20px;">Monthly Merchant Fees: £${formatNumber(merchantFees)}</li>
+                <li style="margin-left: 20px;"><strong>Total Revenue: £${formatNumber(amazonCommission + ebayCommission + merchantCommission + merchantFees)}</strong></li>
+                <li><strong>Cost of Sales:</strong></li>
+                <li style="margin-left: 20px;">Partner Commission (up to 2% of merchant sales): £${formatNumber(partnerCommission)}</li>
+                <li style="margin-left: 20px;">Community Commission (2% of merchant sales, per community): £${formatNumber(communityCommissionPerSite)}</li>
+                <li style="margin-left: 20px;">Community Rebate (${rebateRate.toFixed(2)}% of profit after costs, per community): £${formatNumber(communityRebatePerSite)}</li>
+                <li style="margin-left: 20px;">Running Costs: £${formatNumber(totalRunningCosts)}</li>
+                <li style="margin-left: 20px;"><strong>Total Cost of Sales: £${formatNumber(totalCostOfSales)}</strong></li>
+                <li class="${profitLoss < 0 ? 'negative' : ''}"><strong>Profit/Loss: £${formatNumber(Math.abs(profitLoss))} ${profitLoss >= 0 ? 'surplus' : 'deficit'}</strong></li>
+            `;
+        }
+
+        // Reset inputs to defaults
+        function resetInputs() {
+            for (let key in inputs) {
+                inputs[key].value = defaults[key];
+            }
+            calculate();
+        }
+
+        // Add event listeners to inputs for real-time updates
+        for (let key in inputs) {
+            inputs[key].addEventListener('input', calculate);
+        }
+
+        // Initial calculation
+        calculate();
+    </script>
+</body>
+</html>

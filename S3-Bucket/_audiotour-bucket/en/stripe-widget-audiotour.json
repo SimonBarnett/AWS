@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-06-28T13:25:00.000000",
+  "voice": "eve",
+  "widget": "stripe-widget",
+  "messages": [
+    {
+      "id": 0,
+      "object": "#reconnectBtn",
+      "text": "We use Stripe to pay club commissions. Use this feature to reconnect or update your Stripe account.",
+      "base64": "//",
+      "x": 20,
+      "y": -60
+    },
+    {
+      "id": 1,
+      "object": "#reconnectBtn",
+      "text": "Click Reconnect Stripe to start the process. You will be redirected to Stripe to securely connect or update your account details.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    }
+  ]
+}

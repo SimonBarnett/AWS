@@ -16,7 +16,6 @@ exports.handler = async (event, { pool } = {}) => {
     }
 
     const maxRecs = parseInt(event.maxRecommendations) || DEFAULT_MAX_RECOMMENDATIONS;
-    const isSandbox = event.sandbox === true || process.env.SANDBOX === 'true';
 
     let notificationEmailTo = event.notificationEmailTo || DEFAULT_NOTIFICATION_EMAIL;
     if (typeof notificationEmailTo === 'string') {
@@ -30,8 +29,7 @@ exports.handler = async (event, { pool } = {}) => {
 
     logger.info('=== STARTING GLOBAL AWIN RECOMMENDATIONS ===', { 
         maxRecs, 
-        notificationEmailTo,
-        isSandbox 
+        notificationEmailTo 
     });
 
     try {
@@ -45,14 +43,14 @@ exports.handler = async (event, { pool } = {}) => {
             FROM dbo.AwinHighApprovalMerchants
             WHERE ProductFeed = 'Yes'
               AND Joined = 0
-              AND TRY_CAST(REPLACE(ApprovalRate, '%', '') AS DECIMAL(5,2)) >= 99.00
+              AND TRY_CAST(REPLACE(ApprovalRate, '%', '') AS DECIMAL(5,2)) >= 80.00
               AND MerchantId NOT IN (
                   SELECT MerchantId 
                   FROM dbo.AwinRecommendedMerchants 
                   WHERE Mode = 'global' 
                     AND CreatedAt > DATEADD(DAY, -${GLOBAL_COOLDOWN_DAYS}, GETDATE())
               )
-            ORDER BY LastSeen DESC
+            ORDER BY TRY_CAST(REPLACE(ApprovalRate, '%', '') AS DECIMAL(5,2)) DESC
         `);
 
         let baseMerchants = candidatesResult.recordset || [];
@@ -109,17 +107,12 @@ Return ONLY valid JSON array.`;
             };
         });
 
-        // ====================== RECORD COOLDOWN (SKIP IN SANDBOX) ======================
-        if (!isSandbox) {
-            for (const rec of recommended) {
-                await pool.request()
-                    .input('merchantId', sql.Int, rec.id)
-                    .input('name', sql.NVarChar, rec.name)
-                    .query(`INSERT INTO dbo.AwinRecommendedMerchants (MerchantId, Mode, Name, CreatedAt) VALUES (@merchantId, 'global', @name, GETDATE())`);
-            }
-            logger.info('Cooldown records written to AwinRecommendedMerchants', { count: recommended.length });
-        } else {
-            logger.info('[SANDBOX] Skipping insert into AwinRecommendedMerchants (no cooldown pollution)');
+        // Record cooldown
+        for (const rec of recommended) {
+            await pool.request()
+                .input('merchantId', sql.Int, rec.id)
+                .input('name', sql.NVarChar, rec.name)
+                .query(`INSERT INTO dbo.AwinRecommendedMerchants (MerchantId, Mode, Name, CreatedAt) VALUES (@merchantId, 'global', @name, GETDATE())`);
         }
 
         // ====================== EMAIL ======================
@@ -174,17 +167,17 @@ Return ONLY valid JSON array.`;
         `;
 
         await sendMail({
-            from: 'support@clubmadeira.uk',
+            from: 'support@smartcatalogue.uk',
             to: notificationEmailTo,
             subject: `Daily AWIN Global Recommendations – ${recommended.length} merchants`,
             html: emailHtml
         });
 
-        logger.info('✅ Global email sent successfully', { recommendedCount: recommended.length, to: notificationEmailTo, isSandbox });
+        logger.info('✅ Global email sent successfully', { recommendedCount: recommended.length, to: notificationEmailTo });
 
         return { 
             statusCode: 200, 
-            body: JSON.stringify({ mode: 'global', recommendedCount: recommended.length, sandbox: isSandbox }) 
+            body: JSON.stringify({ mode: 'global', recommendedCount: recommended.length }) 
         };
 
     } catch (error) {

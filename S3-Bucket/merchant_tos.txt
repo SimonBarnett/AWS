@@ -1,0 +1,172 @@
+# Terms of Service for Club Madeira Merchant Affiliate Program
+
+**Last Updated: 26 August 2025**
+
+Welcome to the Club Madeira Merchant Affiliate Program (the "Program"). These Terms of Service ("Terms") govern your participation as a merchant affiliate whose products are listed and promoted through Club Madeira's platform, with commissions paid to Club Madeira for sales facilitated by the Program. The Program is exclusively invitation-only and by accepting an invitation to join or participate in the Program, you agree to be bound by these Terms. Please read them carefully. These Terms do not constitute tax or legal advice; consult a professional for such advice.
+
+## 1 Definitions
+
+- **"We", "Us", or "Our"**: Club Madeira Ltd, a company registered in England and Wales (company number 16541872, registered office: Ground Floor, Citygate, Longridge Road, Preston, Lancashire PR2 5BQ, United Kingdom).
+- **"You", "Your", or "Merchant"**: The individual or entity participating in the Program, selling Your own products through Our Platform via integration with Your online catalogue.
+- **"Platform"**: the platform provided by Us for Program facilitation.
+- **"Program"**: The Club Madeira Merchant Affiliate Program, through which Your products are listed and promoted (including, but not limited to, via community affiliates), in consideration for which You pay Us commissions for Facilitated Sales.
+- **"Facilitated Sales"**: sales made from Your online catalogue following a tracked lead from the Program.
+- **"Services"**: Tools, links, tracking codes, and integration systems (including but not limited to read-only API keys for your online catalogue) provided for Program participation.
+- **"Online Catalogue"**: Your e-commerce platform (e.g. Shopify, WordPress, WooCommerce, or similar) integrated with Our Platform using a read-only API key.
+
+## 2 Eligibility
+
+### 2.1 To participate, You must:
+
+- Be at least 18 years old or a UK-registered entity.
+- Have a valid UK address or be UK-registered.
+- Comply with all applicable UK laws, including but not limited to those relating to tax (HMRC), advertising (ASA), and data protection (UK GDPR, Data Protection Act 2018).
+- Provide a valid read-only API key for Your Online Catalogue to enable product listing.
+
+### 2.2 
+You warrant that You are the legal and beneficial owner of Your Online Catalogue.
+
+### 2.3 
+We may reject or terminate Your participation at Our sole discretion if You fail to meet these criteria or breach these Terms.
+
+## 3 Merchant Responsibilities
+
+### 3.1 You must:
+
+- Sell your Own products and fulfill orders accurately and promptly.
+- Provide a valid read-only API key for Your Online Catalogue to enable product listing on Our Platform.
+- Pay agreed commissions to Us for all Facilitated Sales, as outlined in the Program's commission structure (provided separately). Such commission structure may be amended from time to time and Your continued participation in the Program constitutes Your acceptance of such changes.
+- Use the Program, Platform and Services fairly and lawfully, and in good faith, including but not limited to:
+  - Promoting Your products honestly, without misleading or deceptive practices;
+  - Using only Our approved promotional materials, links, or integration systems; and
+  - Not engaging in spamming, unsolicited communications, or activities violating UK GDPR or Privacy and Electronic Communications Regulations 2003 and any other applicable privacy laws or regulations.
+
+### 3.2 You must not participate in prohibited activities ("shady conduct") which shall include, but are not limited to:
+
+- Using bots, fake accounts, or fraudulent methods to inflate sales or referrals.
+- Misrepresenting Your products or Our brand.
+- Promoting on platforms with illegal, offensive, or inappropriate content (e.g., hate speech, explicit material), or otherwise bring Our Program into disrepute.
+- Failing to pay commissions to Us following a Facilitated Sale at the then applicable rate .
+- Providing invalid or unauthorised API keys.
+
+### 3.3 
+We may monitor Your activity, including API usage and sales, to ensure compliance with these Terms.
+
+## 4 Termination
+
+### 4.1 We may impose an immediate, permanent ban for shady conduct or other breaches of these Terms, including but not limited to:
+
+- Fraudulent sales or referral practices (including, but not limited to, fake orders).
+- Violation of any UK laws or regulation.
+- Failure to pay commissions arising from a Facilitated Sale.
+- Providing invalid or unauthorised API keys.
+- Actions harming our reputation or brand, or those of other affiliates (including, but not limited to, false claims about products).
+
+### 4.2 Upon a ban:
+
+- Your access to the Program, Platform and Services shall be terminated immediately and without notice, and We shall accept no liability for any losses (including, but not limited to, loss of revenue or opportunity) resulting from such termination.
+- You must cease using all Program materials and Services.
+- Notwithstanding such a ban, all outstanding commission as at the date of termination shall become immediately due and payable without set-off or deduction..
+- You shall be prohibited from rejoining the Program whether in Your own name or otherwise.
+
+### 4.3 
+We may pursue legal action for any direct, indirect or consequential financial loss, reputational damage, or other harm resulting from Your actions leading to the ban.
+
+### 4.4 
+Ban decisions are at Our sole discretion and shall be final.
+
+## 5 Commissions and Payments
+
+### 5.1 
+You must pay us commissions for all Facilitated Sales, per the Program's then current commission structure.
+
+### 5.2 
+Payments are payable on the final day of each month for all commissions earned during that month to Our designated account, with no minimum threshold, and shall be paid without deduction or set-off and in cleared funds.
+
+### 5.3 
+You are responsible for declaring and paying any taxes on sales made by You..
+
+### 5.4 In the event of non-payment we reserve the right to (without prejudice to any of Our other legal rights):
+
+- Charge interest on any overdue sums at a rate of [5]% per annum or such other rate as may be allowed by legislation, whichever is greatest;
+- Cancel Your participation in the Program with immediate effect as set out in clause 4;
+- Refer any outstanding debt to a debt collection agency or legal advisers to pursue, whether through the courts as a money claim or otherwise and You shall be liable for any costs that may arise from this step on an indemnity basis.
+
+### 5.5 
+You agree to co-operate with Us and to provide Us with all information as We may request from time to time to verify the amount of commissions properly due to Us from any Facilitated Sales.
+
+## 6 Service Availability
+
+### 6.1 
+The Services or other material or products offered through the Program may be unavailable from time to time or may be offered on a limited basis.
+
+### 6.2 
+Although We shall use reasonable endeavours to keep the Services up and running these are not offered with a guaranteed level of quality of service and may suffer occasional disruptions and outages. We will use reasonable endeavours to minimise any disruptions but shall not be liable for any financial losses that may arise from such inavailability howsoever caused.
+
+## 7 Intellectual Property
+
+### 7.1 
+We grant You a limited, non-exclusive, revocable licence to use approved promotional materials that We provide to You solely for Program participation.
+
+### 7.2 
+You may not modify, copy, distribute, or create derivative works from Our materials without written consent.
+
+### 7.3 
+All intellectual property rights in Our brand, logos, and materials remain Ours. You retain rights to Your product-related intellectual property.
+
+## 8 Confidentiality
+
+### 8.1 
+Save as required by law, You must not disclose confidential information (including, but not limited to, commission structures, business strategies, or integration details relating to the Program) to third parties without our prior written consent.
+
+### 8.2 
+This obligation survives Program termination.
+
+## 9 Data Protection
+
+### 9.1 
+Both parties must at all times comply with all applicable privacy and data protection legislation in respect of any personal data processed relating to the Program.
+
+### 9.2 
+You shall comply with Our data protection policies as shall be updated from time to time.
+
+## 10 Liability
+
+### 10.1 
+The Program and Services are provided "as is" without warranties, express or implied.
+
+### 10.2 
+To the fullest extent permitted by law, we are not liable for indirect, consequential, or incidental losses (including but not limited to lost profits, data, or opportunities).
+
+### 10.3 
+Our total liability is limited to commissions received from you in the 12 months prior to a claim.
+
+## 11 Force Majeure
+
+### 11.1 
+We are not liable for delays or failures due to events beyond our control (including but not limited to, wars and civil unrest, strikes, natural disasters, cyber-attacks, pandemics).
+
+### 11.2 
+In such cases, obligations may be suspended until the event resolves or for six weeks whichever is soonest, after which time either party may elect to terminate any agreement on these Terms.
+
+## 12 Dispute Resolution
+
+### 12.1 
+Disputes should first be addressed via mediation in good faith.
+
+### 12.2 
+If unresolved, disputes are governed by English law and subject to the exclusive jurisdiction of English courts.
+
+## 13 Changes to Terms
+
+### 13.1 
+We may update these Terms by posting revisions on our website or notifying you.
+
+### 13.2 
+Continued participation after changes constitutes acceptance.
+
+## 14 Contact Us
+
+Email: support@clubmadeira.uk  
+Phone: 01772 36 99 55  
+Ground Floor, Citygate, Longridge Road, Preston, Lancashire PR2 5BQ, United Kingdom  

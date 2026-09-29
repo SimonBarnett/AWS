@@ -82,7 +82,7 @@ async function getStripeClient(event = {}, options = {}) {
         client.vatTaxRateId = isSandbox ? config.VAT_TAX_RATE_ID_TEST : config.VAT_TAX_RATE_ID;
         client.isSandbox = isSandbox;
 
-        logger.debug('✅ Stripe client initialized successfully', {
+        logger.info('✅ Stripe client initialized successfully', {
             transactionId,
             mode: isSandbox ? 'TEST (sandbox)' : 'LIVE'
         });
@@ -97,4 +97,4 @@ async function getStripeClient(event = {}, options = {}) {
 
 module.exports = { getStripeClient };
 
-logger.debug('✅ Stripe module loaded successfully (live/sandbox + partner index.json support)');
+logger.info('✅ Stripe module loaded successfully (live/sandbox + partner index.json support)');

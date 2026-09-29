@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-06-28T12:15:00.000000",
+  "voice": "eve",
+  "widget": "madeira-charts",
+  "messages": [
+    {
+      "id": 0,
+      "object": ".chart-wrapper",
+      "text": "Welcome to your Performance Charts. This powerful tool helps you compare your key metrics across different time periods so you can spot trends and make better decisions for your club.",
+      "base64": "//",
+      "x": 30,
+      "y": -70
+    },
+    {
+      "id": 1,
+      "object": ".frequency-radio",
+      "text": "Granularity changes the selected time range. Daily shows day-by-day performance, Weekly groups data by week, and Monthly shows longer-term monthly trends.",
+      "base64": "//",
+      "x": 10,
+      "y": -55
+    },
+    {
+      "id": 2,
+      "object": "#role-selector",
+      "text": "Selecting a role here allows you to choose reports related to your different roles.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    }, 
+    {
+      "id": 3,
+      "role": "community",
+      "object": "#role-selector",
+      "text": "Select the community role to view community-specific reports.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    }, 
+    {
+      "id": 4,
+      "role": "merchant",
+      "object": "#role-selector",
+      "text": "Select the merchant role to view reports on your clicks.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    }, 
+    {
+      "id": 4,
+      "role": "partner",
+      "object": "#role-selector",
+      "text": "Select the partner role to view aggregate reports for your signups.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    }, 
+    {
+      "id": 5,
+      "role": "admin",
+      "object": "#role-selector",
+      "text": "Select the admin role to view reports on all users.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },             
+    {
+      "id": 6,
+      "object": "#report-selector",
+      "text": "Then select which report you want to view. Hover over the reports to see a description of each report.",
+      "base64": "//",
+      "x": 10,
+      "y": -55
+    },
+    {
+      "id": 7,
+      "object": ".chart-wrapper",
+      "text": "In the chart, the blue bar always represents your current selected period. The grey bar shows the period immediately before it, and the light grey bar shows the period before that. This lets you easily compare performance over time.",
+      "base64": "//",
+      "x": 30,
+      "y": -80
+    }
+  ]
+}

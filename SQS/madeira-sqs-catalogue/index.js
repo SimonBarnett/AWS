@@ -39,10 +39,6 @@ exports.handler = async (event) => {
                         await require('./sqs/onboarding').handle(enrichedPayload);
                         break;
 
-                    /*case 'CATEGORY_UPDATE':
-                        await require('./sqs/process-update').handle(enrichedPayload);
-                        break;*/
-
                     case 'CLUBSCAN_GENERATE_REVIEW':
                         await require('./sqs/generate-review').handle(enrichedPayload);
                         break;

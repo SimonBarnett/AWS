@@ -46,7 +46,6 @@ exports.handler = async (event, { pool } = {}) => {
     const clubId = event.clubId;
     const partnerId = event.partnerId || event.PartnerID || event.partnerID || null;
     const minRelevanceScore = parseFloat(event.minRelevanceScore) || parseFloat(process.env.MIN_RELEVANCE_SCORE) || 0.5;
-    const isSandbox = event.sandbox === true || process.env.SANDBOX === 'true';
 
     let notificationEmailTo = event.notificationEmailTo || process.env.NOTIFICATION_EMAIL_TO;
     if (typeof notificationEmailTo === 'string') {
@@ -61,8 +60,7 @@ exports.handler = async (event, { pool } = {}) => {
         clubId, 
         partnerId,
         minRelevanceScore, 
-        notificationEmailTo,
-        isSandbox 
+        notificationEmailTo 
     });
 
     try {
@@ -190,37 +188,65 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
             return { statusCode: 200, body: JSON.stringify({ mode: 'club', recommendedCount: 0 }) };
         }
 
-        // ====================== RECORD RECOMMENDATIONS (SKIP IN SANDBOX) ======================
-        if (!isSandbox) {
-            await pool.request().query(`
-                MERGE dbo.AwinRecommendedMerchants AS target
-                USING (VALUES ${recommended.map(r => `(${r.merchantId}, 'club', GETDATE())`).join(',')}) 
-                    AS source (MerchantId, Mode, SentAt)
-                ON target.MerchantId = source.MerchantId AND target.Mode = source.Mode
-                WHEN MATCHED THEN UPDATE SET SentAt = source.SentAt
-                WHEN NOT MATCHED THEN INSERT (MerchantId, Mode, SentAt) 
-                    VALUES (source.MerchantId, source.Mode, source.SentAt);
-            `);
+        // Record recommendations
+        await pool.request().query(`
+            MERGE dbo.AwinRecommendedMerchants AS target
+            USING (VALUES ${recommended.map(r => `(${r.merchantId}, 'club', GETDATE())`).join(',')}) 
+                AS source (MerchantId, Mode, SentAt)
+            ON target.MerchantId = source.MerchantId AND target.Mode = source.Mode
+            WHEN MATCHED THEN UPDATE SET SentAt = source.SentAt
+            WHEN NOT MATCHED THEN INSERT (MerchantId, Mode, SentAt) 
+                VALUES (source.MerchantId, source.Mode, source.SentAt);
+        `);
 
-            // Update PartnerID if provided (only in real mode)
-            if (partnerId) {
-                const merchantIdsList = recommended.map(r => r.merchantId).join(',');
-                if (merchantIdsList) {
-                    await pool.request()
-                        .input('partnerId', sql.NVarChar(100), partnerId)
-                        .query(`
-                            UPDATE dbo.AwinHighApprovalMerchants
-                            SET PartnerID = @partnerId
-                            WHERE MerchantId IN (${merchantIdsList})
-                        `);
-                    logger.info(`Updated PartnerID = ${partnerId} for ${recommended.length} recommended merchants`);
+        // ====================== UPDATE PartnerID, ClubID, whyHtml AND joinHtml ======================
+        if (partnerId || clubId) {
+            const merchantIdsList = recommended.map(r => r.merchantId).join(',');
+
+            if (merchantIdsList) {
+                const updateRequest = pool.request();
+
+                let setClauses = [];
+
+                if (partnerId) {
+                    updateRequest.input('partnerId', sql.NVarChar(100), partnerId);
+                    setClauses.push('PartnerID = @partnerId');
+                }
+
+                if (clubId) {
+                    updateRequest.input('clubId', sql.VarChar(8), clubId);
+                    setClauses.push('ClubID = @clubId');
+                }
+
+                if (setClauses.length > 0) {
+                    await updateRequest.query(`
+                        UPDATE dbo.AwinHighApprovalMerchants
+                        SET ${setClauses.join(', ')}
+                        WHERE MerchantId IN (${merchantIdsList})
+                    `);
                 }
             }
-
-            logger.info('Cooldown records written to AwinRecommendedMerchants (club mode)', { count: recommended.length });
-        } else {
-            logger.info('[SANDBOX] Skipping insert into AwinRecommendedMerchants and PartnerID update');
         }
+
+        // ====================== UPDATE whyHtml AND joinHtml FOR ALL RECOMMENDED MERCHANTS ======================
+        for (const rec of recommended) {
+            const whyHtml = (rec.description ? rec.description + '<br><br>' : '') + rec.whyItFits;
+            const joinHtml = rec.joinRequestMessage.replace(/\n/g, '<br>');
+
+            await pool.request()
+                .input('merchantId', sql.Int, rec.merchantId)
+                .input('whyHtml', sql.NVarChar(sql.MAX), whyHtml)
+                .input('joinHtml', sql.NVarChar(sql.MAX), joinHtml)
+                .query(`
+                    UPDATE dbo.AwinHighApprovalMerchants
+                    SET 
+                        whyHtml  = @whyHtml,
+                        joinHtml = @joinHtml
+                    WHERE MerchantId = @merchantId
+                `);
+        }
+
+        logger.info(`Updated whyHtml and joinHtml for ${recommended.length} recommended merchants`);
 
         // ====================== EMAIL (ALWAYS SENT) ======================
         let emailRows = '';
@@ -273,21 +299,21 @@ ${batch.map(m => `${m.id}|${m.name}|${m.primarySector || ''}|${(m.description ||
         `;
 
         await sendMail({
-            from: 'support@clubmadeira.uk',
+            from: 'support@smartcatalogue.uk',
             to: notificationEmailTo,
             subject: `AWIN Join Recommendations – Club ${clubId}`,
             html: emailHtml
         });
 
-        logger.info('Club recommendations email sent successfully', { recommendedCount: recommended.length, isSandbox });
+        logger.info('Club recommendations email sent successfully', { recommendedCount: recommended.length });
 
         return { 
             statusCode: 200, 
             body: JSON.stringify({ 
                 mode: 'club', 
                 recommendedCount: recommended.length,
-                partnerIdUpdated: !!partnerId && !isSandbox,
-                sandbox: isSandbox 
+                partnerIdUpdated: !!partnerId,
+                clubIdUpdated: !!clubId
             }) 
         };
 

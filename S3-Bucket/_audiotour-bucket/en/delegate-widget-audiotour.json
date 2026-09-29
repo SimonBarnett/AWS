@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-06-28T13:07:00.000000",
+  "voice": "eve",
+  "widget": "delegate-widget",
+  "messages": [
+    {
+      "id": 0,
+      "object": "#delegate-widget",
+      "text": "This feature allows the current site curator to nominate someone else to take over maintenance of the site. For example, if you signed up on behalf of your club, but someone else is now responsible for the club's website, you can delegate the account to them. The new curator will receive an email invitation to accept the delegation.",
+      "base64": "//",
+      "x": 20,
+      "y": -60
+    },
+    {
+      "id": 1,
+      "object": "#first_name",
+      "text": "Enter the first name of the person you want to delegate the account to.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 2,
+      "object": "#email",
+      "text": "Enter the email address of the person who will receive the delegation invitation.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 3,
+      "object": "#phone",
+      "text": "Enter the phone number of the person you are delegating to. This is so we can send them a verification code.",
+      "base64": "//",
+      "x": 10,
+      "y": -55
+    },
+    {
+      "id": 4,
+      "object": "#delegateBtn",
+      "text": "Click Delegate Account to send the invitation. The person will receive an email with instructions on how to accept. Once they accept, they will become the new curator of the site and you will receive a confirmation.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    }
+  ]
+}

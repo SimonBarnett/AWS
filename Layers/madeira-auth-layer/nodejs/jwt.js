@@ -80,4 +80,4 @@ async function verifyJWT(token) {
 
 module.exports = { signJWT, verifyJWT };
 
-logger.debug('✅ JWT module loaded successfully');
+logger.info('✅ JWT module loaded successfully');

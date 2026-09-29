@@ -45,7 +45,7 @@ async function sendSmsTextmagic(phone, message) {
         });
 
         if (response.status === 201) {
-            logger.debug('✅ SMS sent successfully via TextMagic', { 
+            logger.info('✅ SMS sent successfully via TextMagic', { 
                 to: normalizedPhone 
             });
             return true;
@@ -70,4 +70,4 @@ module.exports = {
     sendSmsTextmagic
 };
 
-logger.debug('✅ SMS module loaded (TextMagic via layer config)');
+logger.info('✅ SMS module loaded (TextMagic via layer config)');

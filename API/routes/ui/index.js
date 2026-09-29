@@ -71,9 +71,17 @@ module.exports = async (event) => {
             const result = await categoryHandler(decoded.user_id, body, method, { pool, sandbox });
             return { statusCode: 200, body: result };
 
-        } else if (path.endsWith('/category/reset') && method === 'POST') {
-            const result = await resetHandler(decoded.user_id, { pool, sandbox });
-            return { statusCode: 200, body: result };
+        // ====================== RESET ROUTE ======================
+        } else if (path.endsWith('/reset') && method === 'POST') {
+            return await resetHandler(event, { pool, sandbox });
+
+        // ====================== CLUBS ROUTE (GET + POST) ======================
+        } else if (path.endsWith('/clubs') && (method === 'GET' || method === 'POST')) {
+            return await require('./clubs')(event, { pool, sandbox });
+
+        // ====================== PARTNER ROUTE (GET + POST) ======================
+        } else if (path.endsWith('/partner') && (method === 'GET' || method === 'POST')) {
+            return await require('./partner')(event, { pool, sandbox });
 
         } else if (path.endsWith('/add-role') && method === 'POST') {
             return await addRoleHandler(event, { pool, sandbox });

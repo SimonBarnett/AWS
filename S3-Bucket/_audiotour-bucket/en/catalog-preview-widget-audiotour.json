@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-06-28T14:10:00.000000",
+  "voice": "eve",
+  "widget": "catalog-preview-widget",
+  "messages": [
+    {
+      "id": 0,
+      "object": "#catalog-preview-widget",
+      "text": "Usually, the partner who invited you will set up the catalogue widget on your website. However, you can use this page choose a style, copy the code, and get instructions to add your clubs smart catalogue to your content management system.",
+      "base64": "//",
+      "x": 20,
+      "y": -55
+    },
+    {
+      "id": 1,
+      "object": "#style-select",
+      "text": "Use this dropdown to choose the visual style of your catalogue widget. The preview below will update automatically.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 2,
+      "object": "#madeira-widget-iframe",
+      "text": "This is a live preview of how your catalogue widget will look on your website with the selected style.",
+      "base64": "//",
+      "x": 25,
+      "y": -60
+    },
+    {
+      "id": 3,
+      "object": "#script-textarea",
+      "text": "This is the HTML code you need to add to your website. It includes your affiliate ID and the selected style.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    },
+    {
+      "id": 4,
+      "object": "#copy-button",
+      "text": "Click this button to copy the code to your clipboard so you can paste it into your website.",
+      "base64": "//",
+      "x": 10,
+      "y": -65
+    },
+    {
+      "id": 5,
+      "object": ".provider-radio-group",
+      "text": "Select your content management system or website platform. Click on the logo to see step-by-step instructions for installing the catalogue widget on your chosen platform.",
+      "base64": "//",
+      "x": 15,
+      "y": -50
+    }
+  ]
+}

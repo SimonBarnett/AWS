@@ -1,0 +1,137 @@
+/* Transparent scheme for purple background */
+.catalog-widget {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-container {
+    background: transparent;
+}
+
+.controls-container {
+    background: transparent;
+}
+
+.mobile-controls {
+    background: transparent;
+}
+
+.mobile-controls .subcategory-filter {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.mobile-controls .icon-container i {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.parts-container {
+    background: transparent;
+}
+
+.loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.no-records {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.no-records i {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.error {
+    background: rgba(139, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-button {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.menu-button i {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.filter-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.subcategory-filter {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.subcategory-filter option {
+    background: rgba(0, 0, 0, 0.8);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.part {
+    border-color: rgba(170, 170, 170, 0.8);
+    background: white;
+    color: rgba(0, 0, 0, 0.9);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.part:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.price-shield {
+    background-color: rgba(255, 204, 0, 0.8);
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.secondary-price-shield {
+    background-color: rgba(255, 204, 0, 0.8);
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.part h3 {
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.part p {
+    color: rgba(51, 51, 51, 0.9);
+}
+
+.source-icon {
+    background-color: rgba(255, 204, 0, 0.8);
+    border-color: rgba(0, 0, 0, 0.8);
+}
+.source-icon i {
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.sponsor-icon {
+    background-color: rgba(255, 204, 0, 0.8);
+    border-color: rgba(0, 0, 0, 0.8);
+}
+
+.sponsor-icon i {
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.dropdown-menu {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.dropdown-menu li {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.dropdown-menu li:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

@@ -1,0 +1,51 @@
+{
+  "generated_at": "2026-06-23T13:40:34.287923",
+  "voice": "fable",
+  "widget": "metrics-widget",
+  "messages": [
+    {
+      "id": 0,
+      "object": "#metrics-widget",
+      "text": "These are the current metrics for your site, so you can see how your club is doing right now.",
+      "base64": "//",
+      "x": 20,
+      "y": -55
+    }, 
+    {
+      "id": 1,
+      "role": "community",
+      "object": "#metrics-widget",
+      "text": "As a club, your metrics are displayed here, including category views, part clicks and your top categories.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    },
+    {
+      "id": 2,
+      "role": "merchant",
+      "object": "#metrics-widget",
+      "text": "As a merchant you'll see the number of API keys you have created, plus any warnings.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    },
+    {
+      "id": 3,
+      "role": "partner",
+      "object": "#metrics-widget",
+      "text": "As a partner you'll see your community and merchant onboarding metrics for this month.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    },
+    {
+      "id": 4,
+      "role": "admin",
+      "object": "#metrics-widget",
+      "text": "As an administrator, you will see community and merchant onboarding metrics for all partners.",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    }
+  ]
+}

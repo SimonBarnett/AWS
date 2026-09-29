@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-06-28T13:45:00.000000",
+  "voice": "eve",
+  "widget": "gdpr-delete",
+  "messages": [
+    {
+      "id": 0,
+      "object": "#deleteBtn",
+      "text": "In compliance with GDPR regulations, this will permanently delete your entire account and all associated data, including your catalogue, products, and categories. This action cannot be undone!<whisper>I really mean it.</whisper>",
+      "base64": "//",
+      "x": 20,
+      "y": -60
+    },
+    {
+      "id": 1,
+      "object": "#deleteBtn",
+      "text": "Clicking Delete My Account will start the deletion process. We will send a PIN number to your registered phone number to verify that you really want to permanently delete your account.[pause]<whisper>Don't do it!</whisper>",
+      "base64": "//",
+      "x": 10,
+      "y": -70
+    }
+  ]
+}

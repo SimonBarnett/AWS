@@ -47,7 +47,7 @@ async function sendSuccessEmail(toEmails, clubId, url) {
         .replace(/>/g, '&gt;');
 
     const mailOptions = {
-        from: 'support@clubmadeira.uk',
+        from: 'support@smartcatalogue.uk',
         to: recipients,
         subject: `✅ ${url} has completed onboarding – Please add widget to their website`,
         text: `Hi,
@@ -93,7 +93,7 @@ Club Madeira Integration Team`,
                 <p style="margin-top: 30px; color: #555;">
                     Thank you for bringing another club onboard!<br>
                     <strong>Club Madeira Integration Team</strong><br>
-                    support@clubmadeira.uk
+                    support@smartcatalogue.uk
                 </p>
             </div>
         `
@@ -121,7 +121,7 @@ async function sendFailureEmail(toEmails, url, errorMessage) {
     }
 
     const mailOptions = {
-        from: 'noreply@clubmadeira.uk',
+        from: 'noreply@smartcatalogue.uk',
         to: recipients,
         subject: `Failure in Processing URL: ${url}`,
         text: `Failed to process ${url}:\n\n${errorMessage}`,
@@ -161,6 +161,8 @@ async function handleSendEmail(payload) {
             return await sendCPOnboardedEmail(data);
         case 'deletion_otp':
             return await sendDeletionOtp(data);
+        case 'reset_otp':
+            return await sendResetOtp(data);            
         default:
             logger.warn('Unknown emailType in SEND_EMAIL', { emailType });
             return { success: false, reason: 'unknown_email_type' };
@@ -237,7 +239,7 @@ async function sendEmail({ email, token, phone, signup_url, tokenType, url, pin 
     const imageBuffer = await getImageBuffer(imageKey);
 
     const mailOptions = {
-        from: 'support@clubmadeira.uk',
+        from: 'support@smartcatalogue.uk',
         to: email,
         subject,
         text,
@@ -308,7 +310,7 @@ async function sendDelegationEmail({ email, token, phone, signup_url, url, otp }
     const imageBuffer = await getImageBuffer('community.png');
 
     const mailOptions = {
-        from: 'support@clubmadeira.uk',
+        from: 'support@smartcatalogue.uk',
         to: email,
         subject: `Transfer of control for ${url || 'your account'}`,
         text: `You have been invited to take control of the catalogue on ${url || 'your account'}.`,
@@ -350,7 +352,7 @@ async function sendDelegationAcceptedEmail({ new_email, old_email }) {
     const imageBuffer = await getImageBuffer('community.png');
 
     const mailOptions = {
-        from: 'support@clubmadeira.uk',
+        from: 'support@smartcatalogue.uk',
         to: old_email,
         subject: 'Delegation Accepted',
         html: `
@@ -374,7 +376,7 @@ async function sendMerchantBuyUrlEmail({ merchantEmail, url, jsonResult, pdfBase
     const imageBuffer = await getImageBuffer('merchant.png');
 
     const mailOptions = {
-        from: 'support@clubmadeira.uk',
+        from: 'support@smartcatalogue.uk',
         to: merchantEmail,
         subject: `Your Purchased URL Report for ${url}`,
         html: `
@@ -405,6 +407,21 @@ async function sendDeletionOtp({ phone, otp }) {
     if (!phone || !otp) return { success: false, reason: 'missing_phone_or_otp' };
 
     const smsMessage = `⚠️ Club Madeira PERMANENT DELETION OTP: ${otp} (expires in 15 min). Reply STOP to cancel.`;
+    
+    try {
+        await sendSmsTextmagic(phone, smsMessage);
+        logger.info('Deletion OTP SMS sent via SQS', { phone: phone.slice(-4) });
+        return { success: true };
+    } catch (error) {
+        logger.error('Failed to send deletion OTP SMS', { error: error.message });
+        return { success: false, reason: error.message };
+    }
+}
+
+async function sendResetOtp({ phone, otp }) {
+    if (!phone || !otp) return { success: false, reason: 'missing_phone_or_otp' };
+
+    const smsMessage = `Club Madeira reset OTP: ${otp} (expires in 15 min).`;
     
     try {
         await sendSmsTextmagic(phone, smsMessage);

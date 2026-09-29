@@ -1,0 +1,131 @@
+/* Light color scheme */
+.catalog-widget {
+    background: #f0f0f0;
+    color: #000;
+}
+
+.menu-container {
+    background: #f0f0f0;
+}
+
+.controls-container {
+    background: #fff;
+}
+
+.mobile-controls {
+    background: #fff;
+}
+
+.mobile-controls .subcategory-filter {
+    background: #fff;
+    color: #000;
+    border-color: #ccc;
+}
+
+.mobile-controls .icon-container i {
+    color: #000;
+}
+
+.parts-container {
+    background: #f0f0f0;
+}
+
+.loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.no-records {
+    background: #f0f0f0;
+    color: #000;
+}
+
+.no-records i {
+    color: #000;
+}
+
+.error {
+    background: #ffcccc;
+    color: #cc0000;
+}
+
+.menu-button {
+    background: #fff;
+    color: #000;
+}
+
+.menu-button:hover {
+    background: #ddd;
+}
+
+.menu-button i {
+    color: #000;
+}
+
+.filter-label {
+    color: #000;
+}
+
+.subcategory-filter {
+    background: #fff;
+    color: #000;
+    border-color: #ccc;
+}
+
+.part {
+    border-color: #ccc;
+    background: #fff;
+    color: #000;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.part:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.price-shield {
+    background-color: #ffcc00;
+    color: #000;
+}
+
+.secondary-price-shield {
+    background-color: #ffcc00;
+    color: #000;
+}
+
+.part h3 {
+    color: #000;
+}
+
+.part p {
+    color: #000;
+}
+
+.source-icon {
+    background-color: #000;
+    border-color: #ffcc00;
+}
+.source-icon i {
+    color: #ffcc00;
+}
+
+.sponsor-icon {
+    background-color: #000;
+    border-color: #ffcc00;
+}
+
+.sponsor-icon i {
+    color: #ffcc00;
+}
+
+.dropdown-menu {
+    background: white;
+    border-color: #ccc;
+}
+
+.dropdown-menu li {
+    color: #000;
+}
+
+.dropdown-menu li:hover {
+    background: #f0f0f0;
+}
