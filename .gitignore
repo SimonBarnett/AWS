@@ -135,3 +135,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Keep Amplify Wix vendor trees even under **/dist/**
+!HOST/**/static.parastorage.com/
+!HOST/**/static.parastorage.com/**
+!HOST/**/static.wixstatic.com/
+!HOST/**/static.wixstatic.com/**
