@@ -1,0 +1,37 @@
+[
+ [
+  "training-videos.html",
+  [
+   [
+    "player",
+    "comp-mrurgxvo",
+    "https://video.wixstatic.com/video/f90334_9860070f53e746b4ae5c8dbacff86708/360p/mp4/file.mp4",
+    "<video class=\"cm-static-video\" data-cm-video=\"comp-mrurgxvo\" controls playsinline preload=\"metadata\" poster=\"media/video"
+   ],
+   [
+    "player",
+    "comp-mrurgxvz",
+    "https://video.wixstatic.com/video/f90334_e5f8fc44c8514bc7ab8fc2e994237c69/360p/mp4/file.mp4",
+    "<video class=\"cm-static-video\" data-cm-video=\"comp-mrurgxvz\" controls playsinline preload=\"metadata\" poster=\"media/video"
+   ],
+   [
+    "player",
+    "comp-ms1t6vrb",
+    "https://video.wixstatic.com/video/f90334_63585f1843de4ec9aa1ff6d055674af1/360p/mp4/file.mp4",
+    "<video class=\"cm-static-video\" data-cm-video=\"comp-ms1t6vrb\" controls playsinline preload=\"metadata\" poster=\"media/video"
+   ],
+   [
+    "player",
+    "comp-mqrtwrrq",
+    "https://youtu.be/nwcRpBtl3DY",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mqrtwrrq\" src=\"https://www.youtube.com/embed/nwcRpBtl3DY?rel=0\" titl"
+   ],
+   [
+    "player",
+    "comp-mqrtx45n",
+    "https://youtu.be/uB4RBVL6ra0",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mqrtx45n\" src=\"https://www.youtube.com/embed/uB4RBVL6ra0?rel=0\" titl"
+   ]
+  ]
+ ]
+]

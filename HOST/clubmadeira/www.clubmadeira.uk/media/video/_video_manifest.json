@@ -1,0 +1,75 @@
+[
+ [
+  "communities.html",
+  [
+   [
+    "player",
+    "comp-mhkpvlqb",
+    "https://youtu.be/tQg1nxSOCtc",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mhkpvlqb\" src=\"https://www.youtube.com/embed/tQg1nxSOCtc?rel=0&amp;a"
+   ],
+   [
+    "player",
+    "comp-mf2m8fs2",
+    "https://video.wixstatic.com/video/a6316f_268fc9f0e2da42569a5c8dc718d64c80/360p/mp4/file.mp4",
+    "<video class=\"cm-static-video\" data-cm-video=\"comp-mf2m8fs2\" controls loop muted autoplay playsinline preload=\"metadata\""
+   ]
+  ]
+ ],
+ [
+  "community-resources.html",
+  [
+   [
+    "player",
+    "comp-mpmjx2b2",
+    "https://youtu.be/nwcRpBtl3DY",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mpmjx2b2\" src=\"https://www.youtube.com/embed/nwcRpBtl3DY?rel=0\" titl"
+   ],
+   [
+    "player",
+    "comp-mpmjxfwi",
+    "https://youtu.be/uB4RBVL6ra0",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mpmjxfwi\" src=\"https://www.youtube.com/embed/uB4RBVL6ra0?rel=0\" titl"
+   ]
+  ]
+ ],
+ [
+  "merchants.html",
+  [
+   [
+    "player",
+    "comp-mhkqhlqy",
+    "https://youtu.be/hm_uosB1vls",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mhkqhlqy\" src=\"https://www.youtube.com/embed/hm_uosB1vls?rel=0&amp;a"
+   ]
+  ]
+ ],
+ [
+  "partner-videos.html",
+  [
+   [
+    "player",
+    "comp-mpmkmt5u1",
+    "https://youtu.be/LEYMkXL2Ndo",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mpmkmt5u1\" src=\"https://www.youtube.com/embed/LEYMkXL2Ndo?rel=0\" tit"
+   ]
+  ]
+ ],
+ [
+  "smart-catalogue.html",
+  [
+   [
+    "player",
+    "comp-mq82wv6d",
+    "https://youtu.be/tQg1nxSOCtc",
+    "<iframe class=\"cm-static-video\" data-cm-video=\"comp-mq82wv6d\" src=\"https://www.youtube.com/embed/tQg1nxSOCtc?rel=0&amp;a"
+   ],
+   [
+    "player",
+    "comp-mj898ozf",
+    "https://video.wixstatic.com/video/a6316f_268fc9f0e2da42569a5c8dc718d64c80/360p/mp4/file.mp4",
+    "<video class=\"cm-static-video\" data-cm-video=\"comp-mj898ozf\" controls loop muted autoplay playsinline preload=\"metadata\""
+   ]
+  ]
+ ]
+]
