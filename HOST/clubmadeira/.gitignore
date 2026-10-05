@@ -1,0 +1,10 @@
+# HTTrack / mirror junk (Amplify appRoot is www.*/ â€” leave that tracked)
+/hts-cache/
+/hts-log.txt
+/cookies.txt
+/backblue.gif
+/fade.gif
+/index.html
+/browser.sentry-cdn.com/
+/static.parastorage.com/
+/static.wixstatic.com/
