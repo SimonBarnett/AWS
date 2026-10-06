@@ -17,6 +17,8 @@ Idempotent. Usage (from repo root):
   python HOST/_tools/capture_mobile.py [cm|sc ...] [--no-fetch] [--no-media]
 """
 import html as htmlmod, json, os, re, subprocess, sys, urllib.parse, urllib.request, shutil
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wixmedia as W
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 HOST_DIR = os.path.dirname(TOOLS)
@@ -34,7 +36,13 @@ SITES = {
 }
 NOT_PAGES = {'api', 'bookings-checkout', 'envelope', 'event-details', 'event-details-registration',
              'feed', 'file.mp4', 'service-page', 'stores', 'events'}
+# Sitemap entries deliberately not captured (reason shown in the log)
+SKIP_SITEMAP = {
+    'cm': {'stripe': 'Wix answers 301 -> /store-releases; fix_links.py writes a stripe.html redirect stub'},
+    'sc': {},
+}
 NO_FETCH = '--no-fetch' in sys.argv
+ADD_MISSING = '--add-missing' in sys.argv
 NO_MEDIA = '--no-media' in sys.argv
 MARK = ('<!-- cm-mobile:start -->', '<!-- cm-mobile:end -->')
 
@@ -48,9 +56,12 @@ def read(p):
 def write(p, s):
     with open(lp(p), 'w', encoding='utf-8', newline='') as f: f.write(s)
 
-def fetch_page(site, slug):
+DESKTOP_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+              'Chrome/129.0 Safari/537.36')
+
+def fetch_page(site, slug, ua=UA):
     url = 'https://%s/%s' % (site['origin'], '' if slug == 'index' else slug)
-    cmd = ['curl.exe' if os.name == 'nt' else 'curl', '-s', '--compressed', '-A', UA,
+    cmd = ['curl.exe' if os.name == 'nt' else 'curl', '-s', '--compressed', '-A', ua,
            '-H', 'Accept: text/html,application/xhtml+xml', '-H', 'Accept-Language: en-GB,en;q=0.9',
            '-w', '\n<!--cm-http:%{http_code}-->', url]
     if site['resolve']:
@@ -74,20 +85,20 @@ def desktop_pages(root):
 MEDIA_RE = re.compile(r'https://static\.wixstatic\.com/(?:media|ufonts)/[^"\'\s()<>&\\]+')
 _dl_fail = []
 def localize(root, url):
-    path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+    if '/media/' in url[:40]:  # Wix media -> media/i/<hash12><ext> (short, deterministic; see wixmedia.py)
+        if NO_MEDIA: return url
+        short = W.localize(root, url, _dl_fail)
+        return short or url
+    path = urllib.parse.unquote(urllib.parse.urlparse(url).path)   # ufonts: short already
     disk_rel = 'static.wixstatic.com' + path.replace('~', '_')
     disk = os.path.join(root, *disk_rel.split('/'))
     if not os.path.exists(lp(disk)):
         if NO_MEDIA: return url
         try:
-            req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': 'image/png,image/jpeg,image/gif,image/svg+xml,font/woff2,*/*;q=0.5',
-                                                       'Referer': 'https://www.thesmartcatalogue.com/'})
-            data = urllib.request.urlopen(req, timeout=60).read()
+            W.download(url, disk)
         except Exception as e:
             _dl_fail.append((url, str(e))); return url
-        os.makedirs(lp(os.path.dirname(disk)), exist_ok=True)
-        with open(lp(disk), 'wb') as f: f.write(data)
-        print('   media +', disk_rel[:140], len(data))
+        print('   font +', disk_rel)
     return urllib.parse.quote(disk_rel, safe='/._-')
 
 def outside_scripts(h, fn):
@@ -174,16 +185,61 @@ def process_mobile(site_key, site, slug, raw, mobile, desktop):
     h = rewrite_links(h, site, mobile, desktop)
     h = outside_scripts(h, lambda part: MEDIA_RE.sub(lambda m: localize(root, m.group(0)), part))
     h, ne = fill_embeds(h, site_key, slug + '.html', root)
+    empty = re.findall(r'<div id="(comp-\w+)" class="O5G82F [^"]*"></div>', h)
+    if empty: print('   UNMAPPED HtmlComponents in', slug + '.m.html', empty)
     h = inject_head(h, mobile_block(slug, site['live']))
     return h, ne
+
+def sitemap_slugs(site, raw_dir):
+    cache = os.path.join(raw_dir, 'pages-sitemap.xml')
+    if NO_FETCH and os.path.exists(cache):
+        code, body = 'cached', read(cache)
+    else:
+        code, body = fetch_page(site, 'pages-sitemap.xml', DESKTOP_UA)
+        if code == '200' and '<urlset' in body: write(cache, body)
+    out = []
+    for loc in re.findall(r'<loc>([^<]+)</loc>', body):
+        p = urllib.parse.urlparse(loc.strip()).path.strip('/')
+        out.append(urllib.parse.unquote(p) or 'index')
+    return code, out
+
+def add_missing_desktop(key, site, raw_dir):
+    """Capture desktop markup for sitemap pages that have no desktop copy yet."""
+    root = site['root']
+    code, slugs = sitemap_slugs(site, raw_dir)
+    print('  sitemap', code, slugs)
+    have = set(desktop_pages(root))
+    for slug in slugs:
+        if slug in have: continue
+        if slug in SKIP_SITEMAP.get(key, {}):
+            print('  SKIP', slug, '-', SKIP_SITEMAP[key][slug]); continue
+        rawp = os.path.join(raw_dir, slug + '.desktop.html')
+        if not (NO_FETCH and os.path.exists(rawp)):
+            code, body = fetch_page(site, slug, DESKTOP_UA)
+            ok = code == '200' and '"deviceType":"desktop"' in body and 'wixDesktopViewport' in body
+            print('  fetch desktop', slug, code, len(body), 'ok' if ok else 'FAILED')
+            if not ok: continue
+            write(rawp, body)
+        have.add(slug)
+    for slug in sorted(have):
+        rawp = os.path.join(raw_dir, slug + '.desktop.html')
+        if not os.path.exists(rawp): continue          # HTTrack-era page: leave as is
+        h = read(rawp)
+        h = rewrite_links(h, site, set(), have)
+        h = outside_scripts(h, lambda part: MEDIA_RE.sub(lambda m: localize(root, m.group(0)), part))
+        h, ne = fill_embeds(h, key, slug + '.html', root)
+        empty = re.findall(r'<div id="(comp-\w+)" class="O5G82F [^"]*"></div>', h)
+        write(os.path.join(root, slug + '.html'), h)
+        print('  wrote desktop', slug + '.html', 'embeds:', ne, ('UNMAPPED HtmlComponents: %s' % empty) if empty else '')
 
 def main():
     keys = [a for a in sys.argv[1:] if a in SITES] or list(SITES)
     for key in keys:
         site = SITES[key]; root = site['root']
+        raw_dir = os.path.join(os.path.dirname(HOST_DIR), '_mobile_tmp', 'raw', key); os.makedirs(raw_dir, exist_ok=True)
+        if ADD_MISSING: add_missing_desktop(key, site, raw_dir)
         desktop = desktop_pages(root)
         print('==', key, 'desktop pages:', desktop)
-        raw_dir = os.path.join(os.path.dirname(HOST_DIR), '_mobile_tmp', 'raw', key); os.makedirs(raw_dir, exist_ok=True)
         captured = []
         for slug in desktop:
             rawp = os.path.join(raw_dir, slug + '.html')
@@ -209,6 +265,10 @@ def main():
         if os.path.exists(bak):
             if os.path.exists(man): shutil.move(man, man.replace('.json', '.mobile.json'))
             shutil.move(bak, man)
+    # links to new pages / Wix documents, then desktop nav+footer+viewport fixes (idempotent)
+    subprocess.run([sys.executable, os.path.join(TOOLS, 'fix_links.py')] + keys, check=False)
+    subprocess.run([sys.executable, os.path.join(TOOLS, 'fix_static_nav.py')] + [SITES[k]['root'] for k in keys], check=False,
+                   stdout=subprocess.DEVNULL)
     if _dl_fail:
         print('MEDIA DOWNLOAD FAILURES:'); [print('  ', u, e) for u, e in _dl_fail]
 
