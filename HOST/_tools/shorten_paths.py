@@ -105,8 +105,8 @@ def rewrite_refs(root):
             if not f.endswith(('.html', '.css', '.json')): continue
             p = os.path.join(dp, f)
             with open(p, encoding='utf-8', newline='', errors='surrogateescape') as fh: h = fh.read()
-            if 'wixstatic.com/media/' not in h and TB_OLD not in h: continue
-            nh = rewrite_text(root, h, stats, f.endswith('.html')).replace(TB_OLD + '/', TB_NEW + '/')
+            if 'wixstatic.com/media/' not in h: continue
+            nh = rewrite_text(root, h, stats, f.endswith('.html'))  # tb/ files are unreferenced: HTML keeps https://static.parastorage.com
             if nh != h:
                 with open(p, 'w', encoding='utf-8', newline='', errors='surrogateescape') as fh: fh.write(nh)
                 stats['files'] += 1
