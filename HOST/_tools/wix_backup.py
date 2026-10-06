@@ -83,7 +83,7 @@ def main():
             # component/data JSON Thunderbolt would load for this page (holds dynamic-page data)
             try: t = open(os.path.join(base, 'html', 'desktop', page_path(u)), encoding='utf-8', errors='replace').read()
             except OSError: t = ''
-            for i, fu in enumerate(sorted(set(H.unescape(x) for x in FEAT_RE.findall(t)))):
+            for i, fu in enumerate(sorted(set(x.replace('&amp;', '&') for x in FEAT_RE.findall(t)))):
                 mod = re.search(r'module=thunderbolt-(\w+)', fu).group(1)
                 dst = os.path.join(base, 'json', page_path(u)[:-5] + f'.{mod}{i}.json')
                 c, _ = curl(fu, dst); res['json_' + mod + str(i)] = c
@@ -107,7 +107,8 @@ def main():
         print(key, man['counts'], flush=True)
         jobs = []
         if not NOMEDIA:
-            jobs += [(f'https://static.wixstatic.com/media/{m}', os.path.join(base, 'media', m.replace('~', '_'))) for m in media]
+            # vector art (.svg) is only served from /shapes/ (/media/ answers 403)
+            jobs += [(f"https://static.wixstatic.com/{'shapes' if m.lower().endswith('.svg') else 'media'}/{m}", os.path.join(base, 'media', m.replace('~', '_'))) for m in media]
             jobs += [(f'https://static.wixstatic.com/{s}', os.path.join(base, 'static', *s.split('/'))) for s in statics]
             for vid, q in vids.items():
                 for qq in (q, 1080, 720, 480, 360):
