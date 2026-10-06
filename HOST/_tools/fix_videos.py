@@ -88,6 +88,9 @@ def player_html(cid, p):
             f'style="{style};object-fit:contain"><source src="{local}" type="video/mp4"></video>'), src
 
 def fix_bg(h, log):
+    """Wix background videos (<wix-video data-video-info>): Wix's inline custom element would point
+    the <video> at video.wixstatic.com. Download one quality locally and give the <video> a static
+    src/autoplay/loop/object-fit; cm-wix-guard (vendor_wix.py) stops the Wix element from running."""
     def rep(m):
         tag, info_raw, video_tag = m.group(1), m.group(2), m.group(3)
         if ' src=' in video_tag:
@@ -100,14 +103,22 @@ def fix_bg(h, log):
         for q in quals:
             url = 'https://video.wixstatic.com/' + q['url']
             try:
-                vid = info.get('videoId') or re.search(r'video/([\w]+)/', q['url']).group(1)
+                vid = re.search(r'video/([\w]+)/', q['url']).group(1)
                 local = download(url, f"{vid}-{q['quality']}.mp4"); chosen = url; break
             except Exception as e:
                 print('   bg quality failed', q['quality'], e)
         if not local:
             return m.group(0)
         log.append(('bg', vid, chosen, local))
-        nv = video_tag.replace('<video ', f'<video src="{local}" autoplay ', 1)
+        fit = 'contain' if info.get('fittingType') in ('fit', 'legacy_fit_width', 'legacy_fit_height') else 'cover'
+        pos = {'top': 'center top', 'bottom': 'center bottom', 'left': 'left center', 'right': 'right center',
+               'top_left': 'left top', 'top_right': 'right top', 'bottom_left': 'left bottom',
+               'bottom_right': 'right bottom'}.get(info.get('alignType'), 'center center')
+        nv = video_tag.replace('<video ', f'<video src="{local}" autoplay data-cm-bg="1" '
+                               f'style="width:100%;height:100%;object-fit:{fit};object-position:{pos}" ', 1)
+        for a in ('muted', 'loop', 'playsinline'):
+            if not re.search(r'\s%s(=|\s|>|/)' % a, nv):
+                nv = nv.replace('<video ', f'<video {a} ', 1)
         return tag + nv
     return re.sub(r'(<wix-video [^>]*data-video-info="([^"]+)"[^>]*>)(<video [^>]*>)', rep, h)
 
